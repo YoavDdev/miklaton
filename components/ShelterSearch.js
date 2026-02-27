@@ -72,9 +72,7 @@ export default function ShelterSearch() {
 
     setLoading(true);
     try {
-      // Add city name if query is just a street name
-      const fullQuery = searchQuery.includes('יהוד') ? searchQuery : `${searchQuery}, יהוד-מונוסון`;
-      const response = await fetch(`/api/geocode?q=${encodeURIComponent(fullQuery)}`);
+      const response = await fetch(`/api/geocode?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       
       console.log('Geocode response:', data);
