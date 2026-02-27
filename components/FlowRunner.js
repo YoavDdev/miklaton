@@ -143,15 +143,6 @@ export default function FlowRunner({ flow, onEnd }) {
     a.download = `סיכום-אירוע-${timestamp}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    
-    // Also save JSON version
-    const jsonBlob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });
-    const jsonUrl = URL.createObjectURL(jsonBlob);
-    const jsonA = document.createElement('a');
-    jsonA.href = jsonUrl;
-    jsonA.download = `event-log-${timestamp}.json`;
-    jsonA.click();
-    URL.revokeObjectURL(jsonUrl);
   };
 
   if (!currentStep) {
