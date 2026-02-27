@@ -93,6 +93,9 @@ export default function FlowRunner({ flow, onEnd }) {
     
     localStorage.setItem('lastEventLog', JSON.stringify(summary));
     
+    // Auto-download log on event completion
+    downloadLog();
+    
     if (onEnd) {
       onEnd(summary);
     }
