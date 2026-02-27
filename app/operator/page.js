@@ -28,6 +28,11 @@ export default function OperatorPage() {
     setActiveEvent(null);
   };
 
+  const resetEvent = () => {
+    setActiveEvent(null);
+    setSelectedFlowId('missiles');
+  };
+
   const ekronUrl = process.env.NEXT_PUBLIC_EKRON_URL || '#';
   const incidentFormUrl = process.env.NEXT_PUBLIC_INCIDENT_FORM_URL || '#';
 
@@ -49,9 +54,22 @@ export default function OperatorPage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                🚨 פעילות בזמן אזעקה
-              </h2>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">
+                  🚨 פעילות בזמן אזעקה
+                </h2>
+                {activeEvent && (
+                  <button
+                    onClick={resetEvent}
+                    className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    רענון
+                  </button>
+                )}
+              </div>
 
               {!activeEvent ? (
                 <div className="space-y-4">
