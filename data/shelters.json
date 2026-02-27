@@ -10,8 +10,9 @@
     "directions": "מרחוב האצ\"ל, פנה לאלפרט דרומה",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0343525,
-    "lng": 34.8954513
+    "lat": 32.0345025,
+    "lng": 34.8949571,
+    "address_en": "Alpert St 5, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-104",
@@ -25,7 +26,8 @@
     "accessibility": "נגיש",
     "capacity": 80,
     "lat": 32.0354124,
-    "lng": 34.8957135
+    "lng": 34.8957135,
+    "address_en": "Tenenbaum St 13, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-106",
@@ -38,8 +40,9 @@
     "directions": "ברחוב מוהליבר הראשי, צד מזרחי",
     "accessibility": "נגיש חלקית",
     "capacity": 120,
-    "lat": 32.0296802,
-    "lng": 34.8971626
+    "lat": 32.0355851,
+    "lng": 34.8979152,
+    "address_en": "Mohaliver St 76, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-107",
@@ -52,8 +55,9 @@
     "directions": "ברחוב מוהליבר, צפונית למקלט 106",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0296802,
-    "lng": 34.8971626
+    "lat": 32.039766,
+    "lng": 34.895144,
+    "address_en": "Mohaliver St 107, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-108",
@@ -66,8 +70,9 @@
     "directions": "מדרך משה דיין דרומה לבכור שיטרית",
     "accessibility": "נגיש",
     "capacity": 90,
-    "lat": 32.0265,
-    "lng": 34.8910
+    "lat": 32.032079,
+    "lng": 34.8955857,
+    "address_en": "Bakhor Shitrit St 108, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-110",
@@ -80,8 +85,9 @@
     "directions": "מרחוב ביאליק מערבה לנורדאו",
     "accessibility": "נגיש",
     "capacity": 110,
-    "lat": 32.0292115,
-    "lng": 34.8944055
+    "lat": 32.0294271,
+    "lng": 34.8947363,
+    "address_en": "Nordau St 13, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-111",
@@ -94,8 +100,9 @@
     "directions": "בצומת צוקרמן וקפלנסקי",
     "accessibility": "נגיש",
     "capacity": 85,
-    "lat": 32.0379165,
-    "lng": 34.8940006
+    "lat": 32.0399216,
+    "lng": 34.8947975,
+    "address_en": "Zuckerman St 111, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-302",
@@ -108,8 +115,9 @@
     "directions": "ברחוב גיורא, קרוב למרכז",
     "accessibility": "נגיש",
     "capacity": 95,
-    "lat": 32.0325358,
-    "lng": 34.891081
+    "lat": 32.0335511,
+    "lng": 34.89042999999999,
+    "address_en": "Baikowski St 16, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-305",
@@ -123,7 +131,8 @@
     "accessibility": "נגיש",
     "capacity": 150,
     "lat": 32.0305205,
-    "lng": 34.8882396
+    "lng": 34.8882396,
+    "address_en": "Se'adya Khatuka St 25, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-311",
@@ -136,8 +145,9 @@
     "directions": "בתוך פארק תל יהוד, כניסה מצפון",
     "accessibility": "נגיש",
     "capacity": 200,
-    "lat": 32.0300,
-    "lng": 34.8950
+    "lat": 32.031701,
+    "lng": 34.890833,
+    "address_en": "Marvad ha-Ksamim St, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-312",
@@ -150,8 +160,9 @@
     "directions": "ברחוב אשכולית הראשי",
     "accessibility": "נגיש חלקית",
     "capacity": 75,
-    "lat": 32.0396011,
-    "lng": 34.8918241
+    "lat": 32.0288363,
+    "lng": 34.8879992,
+    "address_en": "Bilu St 4, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-501",
@@ -164,8 +175,9 @@
     "directions": "ברחוב יונה, דרום העיר",
     "accessibility": "נגיש",
     "capacity": 70,
-    "lat": 32.0290794,
-    "lng": 34.8848182
+    "lat": 32.0296356,
+    "lng": 34.8852533,
+    "address_en": "Brener St 17, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-502a",
@@ -179,7 +191,8 @@
     "accessibility": "נגיש",
     "capacity": 80,
     "lat": 32.0305571,
-    "lng": 34.8847341
+    "lng": 34.8847341,
+    "address_en": "Yitshak Sadeh St 11, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-502b",
@@ -192,8 +205,9 @@
     "directions": "ברחוב יצחק שדה, צד מזרחי",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.029945,
-    "lng": 34.883326
+    "lat": 32.0299557,
+    "lng": 34.8839374,
+    "address_en": "Yitshak Sadeh St 14-22, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-503",
@@ -207,7 +221,8 @@
     "accessibility": "נגיש",
     "capacity": 100,
     "lat": 32.0331413,
-    "lng": 34.8857282
+    "lng": 34.8857282,
+    "address_en": "Herzl St 17, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-504",
@@ -221,7 +236,8 @@
     "accessibility": "נגיש",
     "capacity": 85,
     "lat": 32.031635,
-    "lng": 34.8839054
+    "lng": 34.8839054,
+    "address_en": "Gordon St 9, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-506",
@@ -234,8 +250,9 @@
     "directions": "ברחוב הורדים הראשי",
     "accessibility": "נגיש",
     "capacity": 90,
-    "lat": 32.0331001,
-    "lng": 34.8825683
+    "lat": 32.0333405,
+    "lng": 34.8823581,
+    "address_en": "Havradim St 41, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-701",
@@ -248,8 +265,9 @@
     "directions": "כניסה מרחוב העצמאות למערב",
     "accessibility": "נגיש",
     "capacity": 180,
-    "lat": 32.0382176,
-    "lng": 34.8857653
+    "lat": 32.03829,
+    "lng": 34.885978,
+    "address_en": "Oklahoma Park, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-801",
@@ -262,8 +280,9 @@
     "directions": "ברחוב שוהם, נווה מונוסון",
     "accessibility": "נגיש",
     "capacity": 200,
-    "lat": 32.02924,
-    "lng": 34.872325
+    "lat": 32.029189,
+    "lng": 34.872382,
+    "address_en": "Shoham St, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-802",
@@ -276,8 +295,9 @@
     "directions": "ברחוב שנהב, מונוסון",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0287223,
-    "lng": 34.8679233
+    "lat": 32.0283857,
+    "lng": 34.86783339999999,
+    "address_en": "Shenhav St 16, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-803",
@@ -291,7 +311,8 @@
     "accessibility": "נגיש",
     "capacity": 90,
     "lat": 32.0317755,
-    "lng": 34.8689214
+    "lng": 34.8689214,
+    "address_en": "Almog St 14, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-804",
@@ -304,8 +325,9 @@
     "directions": "בצומת משלוק ואלמוג, מונוסון",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.0327806,
-    "lng": 34.871287
+    "lat": 32.032234,
+    "lng": 34.870205,
+    "address_en": "Ya'alom 1, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-805",
@@ -319,7 +341,8 @@
     "accessibility": "נגיש",
     "capacity": 85,
     "lat": 32.0267562,
-    "lng": 34.8755561
+    "lng": 34.8755561,
+    "address_en": "Etrog St 7, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-806",
@@ -333,7 +356,8 @@
     "accessibility": "נגיש",
     "capacity": 95,
     "lat": 32.0301649,
-    "lng": 34.8732847
+    "lng": 34.8732847,
+    "address_en": "Pninim St 5, Yehud-Monosson, Israel"
   },
   {
     "id": "shelter-807",
@@ -346,8 +370,9 @@
     "directions": "בתוך גן המכשפות, מונוסון",
     "accessibility": "נגיש",
     "capacity": 70,
-    "lat": 32.030357,
-    "lng": 34.872532
+    "lat": 32.0302614,
+    "lng": 34.8712755,
+    "address_en": "Pninim St 14, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2501",
@@ -360,8 +385,9 @@
     "directions": "ברחוב אברבנל הראשי",
     "accessibility": "נגיש",
     "capacity": 50,
-    "lat": 32.033413,
-    "lng": 34.889014
+    "lat": 32.033371,
+    "lng": 34.888915,
+    "address_en": "Abarbanel St, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2503",
@@ -374,8 +400,9 @@
     "directions": "ברחוב רם כהן, ליד המתנ\"ס",
     "accessibility": "נגיש",
     "capacity": 60,
-    "lat": 32.0405751,
-    "lng": 34.8925914
+    "lat": 32.0409411,
+    "lng": 34.8925253,
+    "address_en": "Mevo Natan Yonatan 1, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2504",
@@ -388,8 +415,9 @@
     "directions": "כניסה דרך המתנ\"ס הראשי",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0264104,
-    "lng": 34.8574263
+    "lat": 32.0388875,
+    "lng": 34.8921101,
+    "address_en": "Ram Cohen St 2, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2505",
@@ -402,8 +430,9 @@
     "directions": "בגן חזי, כניסה מרחוב הרצל",
     "accessibility": "נגיש",
     "capacity": 40,
-    "lat": 32.0302066,
-    "lng": 34.8740362
+    "lat": 32.030195,
+    "lng": 34.8750271,
+    "address_en": "Rimon St 126, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2506",
@@ -416,8 +445,9 @@
     "directions": "במבנה מנהלת נווה מונוסון",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.0327293,
-    "lng": 34.8711677
+    "lat": 32.032786,
+    "lng": 34.8704212,
+    "address_en": "Almog St 1, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2507",
@@ -431,7 +461,8 @@
     "accessibility": "נגיש",
     "capacity": 55,
     "lat": 32.027979,
-    "lng": 34.881897
+    "lng": 34.881897,
+    "address_en": "Derech HaAtsma'ut 1, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2508",
@@ -444,8 +475,9 @@
     "directions": "ברחוב סעדיה חתוכה הראשי",
     "accessibility": "נגיש",
     "capacity": 45,
-    "lat": 32.0316982,
-    "lng": 34.8885153
+    "lat": 32.031734,
+    "lng": 34.888465,
+    "address_en": "Se'adya Khatuka St, Yehud-Monosson, Israel"
   },
   {
     "id": "protected-2509",
@@ -458,7 +490,8 @@
     "directions": "ברחוב השמחות, אזור מגורים",
     "accessibility": "נגיש",
     "capacity": 50,
-    "lat": 32.0315718,
-    "lng": 34.8925712
+    "lat": 32.031493,
+    "lng": 34.877229,
+    "address_en": "Moshe Dayan, Yehud-Monosson, Israel"
   }
 ]
