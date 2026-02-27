@@ -77,31 +77,29 @@ export default function OperatorPage() {
                     disabled={!selectedFlowId || alertFlowsData.find(f => f.id === selectedFlowId)?.steps.length === 0}
                     className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-lg text-xl transition-colors"
                   >
-                    🚨 התחל אירוע
+                    � התחל אירוע
                   </button>
-
-                  <div className="grid grid-cols-1 gap-3 pt-4 border-t border-gray-200">
-                    <a
-                      href={ekronUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                    >
-                      🔗 פתח Ekron
-                    </a>
-                    <a
-                      href={incidentFormUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="block text-center bg-orange-600 hover:bg-orange-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
-                    >
-                      📋 טופס דיווח אירוע
-                    </a>
-                  </div>
                 </div>
               ) : (
                 <FlowRunner flow={activeEvent} onEnd={endEvent} />
               )}
+            </div>
+
+            <div className="bg-white rounded-lg shadow p-6">
+              <div className="border-t border-gray-200 pt-4">
+                <h3 className="text-lg font-bold text-gray-900 mb-2">📞 קריאה מתושב</h3>
+                <p className="text-sm text-gray-600 mb-3">
+                  לפתיחת קריאה מתושב שמדווח על טיל / לכוד / פצוע / מידע חירום
+                </p>
+                <a
+                  href={ekronUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                >
+                  🔗 פתח Ekron
+                </a>
+              </div>
             </div>
           </div>
 
