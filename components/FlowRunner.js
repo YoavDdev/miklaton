@@ -58,6 +58,12 @@ export default function FlowRunner({ flow, onEnd }) {
     }
   };
 
+  const handleChecklistChange = (index, item, checked) => {
+    setCheckedItems({ ...checkedItems, [index]: checked });
+    const status = checked ? '✓ הושלם' : '✗ בוטל';
+    addToLog(`${status}: ${item}`);
+  };
+
   const handleAction = () => {
     if (!currentStep) return;
     
@@ -93,20 +99,56 @@ export default function FlowRunner({ flow, onEnd }) {
   };
 
   const downloadLog = () => {
+    const endTime = new Date();
+    const duration = startTime ? Math.round((endTime - startTime) / 1000 / 60) : 0;
+    
     const summary = {
       eventType: flow.title,
-      startTime: startTime?.toISOString(),
-      endTime: new Date().toISOString(),
-      log: sessionLog,
+      startTime: startTime?.toLocaleString('he-IL'),
+      endTime: endTime.toLocaleString('he-IL'),
+      durationMinutes: duration,
+      detailedHistory: sessionLog.map(entry => ({
+        time: new Date(entry.timestamp).toLocaleString('he-IL'),
+        action: entry.message
+      })),
+      rawLog: sessionLog,
     };
     
-    const blob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });
+    // Create readable text format
+    let textContent = `סיכום אירוע - ${flow.title}\n`;
+    textContent += `${'='.repeat(60)}\n\n`;
+    textContent += `🕐 התחלה: ${startTime?.toLocaleString('he-IL')}\n`;
+    textContent += `🕐 סיום: ${endTime.toLocaleString('he-IL')}\n`;
+    textContent += `⏱️ משך זמן: ${duration} דקות\n\n`;
+    textContent += `${'='.repeat(60)}\n`;
+    textContent += `📋 היסטוריית פעולות:\n`;
+    textContent += `${'='.repeat(60)}\n\n`;
+    
+    sessionLog.forEach((entry, index) => {
+      const time = new Date(entry.timestamp).toLocaleTimeString('he-IL');
+      textContent += `${index + 1}. [${time}] ${entry.message}\n`;
+    });
+    
+    textContent += `\n${'='.repeat(60)}\n`;
+    textContent += `סוף דוח\n`;
+    
+    const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `event-log-${Date.now()}.json`;
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    a.download = `סיכום-אירוע-${timestamp}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+    
+    // Also save JSON version
+    const jsonBlob = new Blob([JSON.stringify(summary, null, 2)], { type: 'application/json' });
+    const jsonUrl = URL.createObjectURL(jsonBlob);
+    const jsonA = document.createElement('a');
+    jsonA.href = jsonUrl;
+    jsonA.download = `event-log-${timestamp}.json`;
+    jsonA.click();
+    URL.revokeObjectURL(jsonUrl);
   };
 
   if (!currentStep) {
@@ -200,7 +242,7 @@ export default function FlowRunner({ flow, onEnd }) {
                     <input
                       type="checkbox"
                       checked={checkedItems[index] || false}
-                      onChange={(e) => setCheckedItems({ ...checkedItems, [index]: e.target.checked })}
+                      onChange={(e) => handleChecklistChange(index, item, e.target.checked)}
                       className="w-6 h-6 ml-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
                     <span className="text-lg text-gray-900 font-medium">{item}</span>
