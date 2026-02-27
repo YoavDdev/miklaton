@@ -1,40 +1,47 @@
 {
-  "weekLabel": "שבוע 22.02",
+  "weekLabel": "עודכן 27.02.2026",
   "departments": {
     "leadership": {
-      "name": "רמ\"ט / ראש העיר",
+      "name": "הנהלת העירייה",
       "contacts": [
         {
           "id": "mayor",
-          "name": "ראש העיר",
-          "phone": "05X-XXXXXXX",
+          "name": "ראש העיר אמנון סעד",
+          "phone": "054-944-4116",
           "shift": "24/7",
           "active": true
         },
         {
           "id": "ceo",
-          "name": "מנכ\"ל העירייה",
-          "phone": "05X-XXXXXXX",
+          "name": "מנכ\"ל העירייה גיל סימנטוב",
+          "phone": "052-303-9955",
+          "shift": "24/7",
+          "active": true
+        },
+        {
+          "id": "moked_manager",
+          "name": "מנהלת המוקד מירי צרפתי",
+          "phone": "052-633-6430",
           "shift": "24/7",
           "active": true
         }
       ]
     },
-    "security_emergency": {
-      "name": "מכלול בטחון וחירום",
+    "security": {
+      "name": "מכלול בטחון",
       "contacts": [
         {
-          "id": "ariel_ben_tzini",
-          "name": "אריאל בן ציני",
-          "phone": "05X-XXXXXXX",
-          "shift": "יום",
+          "id": "ariel_gerji",
+          "name": "מנהל אגף ביטחון אריאל גרג'י",
+          "phone": "052-386-1184",
+          "shift": "רגיל",
           "active": true
         },
         {
-          "id": "doron_shkaren",
-          "name": "דורון שקרן",
-          "phone": "05X-XXXXXXX",
-          "shift": "לילה",
+          "id": "doron_shafran",
+          "name": "דורון שפרן",
+          "phone": "050-788-8751",
+          "shift": "רגיל",
           "active": true
         }
       ]
@@ -43,23 +50,23 @@
       "name": "מכלול אוכלוסיה",
       "contacts": [
         {
-          "id": "naama_moreshet",
-          "name": "נעמה מורשת",
-          "phone": "05X-XXXXXXX",
+          "id": "naama_morshati",
+          "name": "נעמה מורשתי",
+          "phone": "אין טלפון",
           "shift": "רגיל",
           "active": true
         },
         {
-          "id": "yehudit_shor",
-          "name": "יהודית שור",
-          "phone": "05X-XXXXXXX",
+          "id": "yehudit_shorek",
+          "name": "יהודית שורק",
+          "phone": "050-866-2768",
           "shift": "רגיל",
           "active": true
         },
         {
-          "id": "naami_cohen",
-          "name": "נעמי כהן",
-          "phone": "05X-XXXXXXX",
+          "id": "naomi_cohen",
+          "name": "נעמי כהן (מתנדבים)",
+          "phone": "058-788-8919",
           "shift": "רגיל",
           "active": true
         }
@@ -69,21 +76,21 @@
       "name": "מכלול מידע לציבור",
       "contacts": [
         {
-          "id": "shahar_meirovitz",
-          "name": "שחן מאירוביץ",
-          "phone": "05X-XXXXXXX",
+          "id": "sharon_meirovitz",
+          "name": "דוברות שרון מאירוביץ",
+          "phone": "054-736-3342",
           "shift": "רגיל",
           "active": true
         }
       ]
     },
-    "service_population": {
-      "name": "מכלול שירות מידע ואוכלוסיה",
+    "info_population": {
+      "name": "מכלול עיבוד מידע ואוכלוסיה",
       "contacts": [
         {
           "id": "lior_boker",
           "name": "ליאור בוקר",
-          "phone": "05X-XXXXXXX",
+          "phone": "052-927-8235",
           "shift": "רגיל",
           "active": true
         }
@@ -95,46 +102,46 @@
         {
           "id": "gil_shaked",
           "name": "גיל שקד",
-          "phone": "05X-XXXXXXX",
+          "phone": "055-669-1795",
           "shift": "רגיל",
           "active": true
         },
         {
-          "id": "amir_bonus",
-          "name": "אמיר בונס",
-          "phone": "05X-XXXXXXX",
+          "id": "amir_boyem",
+          "name": "סגן אדריכל העיר אמיר בוים",
+          "phone": "054-927-5758",
           "shift": "רגיל",
           "active": true
         }
       ]
     },
     "hr": {
-      "name": "מכלול כח אדם",
+      "name": "מכלול כוח אדם",
       "contacts": [
         {
           "id": "keren_marbadian",
           "name": "קרן מרבדיאן",
-          "phone": "05X-XXXXXXX",
+          "phone": "אין טלפון",
           "shift": "רגיל",
           "active": true
         }
       ]
     },
-    "baby": {
-      "name": "מכלול תינוק",
+    "education": {
+      "name": "מכלול חינוך",
       "contacts": [
         {
           "id": "mariana_ben_yosef",
-          "name": "מריאנה בן יוסף",
-          "phone": "05X-XXXXXXX",
-          "shift": "יום",
+          "name": "מנהלת החינוך מריאנה בן יוסף",
+          "phone": "050-768-9258",
+          "shift": "רגיל",
           "active": true
         },
         {
           "id": "shimeon_amar",
           "name": "שמעון עמר",
-          "phone": "05X-XXXXXXX",
-          "shift": "לילה",
+          "phone": "050-857-4895",
+          "shift": "רגיל",
           "active": true
         }
       ]
@@ -143,30 +150,30 @@
       "name": "מכלול לוגיסטיקה ותפעול",
       "contacts": [
         {
-          "id": "sharon_n",
-          "name": "שרון נ/ו",
-          "phone": "05X-XXXXXXX",
+          "id": "sharon_levi",
+          "name": "מנהל אגף איכות הסביבה שרון לוי",
+          "phone": "054-542-2221",
           "shift": "רגיל",
           "active": true
         },
         {
-          "id": "hudi_blatsberg",
-          "name": "חודי בלטשברג",
-          "phone": "05X-XXXXXXX",
+          "id": "dudi_blasbourg",
+          "name": "מנהל מחלקת תברואה דודי בלסברג",
+          "phone": "052-545-4106",
           "shift": "רגיל",
           "active": true
         },
         {
-          "id": "menaem_mishal",
-          "name": "מנעם משעל",
-          "phone": "05X-XXXXXXX",
+          "id": "noam_meshal",
+          "name": "תחזוקה נועם משעל",
+          "phone": "050-858-7559",
           "shift": "רגיל",
           "active": true
         },
         {
-          "id": "haim_rabtzi",
-          "name": "חמיים רבצי",
-          "phone": "05X-XXXXXXX",
+          "id": "rahamim_ratzabi",
+          "name": "רחמים רצאבי",
+          "phone": "052-555-5607",
           "shift": "רגיל",
           "active": true
         }
@@ -176,9 +183,9 @@
       "name": "תא פס\"ח",
       "contacts": [
         {
-          "id": "sheini_bengol",
-          "name": "שייני בנגול",
-          "phone": "05X-XXXXXXX",
+          "id": "shimi_bonfil",
+          "name": "שימי בונפיל",
+          "phone": "050-777-1037",
           "shift": "רגיל",
           "active": true
         }
