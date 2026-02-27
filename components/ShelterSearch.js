@@ -345,17 +345,6 @@ export default function ShelterSearch() {
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-3 flex-wrap">
-                  <span className={`px-4 py-2 rounded-lg text-sm font-bold shadow-sm ${getAccessibilityColor(shelter.accessibility)}`}>
-                    ♿ {shelter.accessibility}
-                  </span>
-                  {shelter.capacity && (
-                    <span className="px-4 py-2 rounded-lg text-sm font-bold bg-purple-100 text-purple-700 border border-purple-200">
-                      👥 קיבולת: {shelter.capacity}
-                    </span>
-                  )}
-                </div>
-                
                 {shelter.notes && (
                   <div className="mt-3 text-sm text-gray-700 bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
                     <span className="font-semibold text-yellow-700">💡 הערה:</span> {shelter.notes}
