@@ -270,6 +270,20 @@
     "address_en": "Oklahoma Park, Yehud-Monosson, Israel"
   },
   {
+    "id": "shelter-702",
+    "number": "702",
+    "type": "מקלט",
+    "name": "מקלט 702",
+    "address": "יהוד",
+    "neighborhood": "מערב העיר",
+    "landmarks": "",
+    "directions": "",
+    "accessibility": "נגיש",
+    "capacity": 100,
+    "lat": 32.038101,
+    "lng": 34.887542
+  },
+  {
     "id": "shelter-801",
     "number": "801",
     "type": "מקלט",
