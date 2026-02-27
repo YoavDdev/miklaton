@@ -1,0 +1,233 @@
+[
+  {
+    "id": "shelter-102",
+    "number": "102",
+    "address": "אלפרט 5, יהוד",
+    "lat": 32.0343525,
+    "lng": 34.8954513
+  },
+  {
+    "id": "shelter-104",
+    "number": "104",
+    "address": "טננבאום 13, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-106",
+    "number": "106",
+    "address": "מוהליבר 76, יהוד",
+    "lat": 32.0296802,
+    "lng": 34.8971626
+  },
+  {
+    "id": "shelter-107",
+    "number": "107",
+    "address": "מוהליבר 106, יהוד",
+    "lat": 32.0296802,
+    "lng": 34.8971626
+  },
+  {
+    "id": "shelter-108",
+    "number": "108",
+    "address": "בכור שיטרית 108, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-110",
+    "number": "110",
+    "address": "נורדאו 11, יהוד",
+    "lat": 32.0292115,
+    "lng": 34.8944055
+  },
+  {
+    "id": "shelter-111",
+    "number": "111",
+    "address": "צוקרמן פינת קפלנסקי, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-302",
+    "number": "302",
+    "address": "גיורא 2, יהוד",
+    "lat": 32.0325358,
+    "lng": 34.891081
+  },
+  {
+    "id": "shelter-305",
+    "number": "305",
+    "address": "סעדיה חתוכה 25, יהוד",
+    "lat": 32.0289186,
+    "lng": 34.8891636
+  },
+  {
+    "id": "shelter-311",
+    "number": "311",
+    "address": "פארק תל יהוד, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-312",
+    "number": "312",
+    "address": "אשכולית, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-501",
+    "number": "501",
+    "address": "יונה 7, יהוד",
+    "lat": 32.0290794,
+    "lng": 34.8848182
+  },
+  {
+    "id": "shelter-502a",
+    "number": "502א",
+    "address": "יצחק שדה 11, יהוד",
+    "lat": 32.030189,
+    "lng": 34.8812383
+  },
+  {
+    "id": "shelter-502b",
+    "number": "502ב",
+    "address": "יצחק שדה 12, יהוד",
+    "lat": 32.0301395,
+    "lng": 34.883703
+  },
+  {
+    "id": "shelter-503",
+    "number": "503",
+    "address": "אנילביץ' פינת הרצל 17, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-504",
+    "number": "504",
+    "address": "גורדון 9, יהוד",
+    "lat": 32.0314853,
+    "lng": 34.8848098
+  },
+  {
+    "id": "shelter-506",
+    "number": "506",
+    "address": "הורדים 34, יהוד",
+    "lat": 32.0324213,
+    "lng": 34.8821278
+  },
+  {
+    "id": "shelter-701",
+    "number": "701",
+    "address": "פארק אוקלהומה, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-801",
+    "number": "801",
+    "address": "רחוב שוהם, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-802",
+    "number": "802",
+    "address": "שנהב 14, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-803",
+    "number": "803",
+    "address": "אלמוג 14, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-804",
+    "number": "804",
+    "address": "משלוק-אלמוג 1, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-805",
+    "number": "805",
+    "address": "אתרוג 7, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-806",
+    "number": "806",
+    "address": "הפנינים 5, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-807",
+    "number": "807",
+    "address": "גן המכשפות, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "protected-2501",
+    "number": "2501",
+    "address": "אברבנל, יהוד",
+    "lat": 32.033401,
+    "lng": 34.8890037
+  },
+  {
+    "id": "protected-2503",
+    "number": "2503",
+    "address": "רם כהן 5, יהוד",
+    "lat": 32.0405524,
+    "lng": 34.8926142
+  },
+  {
+    "id": "protected-2504",
+    "number": "2504",
+    "address": "המתנ\"ס העירוני, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "protected-2505",
+    "number": "2505",
+    "address": "גן חזי, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "protected-2506",
+    "number": "2506",
+    "address": "מנהלת מונוסון, נווה מונוסון",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "protected-2507",
+    "number": "2507",
+    "address": "דרך העצמאות 1, יהוד",
+    "lat": 32.0280076,
+    "lng": 34.8813603
+  },
+  {
+    "id": "protected-2508",
+    "number": "2508",
+    "address": "סעדיה חתוכה, יהוד",
+    "lat": 32.0333299,
+    "lng": 34.8876951
+  },
+  {
+    "id": "protected-2509",
+    "number": "2509",
+    "address": "השמחות, יהוד",
+    "lat": null,
+    "lng": null
+  }
+]

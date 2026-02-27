@@ -1,0 +1,116 @@
+[
+  {
+    "id": "missiles",
+    "title": "אזעקת טילים",
+    "description": "נוהל תפעול מלא בזמן אזעקת טילים",
+    "steps": [
+      {
+        "id": "step1",
+        "type": "decision",
+        "label": "שלב 1: התקבלה אזעקה",
+        "question": "האם המקלטים נפתחו אוטומטית?",
+        "yesNext": "step3_updates",
+        "noNext": "step_manual_open",
+        "criticalNote": "בדוק במערכת Ekron מיד"
+      },
+      {
+        "id": "step_manual_open",
+        "type": "action",
+        "label": "פתיחה ידנית של מקלטים",
+        "checklist": [
+          "יש לפתוח ידנית את המקלטים דרך המערכת ekron"
+        ],
+        "nextStep": "step2",
+        "criticalNote": "דחיפות קריטית - פעולה מיידית!"
+      },
+      {
+        "id": "step2",
+        "type": "decision",
+        "label": "וידוא פתיחת מקלטים",
+        "question": "האם כל המקלטים נפתחו עכשיו?",
+        "yesNext": "step3_updates",
+        "noNext": "step_contact_tech"
+      },
+      {
+        "id": "step_contact_tech",
+        "type": "action",
+        "label": "יצירת קשר עם צוות טכני",
+        "checklist": [
+          "צור קשר עם דורון או הריאל",
+          "עדכן אותם על המצב",
+          "בקש קוד כניסה למקלט אם אין בררה"
+        ],
+        "nextStep": "step3_updates",
+        "criticalNote": "חייב ליצור קשר מיידי עם הצוות הטכני"
+      },
+      {
+        "id": "step3_updates",
+        "type": "action",
+        "label": "שלב 2: התקשרות לגורמים ועדכון קבוצת חירום",
+        "checklist": [
+          "התקשרת למנכ\"ל גיל שקד",
+          "התקשרת לליאור בוקר",
+          "התקשרת למירי צרפתי",
+          "שלחת הודעה לקבוצת חרום של אייקון האזעקה ב-WhatsApp"
+        ],
+        "nextStep": "step4_cameras",
+        "criticalNote": "חובה להתקשר טלפונית ולעדכן בקבוצת החרום"
+      },
+      {
+        "id": "step4_cameras",
+        "type": "action",
+        "label": "שלב 3: צפייה במצלמות ומענה לתושבים",
+        "checklist": [
+          "צפיה במצלמות",
+          "תן מענה לתושבים במשך 5 דקות"
+        ],
+        "nextStep": "step5_missile_check",
+        "timer": 300
+      },
+      {
+        "id": "step5_missile_check",
+        "type": "decision",
+        "label": "שלב 4: בדיקה - האם היה טיל?",
+        "question": "האם התקבלה קריאה על פגיעת טיל במשך ה-5 דקות?",
+        "yesNext": "step_missile_hit",
+        "noNext": "step_no_hit"
+      },
+      {
+        "id": "step_no_hit",
+        "type": "action",
+        "label": "לא הייתה פגיעה - דוח מצב",
+        "checklist": [
+          "שלח דוח מצב בקבוצת העדכונים ב-WhatsApp"
+        ],
+        "nextStep": "step_close"
+      },
+      {
+        "id": "step_missile_hit",
+        "type": "action",
+        "label": "היה טיל - הפעלת פרוטוקול מלא",
+        "checklist": [
+          "עדכן מנכ\"ל והמתן להוראות ממנו",
+          "עדכן את ליאור",
+          "עדכן את מירי",
+          "הקפץ רשימת כוננים מכלול (רק באישור מנכ\"ל!)"
+        ],
+        "nextStep": "step_close",
+        "criticalNote": "הקפצת כוננים מכלול רק באישור מנכ\"ל בלבד!"
+      },
+      {
+        "id": "step_close",
+        "type": "action",
+        "label": "סיום אירוע",
+        "checklist": [],
+        "description": "האירוע הסתיים",
+        "nextStep": null
+      }
+    ]
+  },
+  {
+    "id": "earthquake",
+    "title": "רעידת אדמה",
+    "description": "נוהל לעתיד - לא מופעל כרגע",
+    "steps": []
+  }
+]

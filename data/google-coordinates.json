@@ -1,0 +1,258 @@
+[
+  {
+    "id": "shelter-102",
+    "number": "102",
+    "address": "אלפרט 5, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-104",
+    "number": "104",
+    "address": "טננבאום 13, יהוד",
+    "lat": 32.0354124,
+    "lng": 34.8957135,
+    "formatted_address": "Tenenbaum St 13, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-106",
+    "number": "106",
+    "address": "מוהליבר 76, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-107",
+    "number": "107",
+    "address": "מוהליבר 106, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-108",
+    "number": "108",
+    "address": "בכור שיטרית 108, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-110",
+    "number": "110",
+    "address": "נורדאו 11, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-111",
+    "number": "111",
+    "address": "צוקרמן פינת קפלנסקי, יהוד",
+    "lat": 32.0379165,
+    "lng": 34.8940006,
+    "formatted_address": "Zuckerman St, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-302",
+    "number": "302",
+    "address": "גיורא 2, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-305",
+    "number": "305",
+    "address": "סעדיה חתוכה 25, יהוד",
+    "lat": 32.0305205,
+    "lng": 34.8882396,
+    "formatted_address": "Se'adya Khatuka St 25, Yehud-Monosson, 5627026, Israel"
+  },
+  {
+    "id": "shelter-311",
+    "number": "311",
+    "address": "פארק תל יהוד, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-312",
+    "number": "312",
+    "address": "אשכולית, יהוד",
+    "lat": 32.0396011,
+    "lng": 34.8918241,
+    "formatted_address": "Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-501",
+    "number": "501",
+    "address": "יונה 7, יהוד",
+    "lat": null,
+    "lng": null
+  },
+  {
+    "id": "shelter-502a",
+    "number": "502א",
+    "address": "יצחק שדה 11, יהוד",
+    "lat": 32.0305571,
+    "lng": 34.8847341,
+    "formatted_address": "Yitshak Sadeh St 11, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-502b",
+    "number": "502ב",
+    "address": "יצחק שדה 12, יהוד",
+    "lat": 32.029945,
+    "lng": 34.883326,
+    "formatted_address": "Yitshak Sadeh St 12, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-503",
+    "number": "503",
+    "address": "אנילביץ' פינת הרצל 17, יהוד",
+    "lat": 32.0331413,
+    "lng": 34.8857282,
+    "formatted_address": "Herzl St 17, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-504",
+    "number": "504",
+    "address": "גורדון 9, יהוד",
+    "lat": 32.031635,
+    "lng": 34.8839054,
+    "formatted_address": "Gordon St 9, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-506",
+    "number": "506",
+    "address": "הורדים 34, יהוד",
+    "lat": 32.0331001,
+    "lng": 34.8825683,
+    "formatted_address": "Havradim St 34, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-701",
+    "number": "701",
+    "address": "פארק אוקלהומה, יהוד",
+    "lat": 32.0382176,
+    "lng": 34.8857653,
+    "formatted_address": "Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-801",
+    "number": "801",
+    "address": "רחוב שוהם, נווה מונוסון",
+    "lat": 32.02924,
+    "lng": 34.872325,
+    "formatted_address": "Shoham St, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-802",
+    "number": "802",
+    "address": "שנהב 14, נווה מונוסון",
+    "lat": 32.0287223,
+    "lng": 34.8679233,
+    "formatted_address": "Shenhav St 14, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-803",
+    "number": "803",
+    "address": "אלמוג 14, נווה מונוסון",
+    "lat": 32.0317755,
+    "lng": 34.8689214,
+    "formatted_address": "Almog St 14, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-804",
+    "number": "804",
+    "address": "משלוק-אלמוג 1, נווה מונוסון",
+    "lat": 32.0327806,
+    "lng": 34.871287,
+    "formatted_address": "Bareket St 60, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-805",
+    "number": "805",
+    "address": "אתרוג 7, נווה מונוסון",
+    "lat": 32.0267562,
+    "lng": 34.8755561,
+    "formatted_address": "Etrog St 7, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-806",
+    "number": "806",
+    "address": "הפנינים 5, נווה מונוסון",
+    "lat": 32.0301649,
+    "lng": 34.8732847,
+    "formatted_address": "Pninim St 5, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "shelter-807",
+    "number": "807",
+    "address": "גן המכשפות, נווה מונוסון",
+    "lat": 32.030357,
+    "lng": 34.872532,
+    "formatted_address": "Neve Monosson, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "protected-2501",
+    "number": "2501",
+    "address": "אברבנל, יהוד",
+    "lat": 32.033413,
+    "lng": 34.889014,
+    "formatted_address": "Abarbanel St, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "protected-2503",
+    "number": "2503",
+    "address": "רם כהן 5, יהוד",
+    "lat": 32.0405751,
+    "lng": 34.8925914,
+    "formatted_address": "Ram Cohen St 5, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "protected-2504",
+    "number": "2504",
+    "address": "המתנ\"ס העירוני, יהוד",
+    "lat": 32.0264104,
+    "lng": 34.8574263,
+    "formatted_address": "Or Yehuda, Israel"
+  },
+  {
+    "id": "protected-2505",
+    "number": "2505",
+    "address": "גן חזי, יהוד",
+    "lat": 32.0302066,
+    "lng": 34.8740362,
+    "formatted_address": "Pninim St 2, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "protected-2506",
+    "number": "2506",
+    "address": "מנהלת מונוסון, נווה מונוסון",
+    "lat": 32.0327293,
+    "lng": 34.8711677,
+    "formatted_address": "Yehud-Monosson, Israel"
+  },
+  {
+    "id": "protected-2507",
+    "number": "2507",
+    "address": "דרך העצמאות 1, יהוד",
+    "lat": 32.027979,
+    "lng": 34.881897,
+    "formatted_address": "Derech HaAtsma'ut 1, Yahud Monoson, Israel"
+  },
+  {
+    "id": "protected-2508",
+    "number": "2508",
+    "address": "סעדיה חתוכה, יהוד",
+    "lat": 32.0316982,
+    "lng": 34.8885153,
+    "formatted_address": "Se'adya Khatuka St, Yehud-Monosson, Israel"
+  },
+  {
+    "id": "protected-2509",
+    "number": "2509",
+    "address": "השמחות, יהוד",
+    "lat": 32.0315718,
+    "lng": 34.8925712,
+    "formatted_address": "Yehud-Monosson, Israel"
+  }
+]

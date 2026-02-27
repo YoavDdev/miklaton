@@ -1,0 +1,188 @@
+{
+  "weekLabel": "שבוע 22.02",
+  "departments": {
+    "leadership": {
+      "name": "רמ\"ט / ראש העיר",
+      "contacts": [
+        {
+          "id": "mayor",
+          "name": "ראש העיר",
+          "phone": "05X-XXXXXXX",
+          "shift": "24/7",
+          "active": true
+        },
+        {
+          "id": "ceo",
+          "name": "מנכ\"ל העירייה",
+          "phone": "05X-XXXXXXX",
+          "shift": "24/7",
+          "active": true
+        }
+      ]
+    },
+    "security_emergency": {
+      "name": "מכלול בטחון וחירום",
+      "contacts": [
+        {
+          "id": "ariel_ben_tzini",
+          "name": "אריאל בן ציני",
+          "phone": "05X-XXXXXXX",
+          "shift": "יום",
+          "active": true
+        },
+        {
+          "id": "doron_shkaren",
+          "name": "דורון שקרן",
+          "phone": "05X-XXXXXXX",
+          "shift": "לילה",
+          "active": true
+        }
+      ]
+    },
+    "population": {
+      "name": "מכלול אוכלוסיה",
+      "contacts": [
+        {
+          "id": "naama_moreshet",
+          "name": "נעמה מורשת",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        },
+        {
+          "id": "yehudit_shor",
+          "name": "יהודית שור",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        },
+        {
+          "id": "naami_cohen",
+          "name": "נעמי כהן",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        }
+      ]
+    },
+    "public_info": {
+      "name": "מכלול מידע לציבור",
+      "contacts": [
+        {
+          "id": "shahar_meirovitz",
+          "name": "שחן מאירוביץ",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        }
+      ]
+    },
+    "service_population": {
+      "name": "מכלול שירות מידע ואוכלוסיה",
+      "contacts": [
+        {
+          "id": "lior_boker",
+          "name": "ליאור בוקר",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        }
+      ]
+    },
+    "engineering": {
+      "name": "מכלול הנדסה ותשתיות",
+      "contacts": [
+        {
+          "id": "gil_shaked",
+          "name": "גיל שקד",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        },
+        {
+          "id": "amir_bonus",
+          "name": "אמיר בונס",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        }
+      ]
+    },
+    "hr": {
+      "name": "מכלול כח אדם",
+      "contacts": [
+        {
+          "id": "keren_marbadian",
+          "name": "קרן מרבדיאן",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        }
+      ]
+    },
+    "baby": {
+      "name": "מכלול תינוק",
+      "contacts": [
+        {
+          "id": "mariana_ben_yosef",
+          "name": "מריאנה בן יוסף",
+          "phone": "05X-XXXXXXX",
+          "shift": "יום",
+          "active": true
+        },
+        {
+          "id": "shimeon_amar",
+          "name": "שמעון עמר",
+          "phone": "05X-XXXXXXX",
+          "shift": "לילה",
+          "active": true
+        }
+      ]
+    },
+    "logistics": {
+      "name": "מכלול לוגיסטיקה ותפעול",
+      "contacts": [
+        {
+          "id": "sharon_n",
+          "name": "שרון נ/ו",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        },
+        {
+          "id": "hudi_blatsberg",
+          "name": "חודי בלטשברג",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        },
+        {
+          "id": "menaem_mishal",
+          "name": "מנעם משעל",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        },
+        {
+          "id": "haim_rabtzi",
+          "name": "חמיים רבצי",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        }
+      ]
+    },
+    "psah": {
+      "name": "תא פס\"ח",
+      "contacts": [
+        {
+          "id": "sheini_bengol",
+          "name": "שייני בנגול",
+          "phone": "05X-XXXXXXX",
+          "shift": "רגיל",
+          "active": true
+        }
+      ]
+    }
+  }
+}

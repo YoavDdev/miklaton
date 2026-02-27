@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>בדיקת קואורדינטות מקלטים - יהוד מונוסון</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        h1 {
+            color: #1e40af;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .shelter-card {
+            background: white;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .shelter-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .shelter-number {
+            background: #3b82f6;
+            color: white;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: bold;
+        }
+        .shelter-type {
+            background: #10b981;
+            color: white;
+            padding: 3px 10px;
+            border-radius: 15px;
+            font-size: 12px;
+        }
+        .shelter-type.migonit {
+            background: #f59e0b;
+        }
+        .shelter-name {
+            font-size: 18px;
+            font-weight: bold;
+            color: #1f2937;
+            margin-bottom: 5px;
+        }
+        .shelter-address {
+            color: #6b7280;
+            margin-bottom: 5px;
+        }
+        .coords {
+            color: #059669;
+            font-family: monospace;
+            font-size: 14px;
+        }
+        .links {
+            margin-top: 10px;
+            display: flex;
+            gap: 10px;
+        }
+        .btn {
+            padding: 8px 16px;
+            border-radius: 5px;
+            text-decoration: none;
+            font-weight: bold;
+            display: inline-block;
+            transition: all 0.2s;
+        }
+        .btn-maps {
+            background: #ef4444;
+            color: white;
+        }
+        .btn-maps:hover {
+            background: #dc2626;
+        }
+        .btn-waze {
+            background: #06b6d4;
+            color: white;
+        }
+        .btn-waze:hover {
+            background: #0891b2;
+        }
+        .btn-osm {
+            background: #8b5cf6;
+            color: white;
+        }
+        .btn-osm:hover {
+            background: #7c3aed;
+        }
+        .stats {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        .stat-item {
+            display: inline-block;
+            margin: 0 20px;
+        }
+        .stat-number {
+            font-size: 32px;
+            font-weight: bold;
+            color: #3b82f6;
+        }
+        .stat-label {
+            color: #6b7280;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🗺️ בדיקת קואורדינטות מקלטים - יהוד מונוסון</h1>
+    
+    <div class="stats">
+        <div class="stat-item">
+            <div class="stat-number">33</div>
+            <div class="stat-label">מקלטים ומיגוניות</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">25</div>
+            <div class="stat-label">מקלטים ציבוריים</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-number">8</div>
+            <div class="stat-label">מיגוניות</div>
+        </div>
+    </div>
+
+    <div id="shelters"></div>
+
+    <script>
+        const shelters = [
+            { id: "shelter-102", number: "102", type: "מקלט", name: "מקלט אלפרט", address: "אלפרט 5, יהוד", lat: 32.0285, lng: 34.8885 },
+            { id: "shelter-104", number: "104", type: "מקלט", name: "מקלט טננבאום", address: "טננבאום 13, יהוד", lat: 32.0320, lng: 34.8895 },
+            { id: "shelter-106", number: "106", type: "מקלט", name: "מקלט מוהליבר 76", address: "מוהליבר 76, יהוד", lat: 32.0295, lng: 34.8920 },
+            { id: "shelter-107", number: "107", type: "מקלט", name: "מקלט מוהליבר 106", address: "מוהליבר 106, יהוד", lat: 32.0305, lng: 34.8925 },
+            { id: "shelter-108", number: "108", type: "מקלט", name: "מקלט בכור שיטרית", address: "בכור שיטרית 108, יהוד", lat: 32.0265, lng: 34.8910 },
+            { id: "shelter-110", number: "110", type: "מקלט", name: "מקלט נורדאו", address: "נורדאו 11, יהוד", lat: 32.0280, lng: 34.8870 },
+            { id: "shelter-111", number: "111", type: "מקלט", name: "מקלט צוקרמן-קפלנסקי", address: "צוקרמן פינת קפלנסקי, יהוד", lat: 32.0310, lng: 34.8860 },
+            { id: "shelter-302", number: "302", type: "מקלט", name: "מקלט גיורא", address: "גיורא 2, יהוד", lat: 32.0290, lng: 34.8880 },
+            { id: "shelter-305", number: "305", type: "מקלט", name: "מקלט מופת", address: "סעדיה חתוכה 25, יהוד", lat: 32.0325, lng: 34.8905 },
+            { id: "shelter-311", number: "311", type: "מקלט", name: "מקלט פארק תל יהוד", address: "פארק תל יהוד, יהוד", lat: 32.0300, lng: 34.8950 },
+            { id: "shelter-312", number: "312", type: "מקלט", name: "מקלט אשכולית", address: "אשכולית, יהוד", lat: 32.0275, lng: 34.8850 },
+            { id: "shelter-501", number: "501", type: "מקלט", name: "מקלט יונה", address: "יונה 7, יהוד", lat: 32.0255, lng: 34.8875 },
+            { id: "shelter-502a", number: "502א", type: "מקלט", name: "מקלט יצחק שדה 11", address: "יצחק שדה 11, יהוד", lat: 32.0260, lng: 34.8860 },
+            { id: "shelter-502b", number: "502ב", type: "מקלט", name: "מקלט יצחק שדה 12", address: "יצחק שדה 12, יהוד", lat: 32.0262, lng: 34.8862 },
+            { id: "shelter-503", number: "503", type: "מקלט", name: "מקלט אנילביץ'-הרצל", address: "אנילביץ' פינת הרצל 17, יהוד", lat: 32.0288, lng: 34.8878 },
+            { id: "shelter-504", number: "504", type: "מקלט", name: "מקלט גורדון", address: "גורדון 9, יהוד", lat: 32.0315, lng: 34.8885 },
+            { id: "shelter-506", number: "506", type: "מקלט", name: "מקלט הורדים", address: "הורדים 34, יהוד", lat: 32.0298, lng: 34.8915 },
+            { id: "shelter-701", number: "701", type: "מקלט", name: "מקלט פארק אוקלהומה", address: "פארק אוקלהומה, יהוד", lat: 32.0270, lng: 34.8845 },
+            { id: "shelter-801", number: "801", type: "מקלט", name: "מקלט בית ספר שוהם", address: "רחוב שוהם, נווה מונוסון", lat: 32.0345, lng: 34.8920 },
+            { id: "shelter-802", number: "802", type: "מקלט", name: "מקלט שנהב", address: "שנהב 14, נווה מונוסון", lat: 32.0335, lng: 34.8910 },
+            { id: "shelter-803", number: "803", type: "מקלט", name: "מקלט אלמוג 14", address: "אלמוג 14, נווה מונוסון", lat: 32.0340, lng: 34.8915 },
+            { id: "shelter-804", number: "804", type: "מקלט", name: "מקלט משלוק-אלמוג", address: "משלוק-אלמוג 1, נווה מונוסון", lat: 32.0338, lng: 34.8912 },
+            { id: "shelter-805", number: "805", type: "מקלט", name: "מקלט אתרוג", address: "אתרוג 7, נווה מונוסון", lat: 32.0330, lng: 34.8905 },
+            { id: "shelter-806", number: "806", type: "מקלט", name: "מקלט הפנינים", address: "הפנינים 5, נווה מונוסון", lat: 32.0355, lng: 34.8925 },
+            { id: "shelter-807", number: "807", type: "מקלט", name: "מקלט גן המכשפות", address: "גן המכשפות, נווה מונוסון", lat: 32.0348, lng: 34.8918 },
+            { id: "protected-2501", number: "2501", type: "מיגונית", name: "מיגונית אברבנל", address: "אברבנל, יהוד", lat: 32.0283, lng: 34.8883 },
+            { id: "protected-2503", number: "2503", type: "מיגונית", name: "מיגונית מתנ\"ס", address: "רם כהן 5, יהוד", lat: 32.0278, lng: 34.8855 },
+            { id: "protected-2504", number: "2504", type: "מיגונית", name: "מיגונית המתנ\"ס העירוני", address: "המתנ\"ס העירוני, יהוד", lat: 32.0280, lng: 34.8858 },
+            { id: "protected-2505", number: "2505", type: "מיגונית", name: "מיגונית גן חזי", address: "גן חזי, יהוד", lat: 32.0292, lng: 34.8898 },
+            { id: "protected-2506", number: "2506", type: "מיגונית", name: "מיגונית מנהלת מונוסון", address: "מנהלת מונוסון, נווה מונוסון", lat: 32.0342, lng: 34.8913 },
+            { id: "protected-2507", number: "2507", type: "מיגונית", name: "מיגונית דרך העצמאות", address: "דרך העצמאות 1, יהוד", lat: 32.0272, lng: 34.8848 },
+            { id: "protected-2508", number: "2508", type: "מיגונית", name: "מיגונית סעדיה חתוכה", address: "סעדיה חתוכה, יהוד", lat: 32.0322, lng: 34.8902 },
+            { id: "protected-2509", number: "2509", type: "מיגונית", name: "מיגונית השמחות", address: "השמחות, יהוד", lat: 32.0295, lng: 34.8908 }
+        ];
+
+        const container = document.getElementById('shelters');
+        
+        shelters.forEach(shelter => {
+            const googleMapsUrl = `https://www.google.com/maps?q=${shelter.lat},${shelter.lng}`;
+            const wazeUrl = `https://waze.com/ul?ll=${shelter.lat},${shelter.lng}`;
+            const osmUrl = `https://www.openstreetmap.org/?mlat=${shelter.lat}&mlon=${shelter.lng}&zoom=18`;
+            
+            const card = document.createElement('div');
+            card.className = 'shelter-card';
+            card.innerHTML = `
+                <div class="shelter-header">
+                    <span class="shelter-number">#${shelter.number}</span>
+                    <span class="shelter-type ${shelter.type === 'מיגונית' ? 'migonit' : ''}">${shelter.type}</span>
+                </div>
+                <div class="shelter-name">${shelter.name}</div>
+                <div class="shelter-address">📍 ${shelter.address}</div>
+                <div class="coords">🌍 ${shelter.lat}, ${shelter.lng}</div>
+                <div class="links">
+                    <a href="${googleMapsUrl}" target="_blank" class="btn btn-maps">🗺️ Google Maps</a>
+                    <a href="${wazeUrl}" target="_blank" class="btn btn-waze">🚗 Waze</a>
+                    <a href="${osmUrl}" target="_blank" class="btn btn-osm">🌐 OpenStreetMap</a>
+                </div>
+            `;
+            container.appendChild(card);
+        });
+    </script>
+</body>
+</html>
