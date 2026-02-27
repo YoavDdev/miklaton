@@ -13,7 +13,8 @@ export async function GET(request) {
 
   try {
     // שימוש ב-Google Geocoding API - יותר מדויק עם מספרי בית
-    const googleUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(query + ', יהוד-מונוסון, ישראל')}&key=${GOOGLE_API_KEY}`;
+    // נוסח את השאילתה עם העיר קודם לדיוק טוב יותר
+    const googleUrl = `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent('יהוד-מונוסון, ' + query + ', ישראל')}&key=${GOOGLE_API_KEY}`;
 
     const response = await fetch(googleUrl);
 
@@ -43,12 +44,12 @@ export async function GET(request) {
       address: result.address_components
     }));
     
-    // גבולות גיאוגרפיים של יהוד-מונוסון
+    // גבולות גיאוגרפיים של יהוד-מונוסון (מורחבים מעט)
     const YEHUD_BOUNDS = {
-      south: 32.020,
-      north: 32.045,
-      west: 34.865,
-      east: 34.900
+      south: 32.015,
+      north: 32.050,
+      west: 34.860,
+      east: 34.910
     };
     
     const yehudMonossonResults = data.filter(result => {
