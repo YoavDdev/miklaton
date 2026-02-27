@@ -10,8 +10,8 @@
     "directions": "מרחוב האצ\"ל, פנה לאלפרט דרומה",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0345025,
-    "lng": 34.8949571,
+    "lat": 32.034386,
+    "lng": 34.895142,
     "address_en": "Alpert St 5, Yehud-Monosson, Israel"
   },
   {
@@ -25,8 +25,8 @@
     "directions": "מרחוב הרצל צפונה לטננבאום",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.0354124,
-    "lng": 34.8957135,
+    "lat": 32.035492,
+    "lng": 34.895694,
     "address_en": "Tenenbaum St 13, Yehud-Monosson, Israel"
   },
   {
@@ -40,8 +40,8 @@
     "directions": "ברחוב מוהליבר הראשי, צד מזרחי",
     "accessibility": "נגיש חלקית",
     "capacity": 120,
-    "lat": 32.0355851,
-    "lng": 34.8979152,
+    "lat": 32.035738,
+    "lng": 34.897902,
     "address_en": "Mohaliver St 76, Yehud-Monosson, Israel"
   },
   {
@@ -55,8 +55,8 @@
     "directions": "ברחוב מוהליבר, צפונית למקלט 106",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.039766,
-    "lng": 34.895144,
+    "lat": 32.038502,
+    "lng": 34.897239,
     "address_en": "Mohaliver St 107, Yehud-Monosson, Israel"
   },
   {
@@ -70,8 +70,8 @@
     "directions": "מדרך משה דיין דרומה לבכור שיטרית",
     "accessibility": "נגיש",
     "capacity": 90,
-    "lat": 32.032079,
-    "lng": 34.8955857,
+    "lat": 32.032048,
+    "lng": 34.895094,
     "address_en": "Bakhor Shitrit St 108, Yehud-Monosson, Israel"
   },
   {
@@ -85,8 +85,8 @@
     "directions": "מרחוב ביאליק מערבה לנורדאו",
     "accessibility": "נגיש",
     "capacity": 110,
-    "lat": 32.0294271,
-    "lng": 34.8947363,
+    "lat": 32.029461,
+    "lng": 34.894807,
     "address_en": "Nordau St 13, Yehud-Monosson, Israel"
   },
   {
@@ -100,8 +100,8 @@
     "directions": "בצומת צוקרמן וקפלנסקי",
     "accessibility": "נגיש",
     "capacity": 85,
-    "lat": 32.0399216,
-    "lng": 34.8947975,
+    "lat": 32.039842,
+    "lng": 34.894846,
     "address_en": "Zuckerman St 111, Yehud-Monosson, Israel"
   },
   {
@@ -115,8 +115,8 @@
     "directions": "ברחוב גיורא, קרוב למרכז",
     "accessibility": "נגיש",
     "capacity": 95,
-    "lat": 32.0335511,
-    "lng": 34.89042999999999,
+    "lat": 32.033773,
+    "lng": 34.890476,
     "address_en": "Baikowski St 16, Yehud-Monosson, Israel"
   },
   {
@@ -130,8 +130,8 @@
     "directions": "ברחוב סעדיה חתוכה, ליד בית הספר",
     "accessibility": "נגיש",
     "capacity": 150,
-    "lat": 32.0305205,
-    "lng": 34.8882396,
+    "lat": 32.030173,
+    "lng": 34.888656,
     "address_en": "Se'adya Khatuka St 25, Yehud-Monosson, Israel"
   },
   {
@@ -160,8 +160,8 @@
     "directions": "ברחוב אשכולית הראשי",
     "accessibility": "נגיש חלקית",
     "capacity": 75,
-    "lat": 32.0288363,
-    "lng": 34.8879992,
+    "lat": 32.028827,
+    "lng": 34.888007,
     "address_en": "Bilu St 4, Yehud-Monosson, Israel"
   },
   {
@@ -175,8 +175,8 @@
     "directions": "ברחוב יונה, דרום העיר",
     "accessibility": "נגיש",
     "capacity": 70,
-    "lat": 32.0296356,
-    "lng": 34.8852533,
+    "lat": 32.029186,
+    "lng": 34.883825,
     "address_en": "Brener St 17, Yehud-Monosson, Israel"
   },
   {
@@ -190,8 +190,8 @@
     "directions": "ברחוב יצחק שדה, צד מערבי",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.0305571,
-    "lng": 34.8847341,
+    "lat": 32.03058,
+    "lng": 34.885023,
     "address_en": "Yitshak Sadeh St 11, Yehud-Monosson, Israel"
   },
   {
@@ -205,8 +205,8 @@
     "directions": "ברחוב יצחק שדה, צד מזרחי",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.0299557,
-    "lng": 34.8839374,
+    "lat": 32.030251,
+    "lng": 34.884556,
     "address_en": "Yitshak Sadeh St 14-22, Yehud-Monosson, Israel"
   },
   {
@@ -220,8 +220,8 @@
     "directions": "בצומת אנילביץ' והרצל",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0331413,
-    "lng": 34.8857282,
+    "lat": 32.033186,
+    "lng": 34.885769,
     "address_en": "Herzl St 17, Yehud-Monosson, Israel"
   },
   {
@@ -235,8 +235,8 @@
     "directions": "ברחוב גורדון, צפון העיר",
     "accessibility": "נגיש",
     "capacity": 85,
-    "lat": 32.031635,
-    "lng": 34.8839054,
+    "lat": 32.031605,
+    "lng": 34.884078,
     "address_en": "Gordon St 9, Yehud-Monosson, Israel"
   },
   {
@@ -250,8 +250,8 @@
     "directions": "ברחוב הורדים הראשי",
     "accessibility": "נגיש",
     "capacity": 90,
-    "lat": 32.0333405,
-    "lng": 34.8823581,
+    "lat": 32.033565,
+    "lng": 34.882453,
     "address_en": "Havradim St 41, Yehud-Monosson, Israel"
   },
   {
@@ -295,8 +295,8 @@
     "directions": "ברחוב שנהב, מונוסון",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0283857,
-    "lng": 34.86783339999999,
+    "lat": 32.028593,
+    "lng": 34.868187,
     "address_en": "Shenhav St 16, Yehud-Monosson, Israel"
   },
   {
@@ -310,8 +310,8 @@
     "directions": "ברחוב אלמוג, מונוסון",
     "accessibility": "נגיש",
     "capacity": 90,
-    "lat": 32.0317755,
-    "lng": 34.8689214,
+    "lat": 32.031742,
+    "lng": 34.868932,
     "address_en": "Almog St 14, Yehud-Monosson, Israel"
   },
   {
@@ -325,7 +325,7 @@
     "directions": "בצומת משלוק ואלמוג, מונוסון",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.032234,
+    "lat": 32.032339,
     "lng": 34.870205,
     "address_en": "Ya'alom 1, Yehud-Monosson, Israel"
   },
@@ -340,8 +340,8 @@
     "directions": "ברחוב אתרוג, מונוסון",
     "accessibility": "נגיש",
     "capacity": 85,
-    "lat": 32.0267562,
-    "lng": 34.8755561,
+    "lat": 32.026817,
+    "lng": 34.876233,
     "address_en": "Etrog St 7, Yehud-Monosson, Israel"
   },
   {
@@ -355,8 +355,8 @@
     "directions": "ברחוב הפנינים, צפון מונוסון",
     "accessibility": "נגיש",
     "capacity": 95,
-    "lat": 32.0301649,
-    "lng": 34.8732847,
+    "lat": 32.030191,
+    "lng": 34.871139,
     "address_en": "Pninim St 5, Yehud-Monosson, Israel"
   },
   {
@@ -370,8 +370,8 @@
     "directions": "בתוך גן המכשפות, מונוסון",
     "accessibility": "נגיש",
     "capacity": 70,
-    "lat": 32.0302614,
-    "lng": 34.8712755,
+    "lat": 32.03091,
+    "lng": 34.871364,
     "address_en": "Pninim St 14, Yehud-Monosson, Israel"
   },
   {
@@ -400,8 +400,8 @@
     "directions": "ברחוב רם כהן, ליד המתנ\"ס",
     "accessibility": "נגיש",
     "capacity": 60,
-    "lat": 32.0409411,
-    "lng": 34.8925253,
+    "lat": 32.040449,
+    "lng": 34.892527,
     "address_en": "Mevo Natan Yonatan 1, Yehud-Monosson, Israel"
   },
   {
@@ -415,8 +415,8 @@
     "directions": "כניסה דרך המתנ\"ס הראשי",
     "accessibility": "נגיש",
     "capacity": 100,
-    "lat": 32.0388875,
-    "lng": 34.8921101,
+    "lat": 32.038975,
+    "lng": 34.892139,
     "address_en": "Ram Cohen St 2, Yehud-Monosson, Israel"
   },
   {
@@ -430,8 +430,8 @@
     "directions": "בגן חזי, כניסה מרחוב הרצל",
     "accessibility": "נגיש",
     "capacity": 40,
-    "lat": 32.030195,
-    "lng": 34.8750271,
+    "lat": 32.030412,
+    "lng": 34.875086,
     "address_en": "Rimon St 126, Yehud-Monosson, Israel"
   },
   {
@@ -445,8 +445,8 @@
     "directions": "במבנה מנהלת נווה מונוסון",
     "accessibility": "נגיש",
     "capacity": 80,
-    "lat": 32.032786,
-    "lng": 34.8704212,
+    "lat": 32.032333,
+    "lng": 34.870187,
     "address_en": "Almog St 1, Yehud-Monosson, Israel"
   },
   {
@@ -460,8 +460,8 @@
     "directions": "בדרך העצמאות, ליד הכניסה למערב",
     "accessibility": "נגיש",
     "capacity": 55,
-    "lat": 32.027979,
-    "lng": 34.881897,
+    "lat": 32.027945,
+    "lng": 34.881962,
     "address_en": "Derech HaAtsma'ut 1, Yehud-Monosson, Israel"
   },
   {
