@@ -6,6 +6,7 @@ import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
 import OnCallPanel from '@/components/OnCallPanel';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
+import PikudHaorefAlerts from '@/components/PikudHaorefAlerts';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -53,6 +54,8 @@ export default function OperatorPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
+        <PikudHaorefAlerts />
+        
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
             <div className="bg-white rounded-lg shadow p-6">
