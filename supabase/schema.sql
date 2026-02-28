@@ -64,3 +64,42 @@ INSERT INTO shelter_status (shelter_number, is_open, updated_by) VALUES
   ('1023', false, 'system'),
   ('1024', false, 'system')
 ON CONFLICT (shelter_number) DO NOTHING;
+
+-- Create general_notifications table for operator announcements and guidelines
+CREATE TABLE IF NOT EXISTS general_notifications (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  title VARCHAR(200) NOT NULL,
+  message TEXT NOT NULL,
+  type VARCHAR(20) NOT NULL DEFAULT 'info', -- info, warning, urgent
+  author VARCHAR(100) NOT NULL DEFAULT 'מוקדן',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Create index for faster queries
+CREATE INDEX IF NOT EXISTS idx_general_notifications_created_at ON general_notifications(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_general_notifications_type ON general_notifications(type);
+
+-- Enable Row Level Security (RLS)
+ALTER TABLE general_notifications ENABLE ROW LEVEL SECURITY;
+
+-- Create policy to allow all operations
+CREATE POLICY "Allow all operations on general_notifications" ON general_notifications
+  FOR ALL
+  USING (true)
+  WITH CHECK (true);
+
+-- Function to auto-update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_general_notifications_timestamp()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- Trigger to auto-update timestamp
+CREATE TRIGGER set_general_notifications_timestamp
+  BEFORE UPDATE ON general_notifications
+  FOR EACH ROW
+  EXECUTE FUNCTION update_general_notifications_timestamp();

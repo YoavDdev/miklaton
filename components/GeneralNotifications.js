@@ -1,9 +1,10 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 export default function GeneralNotifications() {
   const [notifications, setNotifications] = useState([]);
   const [showForm, setShowForm] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [newNotification, setNewNotification] = useState({
     title: '',
     message: '',
@@ -11,26 +12,68 @@ export default function GeneralNotifications() {
     author: 'מוקדן'
   });
 
-  const addNotification = () => {
+  useEffect(() => {
+    loadNotifications();
+  }, []);
+
+  const loadNotifications = async () => {
+    try {
+      const response = await fetch('/api/notifications');
+      const data = await response.json();
+      setNotifications(data.notifications || []);
+    } catch (error) {
+      console.error('Error loading notifications:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addNotification = async () => {
     if (!newNotification.title || !newNotification.message) {
       alert('נא למלא כותרת ותוכן ההודעה');
       return;
     }
 
-    const notification = {
-      id: Date.now(),
-      ...newNotification,
-      timestamp: new Date().toISOString()
-    };
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newNotification)
+      });
 
-    setNotifications([notification, ...notifications]);
-    setNewNotification({ title: '', message: '', type: 'info', author: 'מוקדן' });
-    setShowForm(false);
+      const data = await response.json();
+      
+      if (data.success) {
+        await loadNotifications(); // Reload all notifications
+        setNewNotification({ title: '', message: '', type: 'info', author: 'מוקדן' });
+        setShowForm(false);
+      } else {
+        alert('שגיאה בשמירת ההודעה');
+      }
+    } catch (error) {
+      console.error('Error adding notification:', error);
+      alert('שגיאה בשמירת ההודעה');
+    }
   };
 
-  const deleteNotification = (id) => {
-    if (confirm('האם למחוק הודעה זו?')) {
-      setNotifications(notifications.filter(n => n.id !== id));
+  const deleteNotification = async (id) => {
+    if (!confirm('האם למחוק הודעה זו?')) return;
+
+    try {
+      const response = await fetch(`/api/notifications?id=${id}`, {
+        method: 'DELETE'
+      });
+
+      const data = await response.json();
+      
+      if (data.success) {
+        await loadNotifications(); // Reload all notifications
+      } else {
+        alert('שגיאה במחיקת ההודעה');
+      }
+    } catch (error) {
+      console.error('Error deleting notification:', error);
+      alert('שגיאה במחיקת ההודעה');
     }
   };
 
@@ -132,7 +175,13 @@ export default function GeneralNotifications() {
         </div>
       )}
 
-      {notifications.length === 0 ? (
+      {loading ? (
+        <div className="text-center py-8">
+          <div className="animate-pulse">
+            <div className="h-4 bg-gray-300 rounded w-1/3 mx-auto"></div>
+          </div>
+        </div>
+      ) : notifications.length === 0 ? (
         <div className="text-center py-8 text-gray-500">
           <p className="text-lg">אין הודעות כלליות כרגע</p>
           <p className="text-sm mt-2">לחץ על "הוסף הודעה" לפרסום הנחיות למוקדנים</p>
@@ -154,7 +203,7 @@ export default function GeneralNotifications() {
                   <div className="text-sm opacity-75">
                     <span>פורסם על ידי: {notification.author}</span>
                     <span className="mx-2">•</span>
-                    <span>{new Date(notification.timestamp).toLocaleString('he-IL')}</span>
+                    <span>{new Date(notification.created_at).toLocaleString('he-IL')}</span>
                   </div>
                 </div>
                 <button
