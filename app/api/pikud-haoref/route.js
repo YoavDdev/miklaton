@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 
+// Last deployed: 2026-02-28 14:53 - Force redeploy
 // Pikud Haoref API endpoints (try multiple sources)
 const PIKUD_HAOREF_APIS = [
   'https://www.oref.org.il/WarningMessages/alert/alerts.json',
