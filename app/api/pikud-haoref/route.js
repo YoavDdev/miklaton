@@ -62,13 +62,12 @@ export async function GET() {
         });
       }
 
-      // Filter alerts relevant to regional area
+      // Filter alerts relevant to Yehud-Monosson ONLY (exact match)
       const relevantAlerts = alertsData.filter(alert => {
         const alertText = alert.data || alert.title || alert.name || '';
         
-        return REGIONAL_AREA_IDS.some(areaId => 
-          alertText.includes(areaId)
-        );
+        // Exact match only - prevents matching "אור יהודה", "אבן יהודה" etc.
+        return REGIONAL_AREA_IDS.some(areaId => alertText === areaId);
       });
 
       return NextResponse.json({
