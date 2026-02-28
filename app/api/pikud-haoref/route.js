@@ -62,12 +62,20 @@ export async function GET() {
         });
       }
 
-      // Filter alerts relevant to Yehud-Monosson ONLY (exact match)
+      // Filter alerts for Yehud-Monosson ONLY
       const relevantAlerts = alertsData.filter(alert => {
         const alertText = alert.data || alert.title || alert.name || '';
         
-        // Exact match only - prevents matching "אור יהודה", "אבן יהודה" etc.
-        return REGIONAL_AREA_IDS.some(areaId => alertText === areaId);
+        // Exclude cities that are NOT Yehud-Monosson
+        const excludedCities = ['אור יהודה', 'אבן יהודה', 'טירת יהודה', 'בני יהודה', 'אחיהוד', 'חוות מקנה יהודה', 'היישוב היהודי'];
+        
+        // Check if it's an excluded city
+        if (excludedCities.some(excluded => alertText.includes(excluded))) {
+          return false;
+        }
+        
+        // Check if it contains "יהוד" or "מונוסון" (will match all Yehud-Monosson variations)
+        return alertText.includes('יהוד') || alertText.includes('מונוסון');
       });
 
       return NextResponse.json({
