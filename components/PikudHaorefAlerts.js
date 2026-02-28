@@ -66,7 +66,7 @@ export default function PikudHaorefAlerts() {
         <div className="flex items-center gap-3">
           <span className="text-2xl">✅</span>
           <div className="flex-1">
-            <h3 className="font-bold text-green-800">אין התראות פעילות ביהוד-מונוסון</h3>
+            <h3 className="font-bold text-green-800">אין התראות פעילות ביהוד מונוסון</h3>
             <p className="text-sm text-green-700">
               עדכון אחרון: {lastUpdate?.toLocaleTimeString('he-IL')}
             </p>

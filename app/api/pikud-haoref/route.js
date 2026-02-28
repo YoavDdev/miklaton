@@ -6,33 +6,13 @@ const PIKUD_HAOREF_APIS = [
   'https://www.oref.org.il/warningMessages/alert/History/AlertsHistory.json'
 ];
 
-// Regional area identifiers - includes Yehud-Monosson and surrounding areas
+// Yehud-Monosson area identifiers ONLY
 const REGIONAL_AREA_IDS = [
-  // Yehud-Monosson specific
   'יהוד - מונוסון',
   'יהוד',
   'מונוסון',
   'יהוד-מונוסון',
-  'יהוד מונוסון',
-  // Gush Dan Central region
-  'גוש דן',
-  'מרכז',
-  'אזור המרכז',
-  'גוש דן מרכזי',
-  // Nearby cities that affect Yehud
-  'פתח תקווה',
-  'פתח-תקווה',
-  'פתח תקוה',
-  'בני ברק',
-  'בני-ברק',
-  'רמת גן',
-  'רמת-גן',
-  'גבעתיים',
-  'אור יהודה',
-  'אור-יהודה',
-  'קריית אונו',
-  'קרית אונו',
-  'אזור ירקון'
+  'יהוד מונוסון'
 ];
 
 async function fetchFromOref(apiUrl) {
