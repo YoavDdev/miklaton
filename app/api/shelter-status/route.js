@@ -1,14 +1,35 @@
 import { NextResponse } from 'next/server';
-import fs from 'fs';
-import path from 'path';
-
-const statusFilePath = path.join(process.cwd(), 'data', 'shelterStatus.json');
+import { supabase } from '@/lib/supabase';
 
 export async function GET() {
   try {
-    const data = fs.readFileSync(statusFilePath, 'utf-8');
-    return NextResponse.json(JSON.parse(data));
+    const { data, error } = await supabase
+      .from('shelter_status')
+      .select('shelter_number, is_open, updated_at, updated_by')
+      .order('updated_at', { ascending: false });
+
+    if (error) throw error;
+
+    // Convert to the expected format
+    const statuses = {};
+    let lastUpdated = null;
+    let updatedBy = null;
+
+    if (data && data.length > 0) {
+      data.forEach(row => {
+        statuses[row.shelter_number] = row.is_open;
+      });
+      lastUpdated = data[0].updated_at;
+      updatedBy = data[0].updated_by;
+    }
+
+    return NextResponse.json({
+      statuses,
+      lastUpdated,
+      updatedBy
+    });
   } catch (error) {
+    console.error('Error fetching shelter status:', error);
     return NextResponse.json({ statuses: {} }, { status: 200 });
   }
 }
@@ -17,24 +38,55 @@ export async function POST(request) {
   try {
     const body = await request.json();
     const { shelterNumber, isOpen, updatedBy } = body;
-    
-    let statusData = { statuses: {} };
-    
-    try {
-      const existingData = fs.readFileSync(statusFilePath, 'utf-8');
-      statusData = JSON.parse(existingData);
-    } catch (error) {
-      // File doesn't exist, use default
+
+    if (!shelterNumber) {
+      return NextResponse.json({ error: 'Shelter number is required' }, { status: 400 });
     }
-    
-    statusData.statuses[shelterNumber] = isOpen;
-    statusData.lastUpdated = new Date().toISOString();
-    statusData.updatedBy = updatedBy || 'מוקדן';
-    
-    fs.writeFileSync(statusFilePath, JSON.stringify(statusData, null, 2));
-    
-    return NextResponse.json({ success: true, data: statusData });
+
+    // Upsert the shelter status
+    const { data, error } = await supabase
+      .from('shelter_status')
+      .upsert({
+        shelter_number: shelterNumber,
+        is_open: isOpen,
+        updated_by: updatedBy || 'מוקדן'
+      }, {
+        onConflict: 'shelter_number'
+      })
+      .select();
+
+    if (error) throw error;
+
+    // Fetch all statuses to return
+    const { data: allStatuses, error: fetchError } = await supabase
+      .from('shelter_status')
+      .select('shelter_number, is_open, updated_at, updated_by')
+      .order('updated_at', { ascending: false });
+
+    if (fetchError) throw fetchError;
+
+    const statuses = {};
+    let lastUpdated = null;
+    let updatedByResult = null;
+
+    if (allStatuses && allStatuses.length > 0) {
+      allStatuses.forEach(row => {
+        statuses[row.shelter_number] = row.is_open;
+      });
+      lastUpdated = allStatuses[0].updated_at;
+      updatedByResult = allStatuses[0].updated_by;
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        statuses,
+        lastUpdated,
+        updatedBy: updatedByResult
+      }
+    });
   } catch (error) {
+    console.error('Error updating shelter status:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
