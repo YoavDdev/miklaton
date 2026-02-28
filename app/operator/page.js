@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
-import OnCallPanel from '@/components/OnCallPanel';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
 import PikudHaorefAlerts from '@/components/PikudHaorefAlerts';
 import PrintableShelterList from '@/components/PrintableShelterList';
@@ -46,12 +45,20 @@ export default function OperatorPage() {
       <header className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <h1 className="text-3xl font-bold">מקלטון - עמדת מפעיל</h1>
-          <button
-            onClick={handleLogout}
-            className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-semibold transition-colors"
-          >
-            יציאה
-          </button>
+          <div className="flex items-center gap-3">
+            <a
+              href="/on-call"
+              className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"
+            >
+              📞 אנשי קשר תורנים
+            </a>
+            <button
+              onClick={handleLogout}
+              className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-semibold transition-colors"
+            >
+              יציאה
+            </button>
+          </div>
         </div>
       </header>
 
@@ -153,8 +160,6 @@ export default function OperatorPage() {
           </p>
           <PrintableShelterList shelters={sheltersData} />
         </div>
-
-        {activeEvent && <OnCallPanel />}
       </main>
     </div>
   );
