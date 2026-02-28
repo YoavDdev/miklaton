@@ -7,6 +7,7 @@ import ShelterSearch from '@/components/ShelterSearch';
 import OnCallPanel from '@/components/OnCallPanel';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
 import PikudHaorefAlerts from '@/components/PikudHaorefAlerts';
+import PrintableShelterList from '@/components/PrintableShelterList';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -138,6 +139,16 @@ export default function OperatorPage() {
 
         <div className="mt-6">
           <ShelterStatusManager shelters={sheltersData} />
+        </div>
+
+        <div className="mt-6 bg-white rounded-lg shadow p-6">
+          <h2 className="text-2xl font-bold text-gray-900 mb-4">
+            📋 הדפסת רשימת מקלטים
+          </h2>
+          <p className="text-gray-600 mb-4">
+            הדפס רשימה מסודרת של כל המקלטים בעיר, מחולקת לקטגוריות עם מקום להערות בכתב יד
+          </p>
+          <PrintableShelterList shelters={sheltersData} />
         </div>
 
         {activeEvent && <OnCallPanel />}
