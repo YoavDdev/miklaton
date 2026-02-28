@@ -51,10 +51,33 @@ export async function GET() {
 
       const data = await response.json();
       
-      // Handle different response formats
-      const alertsData = data.data || data || [];
+      // Log raw response for debugging
+      console.log('Pikud Haoref API Response:', JSON.stringify(data, null, 2));
       
-      if (!Array.isArray(alertsData) || alertsData.length === 0) {
+      // Handle different response formats
+      let alertsData = data.data || data || [];
+      
+      // If response is a string, try to parse it
+      if (typeof alertsData === 'string' && alertsData.trim()) {
+        try {
+          alertsData = JSON.parse(alertsData);
+        } catch (e) {
+          console.error('Failed to parse alert string:', e);
+        }
+      }
+      
+      // Ensure it's an array
+      if (!Array.isArray(alertsData)) {
+        if (typeof alertsData === 'object' && alertsData !== null) {
+          alertsData = [alertsData];
+        } else {
+          alertsData = [];
+        }
+      }
+      
+      console.log('Processed alerts array:', alertsData);
+      
+      if (alertsData.length === 0) {
         return NextResponse.json({ 
           alerts: [], 
           status: 'no_alerts',
@@ -64,19 +87,27 @@ export async function GET() {
 
       // Filter alerts for Yehud-Monosson ONLY
       const relevantAlerts = alertsData.filter(alert => {
-        const alertText = alert.data || alert.title || alert.name || '';
+        // Try multiple possible field names
+        const alertText = alert.data || alert.title || alert.name || alert.city || alert.area || alert.label || JSON.stringify(alert);
+        
+        console.log('Checking alert text:', alertText);
         
         // Exclude cities that are NOT Yehud-Monosson
         const excludedCities = ['אור יהודה', 'אבן יהודה', 'טירת יהודה', 'בני יהודה', 'אחיהוד', 'חוות מקנה יהודה', 'היישוב היהודי'];
         
         // Check if it's an excluded city
         if (excludedCities.some(excluded => alertText.includes(excluded))) {
+          console.log('Excluded city found:', alertText);
           return false;
         }
         
         // Check if it contains "יהוד" or "מונוסון" (will match all Yehud-Monosson variations)
-        return alertText.includes('יהוד') || alertText.includes('מונוסון');
+        const matches = alertText.includes('יהוד') || alertText.includes('מונוסון');
+        console.log('Match result:', matches, 'for text:', alertText);
+        return matches;
       });
+      
+      console.log('Filtered relevant alerts:', relevantAlerts);
 
       return NextResponse.json({
         alerts: relevantAlerts,
