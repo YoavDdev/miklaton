@@ -13,7 +13,13 @@ export default function GeneralNotifications() {
   });
 
   useEffect(() => {
+    // Load notifications immediately
     loadNotifications();
+
+    // Auto-refresh every 10 seconds
+    const interval = setInterval(loadNotifications, 10000);
+
+    return () => clearInterval(interval);
   }, []);
 
   const loadNotifications = async () => {
@@ -208,7 +214,11 @@ export default function GeneralNotifications() {
                 </div>
                 <button
                   onClick={() => deleteNotification(notification.id)}
-                  className="text-red-600 hover:text-red-800 font-bold ml-2"
+                  className={`font-bold ml-2 text-2xl leading-none ${
+                    notification.type === 'urgent' 
+                      ? 'text-white hover:text-red-200' 
+                      : 'text-red-600 hover:text-red-800'
+                  }`}
                   title="מחק הודעה"
                 >
                   ✕
