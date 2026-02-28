@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation';
 import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
 import OnCallPanel from '@/components/OnCallPanel';
+import ShelterStatusManager from '@/components/ShelterStatusManager';
 import alertFlowsData from '@/data/alertFlows.json';
+import sheltersData from '@/data/shelters.json';
 
 export default function OperatorPage() {
   const router = useRouter();
@@ -129,6 +131,10 @@ export default function OperatorPage() {
               <ShelterSearch />
             </div>
           </div>
+        </div>
+
+        <div className="mt-6">
+          <ShelterStatusManager shelters={sheltersData} />
         </div>
 
         {activeEvent && <OnCallPanel />}

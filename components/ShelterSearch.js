@@ -19,6 +19,7 @@ export default function ShelterSearch() {
   const [shelters, setShelters] = useState(sheltersData);
   const [viewMode, setViewMode] = useState('list');
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [shelterStatuses, setShelterStatuses] = useState({});
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -35,7 +36,24 @@ export default function ShelterSearch() {
         console.error('Failed to parse shelter overrides', e);
       }
     }
+    
+    // Load shelter statuses
+    loadShelterStatuses();
+    
+    // Poll for status updates every 30 seconds
+    const interval = setInterval(loadShelterStatuses, 30000);
+    return () => clearInterval(interval);
   }, []);
+  
+  const loadShelterStatuses = async () => {
+    try {
+      const response = await fetch('/api/shelter-status');
+      const data = await response.json();
+      setShelterStatuses(data.statuses || {});
+    } catch (error) {
+      console.error('Error loading shelter statuses:', error);
+    }
+  };
 
   const searchAddress = async (query) => {
     if (query.length < 3) {
@@ -173,9 +191,27 @@ export default function ShelterSearch() {
   };
 
   const missingCoordinates = shelters.some(s => !s.lat || !s.lng);
+  
+  // Check if all public shelters are open
+  const publicShelters = shelters.filter(s => s.shelterType === 'public');
+  const openPublicShelters = publicShelters.filter(s => shelterStatuses[s.number]);
+  const allPublicSheltersOpen = publicShelters.length > 0 && openPublicShelters.length === publicShelters.length;
 
   return (
     <div className="space-y-6">
+      {allPublicSheltersOpen && (
+        <div className="bg-gradient-to-r from-green-500 to-emerald-600 text-white p-4 rounded-xl shadow-lg border-2 border-green-300 animate-pulse">
+          <div className="flex items-center gap-3">
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            <div>
+              <p className="font-bold text-lg">✓ כל המקלטים הציבוריים ומוסדות החינוך פתוחים</p>
+              <p className="text-sm text-green-100">ניתן להפנות תושבים למקלטים אלו</p>
+            </div>
+          </div>
+        </div>
+      )}
       {/* Search Box */}
       <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100 shadow-sm">
         <div className="flex items-center justify-between mb-4">
@@ -312,6 +348,7 @@ export default function ShelterSearch() {
               shelters={shelters}
               userLocation={selectedLocation}
               nearestShelters={nearestShelters}
+              shelterStatuses={shelterStatuses}
             />
           ) : (
             nearestShelters.map((shelter, index) => (
@@ -344,6 +381,16 @@ export default function ShelterSearch() {
                     <span className="font-medium">{shelter.address}</span>
                   </div>
                 </div>
+                
+                {shelter.shelterType === 'public' && (
+                  <div className={`px-4 py-2 rounded-lg font-bold text-sm mb-3 ${
+                    shelterStatuses[shelter.number]
+                      ? 'bg-green-100 text-green-800 border-2 border-green-400'
+                      : 'bg-gray-100 text-gray-600 border-2 border-gray-300'
+                  }`}>
+                    {shelterStatuses[shelter.number] ? '✓ מקלט פתוח' : '✕ מקלט סגור - דורש אישור'}
+                  </div>
+                )}
                 
                 {shelter.notes && (
                   <div className="mt-3 text-sm text-gray-700 bg-yellow-50 border border-yellow-200 p-3 rounded-lg">

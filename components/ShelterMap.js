@@ -11,7 +11,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-export default function ShelterMap({ shelters, userLocation, nearestShelters = [] }) {
+export default function ShelterMap({ shelters, userLocation, nearestShelters = [], shelterStatuses = {} }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
@@ -36,12 +36,22 @@ export default function ShelterMap({ shelters, userLocation, nearestShelters = [
 
     validShelters.forEach(shelter => {
       const isNearest = nearestIds.includes(shelter.id);
+      const isPublic = shelter.shelterType === 'public';
+      const isOpen = shelterStatuses[shelter.number];
+      
+      // Determine marker color based on status
+      let markerColor = isNearest ? '#ef4444' : '#3b82f6';
+      if (isPublic && !isOpen) {
+        markerColor = '#9ca3af'; // Gray for closed public shelters
+      } else if (isPublic && isOpen) {
+        markerColor = '#10b981'; // Green for open public shelters
+      }
       
       const icon = L.divIcon({
         className: 'custom-shelter-marker',
         html: `
           <div style="
-            background: ${isNearest ? '#ef4444' : '#3b82f6'};
+            background: ${markerColor};
             color: white;
             width: ${isNearest ? '36px' : '28px'};
             height: ${isNearest ? '36px' : '28px'};
@@ -65,6 +75,19 @@ export default function ShelterMap({ shelters, userLocation, nearestShelters = [
 
       const distance = nearestShelters.find(s => s.id === shelter.id)?.distance;
       const distanceText = distance ? `<br><strong>מרחק: ${Math.round(distance)}m</strong>` : '';
+      
+      const statusBadge = isPublic ? `
+        <div style="margin-top: 8px;">
+          <span style="background: ${isOpen ? '#10b981' : '#9ca3af'}; 
+                       color: white; 
+                       padding: 4px 10px; 
+                       border-radius: 12px; 
+                       font-size: 13px;
+                       font-weight: bold;">
+            ${isOpen ? '✓ מקלט פתוח' : '✕ סגור - דורש אישור'}
+          </span>
+        </div>
+      ` : '';
 
       marker.bindPopup(`
         <div style="text-align: right; direction: rtl; font-family: 'Segoe UI', Tahoma, sans-serif;">
@@ -72,6 +95,7 @@ export default function ShelterMap({ shelters, userLocation, nearestShelters = [
           <span style="color: #6b7280; font-size: 14px;">מספר: ${shelter.number}</span><br>
           <span style="color: #374151;">📍 ${shelter.address}</span>
           ${distanceText}
+          ${statusBadge}
           <div style="margin-top: 8px;">
             <span style="background: ${shelter.accessibility === 'נגיש' ? '#10b981' : '#f59e0b'}; 
                          color: white; 
@@ -210,20 +234,30 @@ export default function ShelterMap({ shelters, userLocation, nearestShelters = [
             width: '20px', 
             height: '20px', 
             borderRadius: '50%', 
-            background: '#3b82f6',
+            background: '#10b981',
             border: '2px solid white'
           }}></div>
-          <span>מקלטים אחרים</span>
+          <span>מקלט ציבורי פתוח</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ 
             width: '20px', 
             height: '20px', 
             borderRadius: '50%', 
-            background: '#10b981',
+            background: '#9ca3af',
             border: '2px solid white'
           }}></div>
-          <span>מיקום התושב</span>
+          <span>מקלט ציבורי סגור</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ 
+            width: '20px', 
+            height: '20px', 
+            borderRadius: '50%', 
+            background: '#3b82f6',
+            border: '2px solid white'
+          }}></div>
+          <span>מקלטים אחרים</span>
         </div>
       </div>
     </div>
