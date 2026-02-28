@@ -18,12 +18,17 @@ export default function PikudHaorefAlerts() {
 
   const fetchAlerts = async () => {
     try {
-      const response = await fetch('/api/pikud-haoref');
+      const response = await fetch('/api/pikud-haoref', {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache'
+        }
+      });
       const data = await response.json();
       
       setAlerts(data.alerts || []);
       setStatus(data.status);
-      setLastUpdate(new Date(data.timestamp));
+      setLastUpdate(new Date()); // Use current time to show live updates
     } catch (error) {
       console.error('Error fetching alerts:', error);
       setStatus('error');
@@ -103,7 +108,7 @@ export default function PikudHaorefAlerts() {
       ))}
       
       <div className="text-xs text-gray-500 text-center">
-        מתעדכן כל 5 שניות • מקור: פיקוד העורף
+        🔄 מתעדכן אוטומטית כל 5 שניות • בדיקה אחרונה: {lastUpdate?.toLocaleTimeString('he-IL')}
       </div>
     </div>
   );
