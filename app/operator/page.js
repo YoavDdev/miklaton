@@ -8,6 +8,7 @@ import OnCallPanel from '@/components/OnCallPanel';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
 import PikudHaorefAlerts from '@/components/PikudHaorefAlerts';
 import PrintableShelterList from '@/components/PrintableShelterList';
+import GeneralNotifications from '@/components/GeneralNotifications';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -56,6 +57,8 @@ export default function OperatorPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
         <PikudHaorefAlerts />
+        
+        <GeneralNotifications />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">

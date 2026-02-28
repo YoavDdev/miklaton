@@ -37,178 +37,115 @@ export default function PrintableShelterList({ shelters }) {
       <div ref={printRef} className="print-content hidden print:block">
         <style jsx global>{`
           @media print {
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
             body {
               margin: 0;
-              padding: 20px;
+              padding: 10px;
+              font-size: 9px;
             }
             .print-content {
               display: block !important;
             }
-            .no-print {
-              display: none !important;
-            }
             @page {
-              margin: 2cm;
+              margin: 0.5cm;
               size: A4;
+            }
+            table {
+              page-break-inside: auto;
+            }
+            tr {
+              page-break-inside: avoid;
+              page-break-after: auto;
             }
           }
         `}</style>
 
-        <div className="print:block" style={{ fontFamily: 'Arial, sans-serif' }}>
-          {/* Header */}
-          <div style={{ textAlign: 'center', marginBottom: '30px', borderBottom: '3px solid #2563eb', paddingBottom: '15px' }}>
-            <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1e40af', margin: '0 0 10px 0' }}>
-              🛡️ רשימת מקלטים - עיריית יהוד מונוסון
+        <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '9px' }}>
+          {/* Minimal Header */}
+          <div style={{ textAlign: 'center', marginBottom: '8px', borderBottom: '2px solid #000', paddingBottom: '4px' }}>
+            <h1 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>
+              רשימת מקלטים - יהוד מונוסון
             </h1>
-            <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>
-              תאריך הדפסה: {new Date().toLocaleDateString('he-IL', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
           </div>
 
-          {/* Categories */}
+          {/* Compact Table Format */}
           {Object.entries(categorizedShelters).map(([category, sheltersList]) => {
             if (sheltersList.length === 0) return null;
             
             return (
-              <div key={category} style={{ marginBottom: '40px', pageBreakInside: 'avoid' }}>
+              <div key={category} style={{ marginBottom: '12px' }}>
                 <h2 style={{ 
-                  fontSize: '20px', 
+                  fontSize: '11px', 
                   fontWeight: 'bold', 
-                  backgroundColor: '#dbeafe',
-                  padding: '10px 15px',
-                  borderRight: '5px solid #2563eb',
-                  marginBottom: '15px'
+                  backgroundColor: '#e0e0e0',
+                  padding: '3px 6px',
+                  marginBottom: '4px'
                 }}>
-                  📋 {category} ({sheltersList.length} מקלטים)
+                  {category} ({sheltersList.length})
                 </h2>
 
-                {sheltersList.map((shelter, index) => (
-                  <div 
-                    key={shelter.id}
-                    style={{
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '8px',
-                      padding: '15px',
-                      marginBottom: '20px',
-                      backgroundColor: '#ffffff',
-                      pageBreakInside: 'avoid'
-                    }}
-                  >
-                    {/* Shelter Header */}
-                    <div style={{ 
-                      display: 'flex', 
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '12px',
-                      borderBottom: '1px solid #e5e7eb',
-                      paddingBottom: '8px'
-                    }}>
-                      <div>
-                        <h3 style={{ 
-                          fontSize: '18px', 
-                          fontWeight: 'bold', 
-                          margin: '0 0 5px 0',
-                          color: '#1e40af'
+                <table style={{ 
+                  width: '100%', 
+                  borderCollapse: 'collapse',
+                  fontSize: '8px',
+                  marginBottom: '8px'
+                }}>
+                  <thead>
+                    <tr style={{ backgroundColor: '#f0f0f0', borderBottom: '1px solid #000' }}>
+                      <th style={{ border: '1px solid #ccc', padding: '2px 4px', width: '8%', textAlign: 'center' }}>מס׳</th>
+                      <th style={{ border: '1px solid #ccc', padding: '2px 4px', width: '25%' }}>שם</th>
+                      <th style={{ border: '1px solid #ccc', padding: '2px 4px', width: '27%' }}>כתובת</th>
+                      <th style={{ border: '1px solid #ccc', padding: '2px 4px', width: '40%' }}>הערות</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sheltersList.map((shelter) => (
+                      <tr key={shelter.id}>
+                        <td style={{ 
+                          border: '1px solid #ccc', 
+                          padding: '2px 4px',
+                          textAlign: 'center',
+                          fontWeight: 'bold'
                         }}>
+                          {shelter.number}
+                        </td>
+                        <td style={{ border: '1px solid #ccc', padding: '2px 4px' }}>
                           {shelter.name}
-                        </h3>
-                        <p style={{ fontSize: '14px', color: '#666', margin: 0 }}>
-                          כתובת: {shelter.address}
-                        </p>
-                      </div>
-                      <div style={{
-                        backgroundColor: '#2563eb',
-                        color: 'white',
-                        padding: '8px 16px',
-                        borderRadius: '25px',
-                        fontSize: '16px',
-                        fontWeight: 'bold'
-                      }}>
-                        מקלט {shelter.number}
-                      </div>
-                    </div>
-
-                    {/* Shelter Details */}
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: '10px',
-                      fontSize: '13px',
-                      marginBottom: '12px'
-                    }}>
-                      <div>
-                        <strong>אזור:</strong> {shelter.neighborhood || 'לא צוין'}
-                      </div>
-                      {shelter.landmarks && (
-                        <div>
-                          <strong>ציוני דרך:</strong> {shelter.landmarks}
-                        </div>
-                      )}
-                      {shelter.directions && (
-                        <div style={{ gridColumn: '1 / -1' }}>
-                          <strong>הוראות הגעה:</strong> {shelter.directions}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Notes Section */}
-                    <div style={{
-                      marginTop: '15px',
-                      padding: '10px',
-                      backgroundColor: '#f9fafb',
-                      border: '1px dashed #9ca3af',
-                      borderRadius: '6px',
-                      minHeight: '80px'
-                    }}>
-                      <p style={{ 
-                        fontSize: '12px', 
-                        fontWeight: 'bold', 
-                        color: '#374151',
-                        margin: '0 0 8px 0'
-                      }}>
-                        📝 הערות ומידע נוסף:
-                      </p>
-                      <div style={{
-                        borderBottom: '1px solid #d1d5db',
-                        marginBottom: '6px',
-                        minHeight: '20px'
-                      }}></div>
-                      <div style={{
-                        borderBottom: '1px solid #d1d5db',
-                        marginBottom: '6px',
-                        minHeight: '20px'
-                      }}></div>
-                      <div style={{
-                        borderBottom: '1px solid #d1d5db',
-                        minHeight: '20px'
-                      }}></div>
-                    </div>
-                  </div>
-                ))}
+                        </td>
+                        <td style={{ border: '1px solid #ccc', padding: '2px 4px' }}>
+                          {shelter.address}
+                        </td>
+                        <td style={{ 
+                          border: '1px solid #ccc', 
+                          padding: '2px 4px',
+                          minHeight: '30px',
+                          backgroundColor: '#fafafa'
+                        }}>
+                          {/* Empty space for handwritten notes */}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             );
           })}
 
-          {/* Footer */}
+          {/* Minimal Footer */}
           <div style={{
-            marginTop: '40px',
-            padding: '15px',
-            backgroundColor: '#f3f4f6',
-            borderTop: '2px solid #9ca3af',
+            position: 'fixed',
+            bottom: '5px',
+            left: '0',
+            right: '0',
             textAlign: 'center',
-            fontSize: '12px',
-            color: '#6b7280'
+            fontSize: '7px',
+            color: '#666'
           }}>
-            <p style={{ margin: '0 0 5px 0' }}>
-              מערכת מקלטון - עיריית יהוד מונוסון
-            </p>
-            <p style={{ margin: 0 }}>
-              לשאלות ופניות: טלפון חירום 106 | מוקד עירוני 03-5391200
-            </p>
+            www.miklaton.yehud-monosson.muni.il
           </div>
         </div>
       </div>

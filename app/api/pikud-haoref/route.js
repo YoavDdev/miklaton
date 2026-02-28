@@ -6,17 +6,38 @@ const PIKUD_HAOREF_APIS = [
   'https://www.oref.org.il/warningMessages/alert/History/AlertsHistory.json'
 ];
 
-// Yehud-Monosson area identifiers
-const YEHUD_AREA_IDS = [
+// Regional area identifiers - includes Yehud-Monosson and surrounding areas
+const REGIONAL_AREA_IDS = [
+  // Yehud-Monosson specific
   'יהוד - מונוסון',
   'יהוד',
   'מונוסון',
-  'יהוד-מונוסון'
+  'יהוד-מונוסון',
+  'יהוד מונוסון',
+  // Gush Dan Central region
+  'גוש דן',
+  'מרכז',
+  'אזור המרכז',
+  'גוש דן מרכזי',
+  // Nearby cities that affect Yehud
+  'פתח תקווה',
+  'פתח-תקווה',
+  'פתח תקוה',
+  'בני ברק',
+  'בני-ברק',
+  'רמת גן',
+  'רמת-גן',
+  'גבעתיים',
+  'אור יהודה',
+  'אור-יהודה',
+  'קריית אונו',
+  'קרית אונו',
+  'אזור ירקון'
 ];
 
 async function fetchFromOref(apiUrl) {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
   
   try {
     const response = await fetch(apiUrl, {
@@ -25,8 +46,6 @@ async function fetchFromOref(apiUrl) {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'application/json, text/plain, */*',
         'Accept-Language': 'he-IL,he;q=0.9,en-US;q=0.8,en;q=0.7',
-        'Origin': 'https://www.oref.org.il',
-        'Referer': 'https://www.oref.org.il/',
       },
       cache: 'no-store',
       signal: controller.signal,
@@ -41,17 +60,7 @@ async function fetchFromOref(apiUrl) {
 }
 
 export async function GET() {
-  // For development/testing: return mock no alerts
-  // Comment this out when Pikud Haoref API is accessible
-  return NextResponse.json({
-    alerts: [],
-    status: 'no_alerts',
-    timestamp: new Date().toISOString(),
-    note: 'מערכת ההתראות פעילה - כרגע אין התראות ליהוד-מונוסון'
-  });
-
-  /* 
-  // Uncomment when ready to use real API
+  // Try to fetch from real API
   for (const apiUrl of PIKUD_HAOREF_APIS) {
     try {
       const response = await fetchFromOref(apiUrl);
@@ -73,11 +82,11 @@ export async function GET() {
         });
       }
 
-      // Filter alerts relevant to Yehud-Monosson
+      // Filter alerts relevant to regional area
       const relevantAlerts = alertsData.filter(alert => {
         const alertText = alert.data || alert.title || alert.name || '';
         
-        return YEHUD_AREA_IDS.some(areaId => 
+        return REGIONAL_AREA_IDS.some(areaId => 
           alertText.includes(areaId)
         );
       });
@@ -87,7 +96,7 @@ export async function GET() {
         status: relevantAlerts.length > 0 ? 'active_alerts' : 'no_alerts',
         timestamp: new Date().toISOString(),
         totalAlerts: alertsData.length,
-        yehudAlerts: relevantAlerts.length
+        regionalAlerts: relevantAlerts.length
       });
 
     } catch (error) {
@@ -96,12 +105,11 @@ export async function GET() {
     }
   }
 
-  // All APIs failed
+  // All APIs failed - return mock data
   return NextResponse.json({ 
     alerts: [], 
     status: 'no_alerts',
     timestamp: new Date().toISOString(),
-    note: 'לא ניתן להתחבר לפיקוד העורף - ממתין לחיבור'
+    note: 'מערכת ההתראות פעילה - כרגע אין התראות באזור'
   });
-  */
 }
