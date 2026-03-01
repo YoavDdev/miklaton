@@ -96,40 +96,6 @@ export default function ShelterMap({ shelters, userLocation, nearestShelters = [
           <span style="color: #374151;">📍 ${shelter.address}</span>
           ${distanceText}
           ${statusBadge}
-          <div style="margin-top: 8px;">
-            <span style="background: ${shelter.accessibility === 'נגיש' ? '#10b981' : '#f59e0b'}; 
-                         color: white; 
-                         padding: 2px 8px; 
-                         border-radius: 12px; 
-                         font-size: 12px;">
-              ${shelter.accessibility}
-            </span>
-          </div>
-          <div style="margin-top: 8px;">
-            <a href="https://waze.com/ul?ll=${shelter.lat},${shelter.lng}" 
-               target="_blank" 
-               style="background: #06b6d4; 
-                      color: white; 
-                      padding: 6px 12px; 
-                      border-radius: 6px; 
-                      text-decoration: none; 
-                      display: inline-block; 
-                      font-size: 13px;
-                      margin-left: 5px;">
-              🚗 Waze
-            </a>
-            <a href="https://www.google.com/maps?q=${shelter.lat},${shelter.lng}" 
-               target="_blank" 
-               style="background: #ef4444; 
-                      color: white; 
-                      padding: 6px 12px; 
-                      border-radius: 6px; 
-                      text-decoration: none; 
-                      display: inline-block;
-                      font-size: 13px;">
-              🗺️ Maps
-            </a>
-          </div>
         </div>
       `);
     });

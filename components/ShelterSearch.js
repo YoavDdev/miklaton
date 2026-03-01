@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { findNearestShelters } from '@/lib/distance';
-import { getAccessibilityColor } from '@/lib/rtl';
 import sheltersData from '@/data/shelters.json';
 import streetsData from '@/data/streets.json';
 import dynamic from 'next/dynamic';

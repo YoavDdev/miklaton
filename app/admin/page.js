@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import onCallData from '@/data/onCall.json';
 import sheltersData from '@/data/shelters.json';
 import alertFlowsData from '@/data/alertFlows.json';
-import { getAccessibilityColor } from '@/lib/rtl';
 
 export default function AdminPage() {
   const router = useRouter();
@@ -260,16 +259,11 @@ export default function AdminPage() {
             <div className="space-y-4">
               {filteredShelters.map((shelter) => (
                 <div key={shelter.id} className="border-2 border-gray-200 rounded-lg p-4">
-                  <div className="flex items-start justify-between mb-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">{shelter.name}</h3>
-                      {shelter.number && (
-                        <p className="text-sm text-gray-500">מספר: {shelter.number}</p>
-                      )}
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${getAccessibilityColor(shelter.accessibility)}`}>
-                      {shelter.accessibility}
-                    </span>
+                  <div className="mb-3">
+                    <h3 className="text-lg font-bold text-gray-900">{shelter.name}</h3>
+                    {shelter.number && (
+                      <p className="text-sm text-gray-500">מספר: {shelter.number}</p>
+                    )}
                   </div>
 
                   <p className="text-gray-700 mb-2">📍 {shelter.address}</p>
