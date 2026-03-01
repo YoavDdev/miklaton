@@ -4,6 +4,13 @@ import { supabase } from '@/lib/supabase';
 // GET all notifications
 export async function GET() {
   try {
+    if (!supabase) {
+      return NextResponse.json({ 
+        notifications: [],
+        error: 'Database not configured' 
+      }, { status: 503 });
+    }
+
     const { data, error } = await supabase
       .from('general_notifications')
       .select('*')
@@ -27,6 +34,12 @@ export async function GET() {
 // POST new notification
 export async function POST(request) {
   try {
+    if (!supabase) {
+      return NextResponse.json({ 
+        error: 'Database not configured' 
+      }, { status: 503 });
+    }
+
     const body = await request.json();
     const { title, message, type, author } = body;
 
@@ -64,6 +77,12 @@ export async function POST(request) {
 // DELETE notification
 export async function DELETE(request) {
   try {
+    if (!supabase) {
+      return NextResponse.json({ 
+        error: 'Database not configured' 
+      }, { status: 503 });
+    }
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
