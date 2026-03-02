@@ -6,6 +6,13 @@ import onCallData from '@/data/onCall.json';
 import sheltersData from '@/data/shelters.json';
 import alertFlowsData from '@/data/alertFlows.json';
 
+const ZONE_LABELS = { A: 'מזרח וצפון', B: 'מרכז', C: 'מערב' };
+const ZONE_COLORS = {
+  A: 'bg-blue-100 text-blue-800',
+  B: 'bg-green-100 text-green-800',
+  C: 'bg-orange-100 text-orange-800',
+};
+
 export default function AdminPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('oncall');
@@ -13,6 +20,31 @@ export default function AdminPage() {
   const [shelters, setShelters] = useState(sheltersData);
   const [searchTerm, setSearchTerm] = useState('');
   const [geocodingStatus, setGeocodingStatus] = useState({});
+  const [inspectionReports, setInspectionReports] = useState([]);
+  const [reportsFilter, setReportsFilter] = useState('all');
+  const [loadingReports, setLoadingReports] = useState(false);
+
+  const fetchReports = async () => {
+    setLoadingReports(true);
+    try {
+      const res = await fetch('/api/inspection');
+      if (res.ok) setInspectionReports(await res.json());
+    } catch { /* silent */ }
+    setLoadingReports(false);
+  };
+
+  const markResolved = async (id) => {
+    await fetch('/api/inspection', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, status: 'resolved' }),
+    });
+    fetchReports();
+  };
+
+  useEffect(() => {
+    if (activeTab === 'inspection') fetchReports();
+  }, [activeTab]);
 
   useEffect(() => {
     const allContacts = [];
@@ -190,6 +222,21 @@ export default function AdminPage() {
             >
               נהלי תפעול
             </button>
+            <button
+              onClick={() => setActiveTab('inspection')}
+              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors relative ${
+                activeTab === 'inspection'
+                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              דיווחי פקחים
+              {inspectionReports.filter(r => r.status === 'open').length > 0 && (
+                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
+                  {inspectionReports.filter(r => r.status === 'open').length}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
@@ -304,6 +351,107 @@ export default function AdminPage() {
                 לשינויים קבועים, ייצא את השינויים והעתק אותם לקובץ data/shelters.json
               </p>
             </div>
+          </div>
+        )}
+
+        {activeTab === 'inspection' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-2xl font-bold text-gray-900">דיווחי פקחים</h2>
+              <button
+                onClick={fetchReports}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
+              >
+                🔄 רענן
+              </button>
+            </div>
+
+            <div className="flex gap-2 mb-5 flex-wrap">
+              {['all', 'open', 'resolved'].map((f) => (
+                <button
+                  key={f}
+                  onClick={() => setReportsFilter(f)}
+                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${
+                    reportsFilter === f
+                      ? 'bg-purple-600 text-white border-purple-600'
+                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
+                  }`}
+                >
+                  {f === 'all' ? 'הכל' : f === 'open' ? '⚠️ פתוחים' : '✅ טופלו'}
+                  {f === 'all' && ` (${inspectionReports.length})`}
+                  {f === 'open' && ` (${inspectionReports.filter(r => r.status === 'open').length})`}
+                  {f === 'resolved' && ` (${inspectionReports.filter(r => r.status === 'resolved').length})`}
+                </button>
+              ))}
+            </div>
+
+            {loadingReports ? (
+              <div className="text-center py-12 text-gray-500">טוען דיווחים...</div>
+            ) : (
+              <div className="space-y-4">
+                {inspectionReports
+                  .filter(r => reportsFilter === 'all' || r.status === reportsFilter)
+                  .length === 0 ? (
+                  <div className="text-center py-12 text-gray-400">
+                    <div className="text-4xl mb-3">✅</div>
+                    <p className="font-semibold">אין דיווחים</p>
+                  </div>
+                ) : (
+                  inspectionReports
+                    .filter(r => reportsFilter === 'all' || r.status === reportsFilter)
+                    .map((report) => (
+                      <div
+                        key={report.id}
+                        className={`border-2 rounded-lg p-4 transition-all ${
+                          report.status === 'resolved'
+                            ? 'border-gray-200 bg-gray-50 opacity-70'
+                            : 'border-red-200 bg-red-50'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3 mb-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${ZONE_COLORS[report.zone] || 'bg-gray-100 text-gray-700'}`}>
+                              אזור {report.zone} — {ZONE_LABELS[report.zone] || report.zone}
+                            </span>
+                            <span className="text-xs bg-gray-200 text-gray-700 font-semibold px-2 py-1 rounded-full">
+                              {report.locationType}
+                            </span>
+                            {report.status === 'resolved' && (
+                              <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-full">
+                                ✅ טופל
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-400 shrink-0">
+                            {new Date(report.timestamp).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}
+                          </span>
+                        </div>
+
+                        <p className="font-bold text-gray-900 mb-1">{report.locationName}</p>
+                        {report.locationAddress && (
+                          <p className="text-xs text-gray-500 mb-2">📍 {report.locationAddress}</p>
+                        )}
+                        <p className="text-gray-800 text-sm bg-white border border-gray-200 rounded-lg p-3 mb-3">
+                          {report.description}
+                        </p>
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs text-gray-500">
+                            פקח: <strong>{report.inspectorName}</strong>
+                          </span>
+                          {report.status === 'open' && (
+                            <button
+                              onClick={() => markResolved(report.id)}
+                              className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
+                            >
+                              ✅ סמן כטופל
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            )}
           </div>
         )}
 
