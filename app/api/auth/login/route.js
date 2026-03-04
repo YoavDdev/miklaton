@@ -5,16 +5,25 @@ export async function POST(request) {
   try {
     const { password, adminPassword } = await request.json();
 
-    if (!verifyOperatorPassword(password)) {
-      return NextResponse.json(
-        { error: 'סיסמה שגויה' },
-        { status: 401 }
-      );
-    }
-
     let isAdmin = false;
-    if (adminPassword && verifyAdminPassword(adminPassword)) {
+
+    // If adminPassword is provided, user is trying to log in as admin
+    if (adminPassword) {
+      if (!verifyAdminPassword(adminPassword)) {
+        return NextResponse.json(
+          { error: 'סיסמת מנהל שגויה' },
+          { status: 401 }
+        );
+      }
       isAdmin = true;
+    } else {
+      // Otherwise, user is trying to log in as operator
+      if (!verifyOperatorPassword(password)) {
+        return NextResponse.json(
+          { error: 'סיסמת מוקדן שגויה' },
+          { status: 401 }
+        );
+      }
     }
 
     const token = signToken({ isAdmin });
