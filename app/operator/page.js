@@ -15,6 +15,21 @@ export default function OperatorPage() {
   const [selectedFlowId, setSelectedFlowId] = useState('early_warning_then_alarm');
   const [activeEvent, setActiveEvent] = useState(null);
   const [warMode, setWarMode] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    // Check if user is admin
+    const checkAdminStatus = async () => {
+      try {
+        const res = await fetch('/api/auth/verify');
+        if (res.ok) {
+          const data = await res.json();
+          setIsAdmin(data.isAdmin || false);
+        }
+      } catch {}
+    };
+    checkAdminStatus();
+  }, []);
 
   useEffect(() => {
     const saved = localStorage.getItem('warMode');
@@ -78,6 +93,14 @@ export default function OperatorPage() {
               >
                 📞 אנשי קשר תורנים
               </a>
+              {isAdmin && (
+                <button
+                  onClick={() => router.push('/admin')}
+                  className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg font-semibold transition-colors"
+                >
+                  לעמדת מנהל
+                </button>
+              )}
               <button
                 onClick={handleLogout}
                 className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-semibold transition-colors"
