@@ -188,30 +188,16 @@
       },
       {
         "id": "missile_hit",
-        "type": "form",
-        "label": "נפילת טיל! — איסוף פרטי דיווח",
-        "criticalNote": "אירוע חמור — אסוף פרטים מהמדווח מיד!",
-        "formFields": [
-          { "id": "reporter_name", "label": "שם מדווח", "type": "text", "required": true },
-          { "id": "reporter_phone", "label": "טלפון מדווח", "type": "tel", "required": true },
-          { "id": "address", "label": "כתובת מדויקת", "type": "text", "required": true },
-          { "id": "description", "label": "תיאור האירוע", "type": "textarea", "required": true },
-          { "id": "notes", "label": "הערות נוספות", "type": "textarea", "required": false }
-        ],
-        "copyMessage": "דיווח נפילת טיל! — {time}\nמיקום: {address}\nמדווח: {reporter_name} ({reporter_phone})\nתיאור: {description}\n{notes}\n\nסטטוס: אירוע פעיל - מפעיל פרוטוקול מלא!",
-        "nextStep": "missile_emergency_calls"
-      },
-      {
-        "id": "missile_emergency_calls",
         "type": "action",
-        "label": "הקפצת כוחות חירום",
-        "criticalNote": "הקפצה מיידית!",
+        "label": "נפילת טיל! — הפעלת פרוטוקול מלא",
+        "criticalNote": "אירוע חמור — הקפצת כל הכוחות!",
         "checklist": [
           "הקפצת מד\"א",
           "הקפצת יחידת סער",
           "הקפצת כב\"א",
-          "עדכון כוחות ביטחון"
+          "עדכון כוחות ביטחון על ההקפצות"
         ],
+        "copyMessage": "נפילת טיל — {time}\nמיקום: {address}\nמדווח: {reporter_name} ({reporter_phone})\nתיאור: {description}\n{notes}\n\nסטטוס: אירוע פעיל.\nהוקפצו: מד\"א, סער, כב\"א.\nממתינים לתמונת מצב מלאה.",
         "nextStep": "missile_activate_makhlol"
       },
       {
@@ -434,30 +420,16 @@
       },
       {
         "id": "missile_hit",
-        "type": "form",
-        "label": "נפילת טיל! — איסוף פרטי דיווח",
-        "criticalNote": "אירוע חמור — אסוף פרטים מהמדווח מיד!",
-        "formFields": [
-          { "id": "reporter_name", "label": "שם מדווח", "type": "text", "required": true },
-          { "id": "reporter_phone", "label": "טלפון מדווח", "type": "tel", "required": true },
-          { "id": "address", "label": "כתובת מדויקת", "type": "text", "required": true },
-          { "id": "description", "label": "תיאור האירוע", "type": "textarea", "required": true },
-          { "id": "notes", "label": "הערות נוספות", "type": "textarea", "required": false }
-        ],
-        "copyMessage": "דיווח נפילת טיל! — {time}\nמיקום: {address}\nמדווח: {reporter_name} ({reporter_phone})\nתיאור: {description}\n{notes}\n\nסטטוס: אירוע פעיל - מפעיל פרוטוקול מלא!",
-        "nextStep": "missile_emergency_calls"
-      },
-      {
-        "id": "missile_emergency_calls",
         "type": "action",
-        "label": "הקפצת כוחות חירום",
-        "criticalNote": "הקפצה מיידית!",
+        "label": "נפילת טיל! — הפעלת פרוטוקול מלא",
+        "criticalNote": "אירוע חמור — הקפצת כל הכוחות!",
         "checklist": [
           "הקפצת מד\"א",
           "הקפצת יחידת סער",
           "הקפצת כב\"א",
-          "עדכון כוחות ביטחון"
+          "עדכון כוחות ביטחון על ההקפצות"
         ],
+        "copyMessage": "נפילת טיל — {time}\nמיקום: {address}\nמדווח: {reporter_name} ({reporter_phone})\nתיאור: {description}\n{notes}\n\nסטטוס: אירוע פעיל.\nהוקפצו: מד\"א, סער, כב\"א.\nממתינים לתמונת מצב מלאה.",
         "nextStep": "missile_activate_makhlol"
       },
       {
