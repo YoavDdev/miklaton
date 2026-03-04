@@ -1,108 +1,481 @@
 [
   {
-    "id": "missiles",
-    "title": "אזעקת טילים",
-    "description": "נוהל תפעול מלא בזמן אזעקת טילים",
+    "id": "early_warning_then_alarm",
+    "title": "התראה מוקדמת ← אזעקה",
+    "description": "התראה מוקדמת (סמיכות למרחב מוגן) ואז אזעקה",
     "steps": [
       {
-        "id": "step1",
+        "id": "ew_send_sticker",
+        "type": "action",
+        "label": "שלב 1: התראה מוקדמת התקבלה",
+        "roleRequired": "admin",
+        "reminder": "שלח סטיקר \"התראה… סמיכות למרחב מוגן\" בקבוצת חירום בוואטסאפ",
+        "checklist": [
+          "שלחתי סטיקר התראה מוקדמת בקבוצת חירום"
+        ],
+        "nextStep": "ew_wait_for_alarm",
+        "criticalNote": "מנהל/אחמ\"ש — שלח סטיקר מיד!"
+      },
+      {
+        "id": "ew_wait_for_alarm",
         "type": "decision",
-        "label": "שלב 1: התקבלה אזעקה",
+        "label": "שלב 2: ממתינים לאזעקה",
+        "question": "האם התקבלה אזעקה?",
+        "yesNext": "alarm_sticker",
+        "noNext": "ew_stand_down",
+        "criticalNote": "המתן לאזעקה. אם עוברות 10 דקות בלי אזעקה — שקול לסגור."
+      },
+      {
+        "id": "ew_stand_down",
+        "type": "action",
+        "label": "ביטול התראה מוקדמת",
+        "copyMessage": "עדכון: ההתראה המוקדמת הוסרה. חזרה לשגרה.",
+        "checklist": [
+          "שלחתי הודעת ביטול בקבוצת חירום"
+        ],
+        "nextStep": null
+      },
+      {
+        "id": "alarm_sticker",
+        "type": "action",
+        "label": "שלב 3: אזעקה! שליחת סטיקר אזעקת אמת",
+        "roleRequired": "admin",
+        "reminder": "שלח סטיקר \"אזעקת אמת יהוד מונוסון\" בקבוצת חירום בוואטסאפ",
+        "checklist": [
+          "שלחתי סטיקר אזעקת אמת בקבוצת חירום"
+        ],
+        "nextStep": "alarm_shelters_check",
+        "criticalNote": "מנהל/אחמ\"ש — שלח סטיקר אזעקת אמת מיד!"
+      },
+      {
+        "id": "alarm_shelters_check",
+        "type": "decision",
+        "label": "שלב 4: בדיקת מקלטים",
         "question": "האם המקלטים נפתחו אוטומטית?",
-        "yesNext": "step3_updates",
-        "noNext": "step_manual_open",
+        "yesNext": "alarm_update_contacts",
+        "noNext": "alarm_manual_open",
         "criticalNote": "בדוק במערכת Ekron מיד"
       },
       {
-        "id": "step_manual_open",
+        "id": "alarm_manual_open",
         "type": "action",
         "label": "פתיחה ידנית של מקלטים",
         "checklist": [
-          "יש לפתוח ידנית את המקלטים דרך המערכת ekron"
+          "פתח ידנית את המקלטים דרך מערכת Ekron"
         ],
-        "nextStep": "step2",
-        "criticalNote": "דחיפות קריטית - פעולה מיידית!"
+        "nextStep": "alarm_manual_verify",
+        "criticalNote": "דחיפות קריטית — פעולה מיידית!"
       },
       {
-        "id": "step2",
+        "id": "alarm_manual_verify",
         "type": "decision",
         "label": "וידוא פתיחת מקלטים",
-        "question": "האם כל המקלטים נפתחו עכשיו?",
-        "yesNext": "step3_updates",
-        "noNext": "step_contact_tech"
+        "question": "האם כל המקלטים נפתחו?",
+        "yesNext": "alarm_update_contacts",
+        "noNext": "alarm_contact_tech"
       },
       {
-        "id": "step_contact_tech",
+        "id": "alarm_contact_tech",
         "type": "action",
         "label": "יצירת קשר עם צוות טכני",
         "checklist": [
-          "צור קשר עם דורון או הריאל",
-          "עדכן אותם על המצב",
-          "בקש קוד כניסה למקלט אם אין בררה"
+          "צור קשר עם דורון שפרן (050-788-8751)",
+          "או אריאל גרג'י (052-386-1184)",
+          "עדכן על המצב ובקש קוד כניסה אם צריך"
         ],
-        "nextStep": "step3_updates",
+        "nextStep": "alarm_update_contacts",
         "criticalNote": "חייב ליצור קשר מיידי עם הצוות הטכני"
       },
       {
-        "id": "step3_updates",
+        "id": "alarm_update_contacts",
         "type": "action",
-        "label": "שלב 2: התקשרות לגורמים ועדכון קבוצת חירום",
+        "label": "שלב 5: עדכון גורמים",
         "checklist": [
-          "התקשרת למנכ\"ל גיל סימנטוב",
-          "התקשרת לליאור בוקר",
-          "התקשרת למירי צרפתי",
-          "שלחת הודעה לקבוצת חרום של אייקון האזעקה ב-WhatsApp"
+          "התקשרתי למנכ\"ל גיל סימנטוב (052-303-9955)",
+          "התקשרתי לליאור בוקר (052-927-8235)",
+          "התקשרתי למירי צרפתי (052-633-6430)"
         ],
-        "nextStep": "step4_cameras",
-        "criticalNote": "חובה להתקשר טלפונית ולעדכן בקבוצת החרום"
+        "nextStep": "alarm_cameras_5min",
+        "criticalNote": "חובה להתקשר טלפונית — לא רק הודעה!"
       },
       {
-        "id": "step4_cameras",
+        "id": "alarm_cameras_5min",
         "type": "action",
-        "label": "שלב 3: צפייה במצלמות ומענה לתושבים",
+        "label": "שלב 6: סריקת מצלמות + מענה לתושבים (5 דק')",
+        "roleNote": "מנהל/אחמ\"ש: סורק מצלמות | מוקדן: עונה לתושבים",
         "checklist": [
-          "צפיה במצלמות",
-          "תן מענה לתושבים במשך 5 דקות"
+          "מנהל: צופה במצלמות",
+          "מוקדן: נותן מענה לפניות תושבים"
         ],
-        "nextStep": "step5_missile_check",
-        "timer": 300
+        "nextStep": "alarm_5min_check",
+        "timer": 300,
+        "timerCancelOn": "shrapnel_report"
       },
       {
-        "id": "step5_missile_check",
+        "id": "alarm_5min_check",
         "type": "decision",
-        "label": "שלב 4: בדיקה - האם היה טיל?",
-        "question": "האם התקבלה קריאה על פגיעת טיל במשך ה-5 דקות?",
-        "yesNext": "step_missile_hit",
-        "noNext": "step_no_hit"
+        "label": "שלב 7: בדיקה אחרי 5 דקות",
+        "question": "מה המצב אחרי 5 דקות?",
+        "options": [
+          { "label": "✅ הכול תקין — אין דיווחים", "next": "all_clear" },
+          { "label": "⚠️ דיווח רסיס", "next": "shrapnel_report" },
+          { "label": "🚨 דיווח נפילת טיל!", "next": "missile_hit" }
+        ]
       },
       {
-        "id": "step_no_hit",
+        "id": "all_clear",
         "type": "action",
-        "label": "לא הייתה פגיעה - דוח מצב",
+        "label": "הכול תקין — דוח מצב",
+        "copyMessage": "דוח מצב — {time}\nאזעקה: יהוד-מונוסון\nמצב: הכול תקין, אין דיווחים על חריגים.\nמקלטים: נפתחו ונסגרו כסדרם.\nנפגעים: אין.\nנזק: לא דווח.\nסטטוס: חזרה לשגרה.",
         "checklist": [
-          "שלח דוח מצב בקבוצת העדכונים ב-WhatsApp"
+          "העתקתי ושלחתי דוח מצב \"הכול תקין\" בקבוצת חירום"
         ],
-        "nextStep": "step_close"
+        "nextStep": null
       },
       {
-        "id": "step_missile_hit",
+        "id": "shrapnel_report",
+        "type": "form",
+        "label": "דיווח רסיס — איסוף פרטים",
+        "formFields": [
+          { "id": "reporter_name", "label": "שם מדווח", "type": "text", "required": true },
+          { "id": "reporter_phone", "label": "טלפון מדווח", "type": "tel", "required": true },
+          { "id": "address", "label": "כתובת", "type": "text", "required": true },
+          { "id": "description", "label": "תיאור", "type": "textarea", "required": true },
+          { "id": "notes", "label": "הערות", "type": "textarea", "required": false }
+        ],
+        "nextStep": "shrapnel_actions",
+        "criticalNote": "מלא את כל הפרטים — זה ייצור הודעת וואטסאפ מוכנה"
+      },
+      {
+        "id": "shrapnel_actions",
         "type": "action",
-        "label": "היה טיל - הפעלת פרוטוקול מלא",
+        "label": "רסיס — פעולות מיידיות",
+        "copyMessage": "דיווח רסיס — {time}\nמדווח: {reporter_name} | {reporter_phone}\nכתובת: {address}\nתיאור: {description}\nהערות: {notes}\n\nהכוחות בשטח עודכנו. ממתינים לעדכונים.",
         "checklist": [
-          "עדכן את המנכ\"ל גיל סימנטוב והמתן להוראות ממנו",
-          "עדכן את ליאור בוקר",
-          "עדכן את מירי צרפתי",
-          "הקפץ רשימת כוננים מכלול (רק באישור מנכ\"ל!)"
+          "מוקדן: דיווחתי ל-100 משטרה",
+          "דיווחתי בקשר לכוחות הביטחון בשטח",
+          "שלחתי הודעת רסיס בקבוצת חירום בוואטסאפ",
+          "ממתין לעדכונים מהשטח"
         ],
-        "nextStep": "step_close",
-        "criticalNote": "הקפצת כוננים מכלול רק באישור מנכ\"ל בלבד!"
+        "nextStep": "shrapnel_wait",
+        "criticalNote": "מוקדן חייב לדווח ל-100 משטרה!"
       },
       {
-        "id": "step_close",
+        "id": "shrapnel_wait",
+        "type": "decision",
+        "label": "המתנה לעדכונים מהשטח",
+        "question": "מה המצב?",
+        "options": [
+          { "label": "חבלן אישר — אין סכנה → סגור אירוע", "next": "shrapnel_close" },
+          { "label": "הכוחות אומרים סכנה → נפילת טיל!", "next": "missile_hit" },
+          { "label": "דיווח רסיס נוסף", "next": "shrapnel_report" }
+        ],
+        "criticalNote": "סגירת אירוע רסיס רק ע\"י חבלן!"
+      },
+      {
+        "id": "shrapnel_close",
         "type": "action",
-        "label": "סיום אירוע",
-        "checklist": [],
-        "description": "האירוע הסתיים",
+        "label": "סגירת אירוע רסיס — חבלן אישר",
+        "copyMessage": "סיכום אירוע רסיס — {time}\nאזעקה: יהוד-מונוסון\nדיווח רסיס: {address}\nסטטוס: חבלן בדק ואישר — אין סכנה.\nנפגעים: אין.\nסטטוס: האירוע נסגר.",
+        "checklist": [
+          "חבלן אישר שאין סכנה",
+          "שלחתי הודעת סיכום בקבוצת חירום"
+        ],
+        "nextStep": null
+      },
+      {
+        "id": "missile_hit",
+        "type": "action",
+        "label": "נפילת טיל! — הפעלת פרוטוקול מלא",
+        "criticalNote": "אירוע חמור — הקפצת כל הכוחות!",
+        "checklist": [
+          "הקפצת מד\"א",
+          "הקפצת יחידת סער",
+          "הקפצת כב\"א",
+          "עדכון בקשר לכוחות הביטחון על ההקפצות"
+        ],
+        "copyMessage": "נפילת טיל — {time}\nמיקום: {address}\nסטטוס: אירוע פעיל.\nהוקפצו: מד\"א, סער, כב\"א.\nממתינים לתמונת מצב מלאה.",
+        "nextStep": "missile_activate_makhlol"
+      },
+      {
+        "id": "missile_activate_makhlol",
+        "type": "activations",
+        "label": "הקפצת מכלול 1-2 — טלפון אחד-אחד",
+        "criticalNote": "הקפצה רק באישור מנכ\"ל! יש לסמן כל איש שהוקפץ.",
+        "activationSource": "onCall",
+        "nextStep": "missile_field_commander"
+      },
+      {
+        "id": "missile_field_commander",
+        "type": "action",
+        "label": "עדכון מנהל אירוע בשטח",
+        "checklist": [
+          "זיהיתי מי מנהל האירוע בשטח",
+          "עדכנתי אותו בקשר על כל ההקפצות",
+          "קיבלתי תמונת מצב ראשונית"
+        ],
+        "nextStep": "missile_status_update"
+      },
+      {
+        "id": "missile_status_update",
+        "type": "action",
+        "label": "ריכוז תמונת מצב + עדכון",
+        "copyMessage": "עדכון תמונת מצב — {time}\nאירוע: נפילת טיל\nמיקום: {address}\nמנהל אירוע בשטח: {field_commander}\nכוחות בשטח: מד\"א, סער, כב\"א\nמכלול: הוקפצו {activated_count} אנשים\nנפגעים: {casualties}\nנזק: {damage}\nסטטוס: {status}",
+        "formFields": [
+          { "id": "field_commander", "label": "מנהל אירוע בשטח", "type": "text", "required": true },
+          { "id": "casualties", "label": "נפגעים", "type": "text", "required": true },
+          { "id": "damage", "label": "נזק", "type": "textarea", "required": true },
+          { "id": "status", "label": "סטטוס נוכחי", "type": "text", "required": true }
+        ],
+        "checklist": [
+          "ריכזתי תמונת מצב מלאה",
+          "עדכנתי מנהל אירוע בקשר",
+          "שלחתי הודעה מסודרת בוואטסאפ"
+        ],
+        "nextStep": "missile_close_check"
+      },
+      {
+        "id": "missile_close_check",
+        "type": "decision",
+        "label": "האם האירוע הסתיים?",
+        "question": "האם ניתן לסגור את האירוע?",
+        "yesNext": "missile_close",
+        "noNext": "missile_status_update"
+      },
+      {
+        "id": "missile_close",
+        "type": "action",
+        "label": "סגירת אירוע נפילת טיל",
+        "copyMessage": "סיכום אירוע — נפילת טיל — {time}\nמיקום: {address}\nמנהל אירוע: {field_commander}\nנפגעים: {casualties}\nנזק: {damage}\nכוחות שהוקפצו: מד\"א, סער, כב\"א, מכלול\nסטטוס: האירוע נסגר.\n\nדוח מפורט יישלח בהמשך.",
+        "checklist": [
+          "שלחתי הודעת סיכום סופית בקבוצת חירום",
+          "וידאתי שכל הכוחות עודכנו על סגירת האירוע"
+        ],
+        "nextStep": null
+      }
+    ]
+  },
+  {
+    "id": "direct_alarm",
+    "title": "אזעקה ישירה (בלי התראה מוקדמת)",
+    "description": "אזעקה שמגיעה ישירות בלי התראה מוקדמת",
+    "steps": [
+      {
+        "id": "alarm_sticker",
+        "type": "action",
+        "label": "שלב 1: אזעקה! שליחת סטיקר אזעקת אמת",
+        "roleRequired": "admin",
+        "reminder": "שלח סטיקר \"אזעקת אמת יהוד מונוסון\" בקבוצת חירום בוואטסאפ",
+        "checklist": [
+          "שלחתי סטיקר אזעקת אמת בקבוצת חירום"
+        ],
+        "nextStep": "alarm_shelters_check",
+        "criticalNote": "מנהל/אחמ\"ש — שלח סטיקר אזעקת אמת מיד!"
+      },
+      {
+        "id": "alarm_shelters_check",
+        "type": "decision",
+        "label": "שלב 2: בדיקת מקלטים",
+        "question": "האם המקלטים נפתחו אוטומטית?",
+        "yesNext": "alarm_update_contacts",
+        "noNext": "alarm_manual_open",
+        "criticalNote": "בדוק במערכת Ekron מיד"
+      },
+      {
+        "id": "alarm_manual_open",
+        "type": "action",
+        "label": "פתיחה ידנית של מקלטים",
+        "checklist": [
+          "פתח ידנית את המקלטים דרך מערכת Ekron"
+        ],
+        "nextStep": "alarm_manual_verify",
+        "criticalNote": "דחיפות קריטית — פעולה מיידית!"
+      },
+      {
+        "id": "alarm_manual_verify",
+        "type": "decision",
+        "label": "וידוא פתיחת מקלטים",
+        "question": "האם כל המקלטים נפתחו?",
+        "yesNext": "alarm_update_contacts",
+        "noNext": "alarm_contact_tech"
+      },
+      {
+        "id": "alarm_contact_tech",
+        "type": "action",
+        "label": "יצירת קשר עם צוות טכני",
+        "checklist": [
+          "צור קשר עם דורון שפרן (050-788-8751)",
+          "או אריאל גרג'י (052-386-1184)",
+          "עדכן על המצב ובקש קוד כניסה אם צריך"
+        ],
+        "nextStep": "alarm_update_contacts",
+        "criticalNote": "חייב ליצור קשר מיידי עם הצוות הטכני"
+      },
+      {
+        "id": "alarm_update_contacts",
+        "type": "action",
+        "label": "שלב 3: עדכון גורמים",
+        "checklist": [
+          "התקשרתי למנכ\"ל גיל סימנטוב (052-303-9955)",
+          "התקשרתי לליאור בוקר (052-927-8235)",
+          "התקשרתי למירי צרפתי (052-633-6430)"
+        ],
+        "nextStep": "alarm_cameras_5min",
+        "criticalNote": "חובה להתקשר טלפונית — לא רק הודעה!"
+      },
+      {
+        "id": "alarm_cameras_5min",
+        "type": "action",
+        "label": "שלב 4: סריקת מצלמות + מענה לתושבים (5 דק')",
+        "roleNote": "מנהל/אחמ\"ש: סורק מצלמות | מוקדן: עונה לתושבים",
+        "checklist": [
+          "מנהל: צופה במצלמות",
+          "מוקדן: נותן מענה לפניות תושבים"
+        ],
+        "nextStep": "alarm_5min_check",
+        "timer": 300,
+        "timerCancelOn": "shrapnel_report"
+      },
+      {
+        "id": "alarm_5min_check",
+        "type": "decision",
+        "label": "שלב 5: בדיקה אחרי 5 דקות",
+        "question": "מה המצב אחרי 5 דקות?",
+        "options": [
+          { "label": "✅ הכול תקין — אין דיווחים", "next": "all_clear" },
+          { "label": "⚠️ דיווח רסיס", "next": "shrapnel_report" },
+          { "label": "🚨 דיווח נפילת טיל!", "next": "missile_hit" }
+        ]
+      },
+      {
+        "id": "all_clear",
+        "type": "action",
+        "label": "הכול תקין — דוח מצב",
+        "copyMessage": "דוח מצב — {time}\nאזעקה: יהוד-מונוסון\nמצב: הכול תקין, אין דיווחים על חריגים.\nמקלטים: נפתחו ונסגרו כסדרם.\nנפגעים: אין.\nנזק: לא דווח.\nסטטוס: חזרה לשגרה.",
+        "checklist": [
+          "העתקתי ושלחתי דוח מצב \"הכול תקין\" בקבוצת חירום"
+        ],
+        "nextStep": null
+      },
+      {
+        "id": "shrapnel_report",
+        "type": "form",
+        "label": "דיווח רסיס — איסוף פרטים",
+        "formFields": [
+          { "id": "reporter_name", "label": "שם מדווח", "type": "text", "required": true },
+          { "id": "reporter_phone", "label": "טלפון מדווח", "type": "tel", "required": true },
+          { "id": "address", "label": "כתובת", "type": "text", "required": true },
+          { "id": "description", "label": "תיאור", "type": "textarea", "required": true },
+          { "id": "notes", "label": "הערות", "type": "textarea", "required": false }
+        ],
+        "nextStep": "shrapnel_actions",
+        "criticalNote": "מלא את כל הפרטים — זה ייצור הודעת וואטסאפ מוכנה"
+      },
+      {
+        "id": "shrapnel_actions",
+        "type": "action",
+        "label": "רסיס — פעולות מיידיות",
+        "copyMessage": "דיווח רסיס — {time}\nמדווח: {reporter_name} | {reporter_phone}\nכתובת: {address}\nתיאור: {description}\nהערות: {notes}\n\nהכוחות בשטח עודכנו. ממתינים לעדכונים.",
+        "checklist": [
+          "מוקדן: דיווחתי ל-100 משטרה",
+          "דיווחתי בקשר לכוחות הביטחון בשטח",
+          "שלחתי הודעת רסיס בקבוצת חירום בוואטסאפ",
+          "ממתין לעדכונים מהשטח"
+        ],
+        "nextStep": "shrapnel_wait",
+        "criticalNote": "מוקדן חייב לדווח ל-100 משטרה!"
+      },
+      {
+        "id": "shrapnel_wait",
+        "type": "decision",
+        "label": "המתנה לעדכונים מהשטח",
+        "question": "מה המצב?",
+        "options": [
+          { "label": "חבלן אישר — אין סכנה → סגור אירוע", "next": "shrapnel_close" },
+          { "label": "הכוחות אומרים סכנה → נפילת טיל!", "next": "missile_hit" },
+          { "label": "דיווח רסיס נוסף", "next": "shrapnel_report" }
+        ],
+        "criticalNote": "סגירת אירוע רסיס רק ע\"י חבלן!"
+      },
+      {
+        "id": "shrapnel_close",
+        "type": "action",
+        "label": "סגירת אירוע רסיס — חבלן אישר",
+        "copyMessage": "סיכום אירוע רסיס — {time}\nאזעקה: יהוד-מונוסון\nדיווח רסיס: {address}\nסטטוס: חבלן בדק ואישר — אין סכנה.\nנפגעים: אין.\nסטטוס: האירוע נסגר.",
+        "checklist": [
+          "חבלן אישר שאין סכנה",
+          "שלחתי הודעת סיכום בקבוצת חירום"
+        ],
+        "nextStep": null
+      },
+      {
+        "id": "missile_hit",
+        "type": "action",
+        "label": "נפילת טיל! — הפעלת פרוטוקול מלא",
+        "criticalNote": "אירוע חמור — הקפצת כל הכוחות!",
+        "checklist": [
+          "הקפצת מד\"א",
+          "הקפצת יחידת סער",
+          "הקפצת כב\"א",
+          "עדכון בקשר לכוחות הביטחון על ההקפצות"
+        ],
+        "copyMessage": "נפילת טיל — {time}\nמיקום: {address}\nסטטוס: אירוע פעיל.\nהוקפצו: מד\"א, סער, כב\"א.\nממתינים לתמונת מצב מלאה.",
+        "nextStep": "missile_activate_makhlol"
+      },
+      {
+        "id": "missile_activate_makhlol",
+        "type": "activations",
+        "label": "הקפצת מכלול 1-2 — טלפון אחד-אחד",
+        "criticalNote": "הקפצה רק באישור מנכ\"ל! יש לסמן כל איש שהוקפץ.",
+        "activationSource": "onCall",
+        "nextStep": "missile_field_commander"
+      },
+      {
+        "id": "missile_field_commander",
+        "type": "action",
+        "label": "עדכון מנהל אירוע בשטח",
+        "checklist": [
+          "זיהיתי מי מנהל האירוע בשטח",
+          "עדכנתי אותו בקשר על כל ההקפצות",
+          "קיבלתי תמונת מצב ראשונית"
+        ],
+        "nextStep": "missile_status_update"
+      },
+      {
+        "id": "missile_status_update",
+        "type": "action",
+        "label": "ריכוז תמונת מצב + עדכון",
+        "copyMessage": "עדכון תמונת מצב — {time}\nאירוע: נפילת טיל\nמיקום: {address}\nמנהל אירוע בשטח: {field_commander}\nכוחות בשטח: מד\"א, סער, כב\"א\nמכלול: הוקפצו {activated_count} אנשים\nנפגעים: {casualties}\nנזק: {damage}\nסטטוס: {status}",
+        "formFields": [
+          { "id": "field_commander", "label": "מנהל אירוע בשטח", "type": "text", "required": true },
+          { "id": "casualties", "label": "נפגעים", "type": "text", "required": true },
+          { "id": "damage", "label": "נזק", "type": "textarea", "required": true },
+          { "id": "status", "label": "סטטוס נוכחי", "type": "text", "required": true }
+        ],
+        "checklist": [
+          "ריכזתי תמונת מצב מלאה",
+          "עדכנתי מנהל אירוע בקשר",
+          "שלחתי הודעה מסודרת בוואטסאפ"
+        ],
+        "nextStep": "missile_close_check"
+      },
+      {
+        "id": "missile_close_check",
+        "type": "decision",
+        "label": "האם האירוע הסתיים?",
+        "question": "האם ניתן לסגור את האירוע?",
+        "yesNext": "missile_close",
+        "noNext": "missile_status_update"
+      },
+      {
+        "id": "missile_close",
+        "type": "action",
+        "label": "סגירת אירוע נפילת טיל",
+        "copyMessage": "סיכום אירוע — נפילת טיל — {time}\nמיקום: {address}\nמנהל אירוע: {field_commander}\nנפגעים: {casualties}\nנזק: {damage}\nכוחות שהוקפצו: מד\"א, סער, כב\"א, מכלול\nסטטוס: האירוע נסגר.\n\nדוח מפורט יישלח בהמשך.",
+        "checklist": [
+          "שלחתי הודעת סיכום סופית בקבוצת חירום",
+          "וידאתי שכל הכוחות עודכנו על סגירת האירוע"
+        ],
         "nextStep": null
       }
     ]
@@ -110,7 +483,7 @@
   {
     "id": "earthquake",
     "title": "רעידת אדמה",
-    "description": "נוהל לעתיד - לא מופעל כרגע",
+    "description": "נוהל לעתיד — לא מופעל כרגע",
     "steps": []
   }
 ]

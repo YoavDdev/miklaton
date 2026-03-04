@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import onCallData from '@/data/onCall.json';
 import sheltersData from '@/data/shelters.json';
 import alertFlowsData from '@/data/alertFlows.json';
+import GeneralNotifications from '@/components/GeneralNotifications';
+import OnCallManager from '@/components/OnCallManager';
 
 const ZONE_LABELS = { A: 'מזרח וצפון', B: 'מרכז', C: 'מערב' };
 const ZONE_COLORS = {
@@ -16,7 +17,6 @@ const ZONE_COLORS = {
 export default function AdminPage() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState('oncall');
-  const [onCallContacts, setOnCallContacts] = useState([]);
   const [shelters, setShelters] = useState(sheltersData);
   const [searchTerm, setSearchTerm] = useState('');
   const [geocodingStatus, setGeocodingStatus] = useState({});
@@ -47,34 +47,6 @@ export default function AdminPage() {
   }, [activeTab]);
 
   useEffect(() => {
-    const allContacts = [];
-    Object.keys(onCallData.departments).forEach(deptKey => {
-      const dept = onCallData.departments[deptKey];
-      dept.contacts.forEach(contact => {
-        allContacts.push({
-          ...contact,
-          department: dept.name
-        });
-      });
-    });
-
-    const overrides = localStorage.getItem('onCallActiveOverrides');
-    if (overrides) {
-      try {
-        const parsed = JSON.parse(overrides);
-        const updated = allContacts.map(c => ({
-          ...c,
-          active: parsed[c.id] !== undefined ? parsed[c.id] : c.active
-        }));
-        setOnCallContacts(updated);
-      } catch (e) {
-        console.error('Failed to parse overrides', e);
-        setOnCallContacts(allContacts);
-      }
-    } else {
-      setOnCallContacts(allContacts);
-    }
-
     const shelterOverrides = localStorage.getItem('shelterCoordinateOverrides');
     if (shelterOverrides) {
       try {
@@ -93,19 +65,6 @@ export default function AdminPage() {
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
-  };
-
-  const toggleContactActive = (contactId) => {
-    const updated = onCallContacts.map(c =>
-      c.id === contactId ? { ...c, active: !c.active } : c
-    );
-    setOnCallContacts(updated);
-
-    const overrides = {};
-    updated.forEach(c => {
-      overrides[c.id] = c.active;
-    });
-    localStorage.setItem('onCallActiveOverrides', JSON.stringify(overrides));
   };
 
   const geocodeShelter = async (shelter) => {
@@ -213,6 +172,16 @@ export default function AdminPage() {
               מקלטים
             </button>
             <button
+              onClick={() => setActiveTab('notifications')}
+              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
+                activeTab === 'notifications'
+                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              הודעות
+            </button>
+            <button
               onClick={() => setActiveTab('flows')}
               className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
                 activeTab === 'flows'
@@ -241,44 +210,7 @@ export default function AdminPage() {
         </div>
 
         {activeTab === 'oncall' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-2">ניהול אנשי קשר תורנים</h2>
-            <p className="text-sm text-gray-600 mb-6">
-              {onCallData.weekLabel} - שינויים נשמרים ב-localStorage. לשינויים קבועים ערוך את data/onCall.json
-            </p>
-
-            <div className="space-y-3">
-              {onCallContacts.map((contact) => (
-                <div
-                  key={contact.id}
-                  className={`flex items-center justify-between p-4 border-2 rounded-lg transition-all ${
-                    contact.active
-                      ? 'border-green-300 bg-green-50'
-                      : 'border-gray-200 bg-gray-50 opacity-60'
-                  }`}
-                >
-                  <div className="flex items-center gap-4">
-                    <input
-                      type="checkbox"
-                      checked={contact.active}
-                      onChange={() => toggleContactActive(contact.id)}
-                      className="w-6 h-6"
-                    />
-                    <div>
-                      <p className="font-bold text-gray-900 text-lg">{contact.name}</p>
-                      <p className="text-sm text-gray-600">{contact.department} • משמרת: {contact.shift}</p>
-                    </div>
-                  </div>
-                  <div className="text-left">
-                    <p className="font-mono text-gray-900">{contact.phone}</p>
-                    <p className="text-xs text-gray-500">
-                      {contact.active ? 'פעיל השבוע' : 'לא פעיל'}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
+          <OnCallManager />
         )}
 
         {activeTab === 'shelters' && (
@@ -453,6 +385,10 @@ export default function AdminPage() {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <GeneralNotifications />
         )}
 
         {activeTab === 'flows' && (

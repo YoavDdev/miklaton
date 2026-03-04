@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import onCallData from '@/data/onCall.json';
 
 export default function FlowRunner({ flow, onEnd }) {
   const [currentStepId, setCurrentStepId] = useState(null);
@@ -9,6 +10,10 @@ export default function FlowRunner({ flow, onEnd }) {
   const [checkedItems, setCheckedItems] = useState({});
   const [timer, setTimer] = useState(null);
   const [timerActive, setTimerActive] = useState(false);
+  const [formData, setFormData] = useState({});
+  const [eventData, setEventData] = useState({});
+  const [activations, setActivations] = useState({});
+  const [copySuccess, setCopySuccess] = useState(false);
 
   useEffect(() => {
     if (flow && flow.steps && flow.steps.length > 0) {
@@ -16,6 +21,13 @@ export default function FlowRunner({ flow, onEnd }) {
       setCurrentStepId(firstStep.id);
       const now = new Date();
       setStartTime(now);
+      setSessionLog([]);
+      setCheckedItems({});
+      setFormData({});
+      setEventData({});
+      setActivations({});
+      setTimer(null);
+      setTimerActive(false);
       addToLog(`התחלת אירוע: ${flow.title}`, now);
     }
   }, [flow]);
@@ -42,20 +54,51 @@ export default function FlowRunner({ flow, onEnd }) {
 
   const currentStep = flow?.steps?.find((s) => s.id === currentStepId);
 
-  const handleDecision = (answer) => {
-    if (!currentStep) return;
-    
-    const nextStepId = answer === 'yes' ? currentStep.yesNext : currentStep.noNext;
-    addToLog(`${currentStep.label}: ${answer === 'yes' ? 'כן' : 'לא'}`);
-    
+  const resolveTemplate = (template) => {
+    if (!template) return '';
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    const dateStr = now.toLocaleDateString('he-IL');
+    let result = template
+      .replace(/\{time\}/g, `${dateStr} ${timeStr}`)
+      .replace(/\{activated_count\}/g, String(Object.values(activations).filter(Boolean).length));
+    Object.entries(eventData).forEach(([key, value]) => {
+      result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
+    });
+    return result;
+  };
+
+  const handleCopyMessage = (template) => {
+    const text = resolveTemplate(template);
+    navigator.clipboard.writeText(text).then(() => {
+      setCopySuccess(true);
+      addToLog(`העתקת הודעה: ${text.substring(0, 50)}...`);
+      setTimeout(() => setCopySuccess(false), 2000);
+    });
+  };
+
+  const goToStep = (nextStepId) => {
     if (nextStepId) {
       setCurrentStepId(nextStepId);
       setCheckedItems({});
+      setFormData({});
       setTimerActive(false);
       setTimer(null);
     } else {
       handleEndEvent();
     }
+  };
+
+  const handleDecision = (answer) => {
+    if (!currentStep) return;
+    const nextStepId = answer === 'yes' ? currentStep.yesNext : currentStep.noNext;
+    addToLog(`${currentStep.label}: ${answer === 'yes' ? 'כן' : 'לא'}`);
+    goToStep(nextStepId);
+  };
+
+  const handleMultiOption = (option) => {
+    addToLog(`${currentStep.label}: ${option.label}`);
+    goToStep(option.next);
   };
 
   const handleChecklistChange = (index, item, checked) => {
@@ -64,60 +107,62 @@ export default function FlowRunner({ flow, onEnd }) {
     addToLog(`${status}: ${item}`);
   };
 
+  const handleFormSubmit = () => {
+    if (!currentStep) return;
+    const merged = { ...eventData, ...formData };
+    setEventData(merged);
+    addToLog(`טופס מולא: ${currentStep.label}`);
+    Object.entries(formData).forEach(([key, value]) => {
+      if (value) addToLog(`  ${key}: ${value}`);
+    });
+    goToStep(currentStep.nextStep);
+  };
+
   const handleAction = () => {
     if (!currentStep) return;
-    
-    addToLog(`בוצע: ${currentStep.label}`);
-    
-    if (currentStep.nextStep) {
-      setCurrentStepId(currentStep.nextStep);
-      setCheckedItems({});
-      setTimerActive(false);
-      setTimer(null);
-    } else {
-      handleEndEvent();
+    if (currentStep.formFields) {
+      const merged = { ...eventData, ...formData };
+      setEventData(merged);
     }
+    addToLog(`בוצע: ${currentStep.label}`);
+    goToStep(currentStep.nextStep);
+  };
+
+  const handleActivationToggle = (contactId, contactName) => {
+    const newState = !activations[contactId];
+    setActivations({ ...activations, [contactId]: newState });
+    const status = newState ? '✓ הוקפץ' : '✗ בוטל';
+    const time = new Date().toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
+    addToLog(`${status}: ${contactName} (${time})`);
+  };
+
+  const handleActivationsNext = () => {
+    const count = Object.values(activations).filter(Boolean).length;
+    addToLog(`סה"כ הוקפצו: ${count} אנשים`);
+    setEventData({ ...eventData, activated_count: count });
+    goToStep(currentStep.nextStep);
   };
 
   const handleEndEvent = () => {
     const endTime = new Date();
     addToLog(`סיום אירוע: ${flow.title}`, endTime);
-    
     const summary = {
       eventType: flow.title,
       startTime: startTime?.toISOString(),
       endTime: endTime.toISOString(),
       duration: startTime ? Math.round((endTime - startTime) / 1000 / 60) : 0,
       log: sessionLog,
+      eventData,
+      activations,
     };
-    
     localStorage.setItem('lastEventLog', JSON.stringify(summary));
-    
-    // Auto-download log on event completion
     downloadLog();
-    
-    if (onEnd) {
-      onEnd(summary);
-    }
+    if (onEnd) onEnd(summary);
   };
 
   const downloadLog = () => {
     const endTime = new Date();
     const duration = startTime ? Math.round((endTime - startTime) / 1000 / 60) : 0;
-    
-    const summary = {
-      eventType: flow.title,
-      startTime: startTime?.toLocaleString('he-IL'),
-      endTime: endTime.toLocaleString('he-IL'),
-      durationMinutes: duration,
-      detailedHistory: sessionLog.map(entry => ({
-        time: new Date(entry.timestamp).toLocaleString('he-IL'),
-        action: entry.message
-      })),
-      rawLog: sessionLog,
-    };
-    
-    // Create readable text format
     let textContent = `סיכום אירוע - ${flow.title}\n`;
     textContent += `${'='.repeat(60)}\n\n`;
     textContent += `🕐 התחלה: ${startTime?.toLocaleString('he-IL')}\n`;
@@ -126,15 +171,27 @@ export default function FlowRunner({ flow, onEnd }) {
     textContent += `${'='.repeat(60)}\n`;
     textContent += `📋 היסטוריית פעולות:\n`;
     textContent += `${'='.repeat(60)}\n\n`;
-    
     sessionLog.forEach((entry, index) => {
       const time = new Date(entry.timestamp).toLocaleTimeString('he-IL');
       textContent += `${index + 1}. [${time}] ${entry.message}\n`;
     });
-    
+    if (Object.keys(eventData).length > 0) {
+      textContent += `\n${'='.repeat(60)}\n`;
+      textContent += `📝 נתוני אירוע:\n`;
+      Object.entries(eventData).forEach(([k, v]) => {
+        textContent += `  ${k}: ${v}\n`;
+      });
+    }
+    const activatedCount = Object.values(activations).filter(Boolean).length;
+    if (activatedCount > 0) {
+      textContent += `\n${'='.repeat(60)}\n`;
+      textContent += `📞 הקפצות (${activatedCount}):\n`;
+      Object.entries(activations).forEach(([id, activated]) => {
+        if (activated) textContent += `  ✓ ${id}\n`;
+      });
+    }
     textContent += `\n${'='.repeat(60)}\n`;
     textContent += `סוף דוח\n`;
-    
     const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -143,6 +200,25 @@ export default function FlowRunner({ flow, onEnd }) {
     a.download = `סיכום-אירוע-${timestamp}.txt`;
     a.click();
     URL.revokeObjectURL(url);
+  };
+
+  const getAllOnCallContacts = () => {
+    const contacts = [];
+    const overrides = typeof window !== 'undefined' ? localStorage.getItem('onCallActiveOverrides') : null;
+    let parsed = null;
+    if (overrides) {
+      try { parsed = JSON.parse(overrides); } catch {}
+    }
+    Object.keys(onCallData.departments).forEach(deptKey => {
+      const dept = onCallData.departments[deptKey];
+      dept.contacts.forEach(contact => {
+        const isActive = parsed ? (parsed[contact.id] !== undefined ? parsed[contact.id] : contact.active) : contact.active;
+        if (isActive) {
+          contacts.push({ ...contact, department: dept.name });
+        }
+      });
+    });
+    return contacts;
   };
 
   if (!currentStep) {
@@ -196,7 +272,53 @@ export default function FlowRunner({ flow, onEnd }) {
           </div>
         )}
 
-        {currentStep.type === 'decision' && (
+        {currentStep.reminder && (
+          <div className="mb-5 p-5 bg-gradient-to-r from-yellow-50 to-amber-50 border-2 border-yellow-400 rounded-xl shadow-md">
+            <div className="flex items-start gap-3">
+              <span className="text-3xl">📱</span>
+              <div>
+                <p className="text-yellow-900 font-bold text-lg">תזכורת וואטסאפ</p>
+                <p className="text-yellow-800 font-medium text-lg">{currentStep.reminder}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {currentStep.roleNote && (
+          <div className="mb-5 p-4 bg-gradient-to-r from-indigo-50 to-blue-50 border-2 border-indigo-300 rounded-xl">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl">👥</span>
+              <p className="text-indigo-900 font-bold">{currentStep.roleNote}</p>
+            </div>
+          </div>
+        )}
+
+        {currentStep.copyMessage && (
+          <div className="mb-5 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">📋</span>
+                <p className="text-green-900 font-bold">הודעה להעתקה:</p>
+              </div>
+              <button
+                onClick={() => handleCopyMessage(currentStep.copyMessage)}
+                className={`px-5 py-2 rounded-lg font-bold transition-all shadow-md ${
+                  copySuccess
+                    ? 'bg-green-600 text-white'
+                    : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-lg'
+                }`}
+              >
+                {copySuccess ? '✓ הועתק!' : '📋 העתק'}
+              </button>
+            </div>
+            <pre className="bg-white rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap border border-green-200 font-sans leading-relaxed" dir="rtl">
+              {resolveTemplate(currentStep.copyMessage)}
+            </pre>
+          </div>
+        )}
+
+        {/* DECISION step */}
+        {currentStep.type === 'decision' && !currentStep.options && (
           <div>
             <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 mb-6">
               <p className="text-xl font-semibold text-gray-900">{currentStep.question}</p>
@@ -224,9 +346,67 @@ export default function FlowRunner({ flow, onEnd }) {
           </div>
         )}
 
+        {/* MULTI-OPTION DECISION step */}
+        {currentStep.type === 'decision' && currentStep.options && (
+          <div>
+            <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-5 mb-6">
+              <p className="text-xl font-semibold text-gray-900">{currentStep.question}</p>
+            </div>
+            <div className="space-y-3">
+              {currentStep.options.map((option, idx) => {
+                const colors = [
+                  'from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700',
+                  'from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700',
+                  'from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700',
+                  'from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700',
+                ];
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => handleMultiOption(option)}
+                    className={`w-full bg-gradient-to-r ${colors[idx % colors.length]} text-white font-bold py-4 px-6 rounded-xl text-lg transition-all shadow-lg hover:shadow-xl hover:scale-105`}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* ACTION step */}
         {currentStep.type === 'action' && (
           <div>
-            {currentStep.checklist && (
+            {currentStep.formFields && (
+              <div className="mb-6 space-y-3">
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 mb-4">
+                  <p className="text-blue-900 font-bold">📝 מלא פרטים:</p>
+                </div>
+                {currentStep.formFields.map((field) => (
+                  <div key={field.id}>
+                    <label className="block text-sm font-bold text-gray-900 mb-1">{field.label}{field.required && ' *'}</label>
+                    {field.type === 'textarea' ? (
+                      <textarea
+                        value={formData[field.id] || ''}
+                        onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                        rows={3}
+                        required={field.required}
+                      />
+                    ) : (
+                      <input
+                        type={field.type || 'text'}
+                        value={formData[field.id] || ''}
+                        onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                        required={field.required}
+                      />
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            {currentStep.checklist && currentStep.checklist.length > 0 && (
               <div className="mb-6 space-y-3">
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3 mb-4">
                   <p className="text-purple-900 font-bold">✓ רשימת משימות לביצוע:</p>
@@ -252,6 +432,102 @@ export default function FlowRunner({ flow, onEnd }) {
                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
               </svg>
               בוצע בהצלחה
+            </button>
+          </div>
+        )}
+
+        {/* FORM step */}
+        {currentStep.type === 'form' && (
+          <div>
+            <div className="mb-6 space-y-4">
+              {currentStep.formFields?.map((field) => (
+                <div key={field.id}>
+                  <label className="block text-lg font-bold text-gray-900 mb-2">
+                    {field.label}{field.required && ' *'}
+                  </label>
+                  {field.type === 'textarea' ? (
+                    <textarea
+                      value={formData[field.id] || ''}
+                      onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                      className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      rows={3}
+                      required={field.required}
+                    />
+                  ) : (
+                    <input
+                      type={field.type || 'text'}
+                      value={formData[field.id] || ''}
+                      onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                      className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                      required={field.required}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={handleFormSubmit}
+              disabled={currentStep.formFields?.some(f => f.required && !formData[f.id])}
+              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-5 px-6 rounded-xl text-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
+            >
+              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              שלח ועבור לשלב הבא
+            </button>
+          </div>
+        )}
+
+        {/* ACTIVATIONS step - הקפצת מכלול */}
+        {currentStep.type === 'activations' && (
+          <div>
+            <div className="mb-4 p-4 bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-300 rounded-xl">
+              <div className="flex items-center justify-between">
+                <p className="text-orange-900 font-bold text-lg">📞 רשימת הקפצות — סמן כל איש שהוקפץ</p>
+                <span className="bg-orange-600 text-white px-3 py-1 rounded-full font-bold">
+                  {Object.values(activations).filter(Boolean).length} הוקפצו
+                </span>
+              </div>
+            </div>
+            <div className="space-y-2 max-h-96 overflow-y-auto">
+              {getAllOnCallContacts().map((contact) => (
+                <label
+                  key={contact.id}
+                  className={`flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                    activations[contact.id]
+                      ? 'border-green-400 bg-green-50 shadow-md'
+                      : 'border-gray-200 bg-white hover:border-blue-300'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      checked={activations[contact.id] || false}
+                      onChange={() => handleActivationToggle(contact.id, contact.name)}
+                      className="w-6 h-6 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                    />
+                    <div>
+                      <p className="font-bold text-gray-900">{contact.name}</p>
+                      <p className="text-sm text-gray-600">{contact.department}</p>
+                    </div>
+                  </div>
+                  <div className="text-left">
+                    <p className="font-mono text-gray-700" dir="ltr">{contact.phone}</p>
+                    {activations[contact.id] && (
+                      <p className="text-xs text-green-600 font-bold">✓ הוקפץ</p>
+                    )}
+                  </div>
+                </label>
+              ))}
+            </div>
+            <button
+              onClick={handleActivationsNext}
+              className="w-full mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-5 px-6 rounded-xl text-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
+            >
+              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+              סיימתי הקפצות — המשך
             </button>
           </div>
         )}

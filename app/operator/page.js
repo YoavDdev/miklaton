@@ -6,13 +6,13 @@ import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
 import PrintableShelterList from '@/components/PrintableShelterList';
-import GeneralNotifications from '@/components/GeneralNotifications';
+import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
 
 export default function OperatorPage() {
   const router = useRouter();
-  const [selectedFlowId, setSelectedFlowId] = useState('missiles');
+  const [selectedFlowId, setSelectedFlowId] = useState('early_warning_then_alarm');
   const [activeEvent, setActiveEvent] = useState(null);
 
   const handleLogout = async () => {
@@ -33,7 +33,7 @@ export default function OperatorPage() {
 
   const resetEvent = () => {
     setActiveEvent(null);
-    setSelectedFlowId('missiles');
+    setSelectedFlowId('early_warning_then_alarm');
   };
 
   const ekronUrl = process.env.NEXT_PUBLIC_EKRON_URL || '#';
@@ -62,7 +62,7 @@ export default function OperatorPage() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <GeneralNotifications />
+        <ReadOnlyNotifications />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">
@@ -108,7 +108,7 @@ export default function OperatorPage() {
                     disabled={!selectedFlowId || alertFlowsData.find(f => f.id === selectedFlowId)?.steps.length === 0}
                     className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-lg text-xl transition-colors"
                   >
-                    � התחל אירוע
+                    🚨 התחל אירוע
                   </button>
                 </div>
               ) : (
