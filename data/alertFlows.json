@@ -491,6 +491,138 @@
     ]
   },
   {
+    "id": "direct_report",
+    "title": "דיווח ישיר",
+    "description": "קפיצה ישירה לדיווח: טיל/רסיס/תקין (ללא שלבים מקדימים)",
+    "steps": [
+      {
+        "id": "direct_check",
+        "type": "decision",
+        "label": "דיווח מהשטח — מה המצב?",
+        "question": "בחר סוג הדיווח:",
+        "options": [
+          { "label": "✅ הכול תקין — אין דיווחים", "next": "all_clear" },
+          { "label": "⚠️ דיווח רסיס", "next": "shrapnel_report" },
+          { "label": "🚨 דיווח נפילת טיל!", "next": "missile_hit" }
+        ],
+        "criticalNote": "דיווח ישיר מהשטח — בחר בקפידה!"
+      },
+      {
+        "id": "all_clear",
+        "type": "action",
+        "label": "הכול תקין — דוח מצב",
+        "copyMessage": "סיכום אירוע — {time}\nאזעקה: יהוד-מונוסון\nסטטוס: הכול תקין. אין דיווחים.\nנפגעים: אין.\nנזק: אין.\nהאירוע נסגר.",
+        "checklist": [
+          "אין דיווחים על נפגעים",
+          "אין דיווחים על נזק",
+          "שלחתי הודעת סיכום בקבוצת חירום"
+        ],
+        "nextStep": null
+      },
+      {
+        "id": "shrapnel_report",
+        "type": "form",
+        "label": "דיווח רסיס — איסוף פרטים",
+        "formFields": [
+          { "id": "reporter_name", "label": "שם מדווח", "type": "text", "required": true },
+          { "id": "reporter_phone", "label": "טלפון מדווח", "type": "tel", "required": true },
+          { "id": "address", "label": "כתובת", "type": "text", "required": true },
+          { "id": "description", "label": "תיאור", "type": "textarea", "required": true },
+          { "id": "notes", "label": "הערות", "type": "textarea", "required": false }
+        ],
+        "nextStep": "shrapnel_actions",
+        "criticalNote": "מלא את כל הפרטים — זה ייצור הודעת וואטסאפ מוכנה"
+      },
+      {
+        "id": "shrapnel_actions",
+        "type": "action",
+        "label": "רסיס — פעולות מיידיות",
+        "copyMessage": "דיווח רסיס — {time}\nמדווח: {reporter_name} | {reporter_phone}\nכתובת: {address}\nתיאור: {description}\nהערות: {notes}\n\nהכוחות בשטח עודכנו. ממתינים לעדכונים.",
+        "checklist": [
+          "מוקדן: דיווחתי ל-100 משטרה",
+          "דיווחתי בקשר לכוחות הביטחון בשטח",
+          "שלחתי הודעת רסיס בקבוצת חירום בוואטסאפ",
+          "ממתין לעדכונים מהשטח"
+        ],
+        "nextStep": "shrapnel_wait",
+        "criticalNote": "מוקדן חייב לדווח ל-100 משטרה!"
+      },
+      {
+        "id": "shrapnel_wait",
+        "type": "decision",
+        "label": "המתנה לעדכונים מהשטח",
+        "question": "מה המצב?",
+        "options": [
+          { "label": "חבלן אישר — אין סכנה → סגור אירוע", "next": "shrapnel_close" },
+          { "label": "הכוחות אומרים סכנה → נפילת טיל!", "next": "missile_hit" },
+          { "label": "דיווח רסיס נוסף", "next": "shrapnel_report" }
+        ],
+        "criticalNote": "סגירת אירוע רסיס רק ע\"י חבלן!"
+      },
+      {
+        "id": "shrapnel_close",
+        "type": "action",
+        "label": "סגירת אירוע רסיס — חבלן אישר",
+        "copyMessage": "סיכום אירוע רסיס — {time}\nאזעקה: יהוד-מונוסון\nדיווח רסיס: {address}\nסטטוס: חבלן בדק ואישר — אין סכנה.\nנפגעים: אין.\nסטטוס: האירוע נסגר.",
+        "checklist": [
+          "חבלן אישר שאין סכנה",
+          "שלחתי הודעת סיכום בקבוצת חירום"
+        ],
+        "nextStep": null
+      },
+      {
+        "id": "missile_hit",
+        "type": "action",
+        "label": "נפילת טיל! — הפעלת פרוטוקול מלא",
+        "criticalNote": "אירוע חמור — הקפצת כל הכוחות!",
+        "checklist": [
+          "הקפצת מד\"א",
+          "הקפצת יחידת סער",
+          "הקפצת כב\"א",
+          "עדכון כוחות ביטחון על ההקפצות"
+        ],
+        "copyMessage": "נפילת טיל — {time}\nמיקום: {address}\nמדווח: {reporter_name} ({reporter_phone})\nתיאור: {description}\n{notes}\n\nסטטוס: אירוע פעיל.\nהוקפצו: מד\"א, סער, כב\"א.\nממתינים לתמונת מצב מלאה.",
+        "nextStep": "missile_activate_makhlol"
+      },
+      {
+        "id": "missile_activate_makhlol",
+        "type": "activations",
+        "label": "הקפצת מכלול 1-2 — טלפון אחד-אחד",
+        "criticalNote": "הקפצה רק באישור מנכ\"ל! יש לסמן כל איש שהוקפץ.",
+        "activationSource": "onCall",
+        "nextStep": "missile_field_commander"
+      },
+      {
+        "id": "missile_field_commander",
+        "type": "action",
+        "label": "עדכון מנהל אירוע בשטח",
+        "checklist": [
+          "זיהיתי מי מנהל האירוע בשטח",
+          "עדכנתי אותו בקשר על כל ההקפצות",
+          "קיבלתי תמונת מצב ראשונית"
+        ],
+        "nextStep": "missile_status_update"
+      },
+      {
+        "id": "missile_status_update",
+        "type": "action",
+        "label": "ריכוז תמונת מצב + עדכון",
+        "copyMessage": "עדכון תמונת מצב — {time}\nאירוע: נפילת טיל\nמיקום: {address}\nמנהל אירוע בשטח: {field_commander}\nכוחות בשטח: מד\"א, סער, כב\"א\nמכלול: הוקפצו {activated_count} אנשים\nנפגעים: {casualties}\nנזק: {damage}\nסטטוס: {status}",
+        "formFields": [
+          { "id": "field_commander", "label": "מנהל אירוע בשטח", "type": "text", "required": true },
+          { "id": "casualties", "label": "נפגעים", "type": "text", "required": true },
+          { "id": "damage", "label": "נזק", "type": "textarea", "required": true },
+          { "id": "status", "label": "סטטוס", "type": "textarea", "required": true }
+        ],
+        "checklist": [
+          "ריכזתי תמונת מצב ממנהל האירוע בשטח",
+          "שלחתי עדכון בקבוצת חירום"
+        ],
+        "nextStep": null
+      }
+    ]
+  },
+  {
     "id": "earthquake",
     "title": "רעידת אדמה",
     "description": "נוהל לעתיד — לא מופעל כרגע",
