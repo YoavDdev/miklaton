@@ -4,9 +4,8 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const [role, setRole] = useState('operator');
   const [password, setPassword] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [showAdminField, setShowAdminField] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
@@ -17,24 +16,24 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      const isAdmin = role === 'admin';
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ password, adminPassword: showAdminField ? adminPassword : null }),
+        body: JSON.stringify({ 
+          password: password, 
+          adminPassword: isAdmin ? password : null 
+        }),
       });
 
       const data = await response.json();
 
       if (response.ok) {
-        if (data.isAdmin) {
-          window.location.href = '/admin';
-        } else {
-          window.location.href = '/operator';
-        }
+        window.location.href = isAdmin ? '/admin' : '/operator';
       } else {
-        setError(data.error || 'שגיאה בהתחברות');
+        setError(data.error || `סיסמת ${isAdmin ? 'מנהל' : 'מוקדן'} שגויה`);
       }
     } catch (err) {
       setError('שגיאה בהתחברות לשרת');
@@ -52,10 +51,31 @@ export default function LoginPage() {
           <p className="text-sm text-gray-500 mt-1">מוקד עירוני יהוד-מונוסון</p>
         </div>
 
+        {error && (
+          <div className="p-4 bg-red-50 border-r-4 border-red-500 rounded mb-6">
+            <p className="text-red-800 font-semibold">{error}</p>
+          </div>
+        )}
+
         <form onSubmit={handleLogin} className="space-y-6">
           <div>
+            <label htmlFor="role" className="block text-lg font-semibold text-gray-900 mb-2">
+              תפקיד
+            </label>
+            <select
+              id="role"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none bg-white"
+            >
+              <option value="operator">מוקדן</option>
+              <option value="admin">מנהל</option>
+            </select>
+          </div>
+
+          <div>
             <label htmlFor="password" className="block text-lg font-semibold text-gray-900 mb-2">
-              סיסמת מפעיל
+              סיסמה
             </label>
             <input
               id="password"
@@ -69,45 +89,16 @@ export default function LoginPage() {
             />
           </div>
 
-          <div>
-            <button
-              type="button"
-              onClick={() => setShowAdminField(!showAdminField)}
-              className="text-sm text-blue-600 hover:text-blue-800 underline"
-            >
-              {showAdminField ? 'הסתר כניסה כאדמין' : 'כניסה כאדמין'}
-            </button>
-          </div>
-
-          {showAdminField && (
-            <div>
-              <label htmlFor="adminPassword" className="block text-lg font-semibold text-gray-900 mb-2">
-                סיסמת אדמין
-              </label>
-              <input
-                id="adminPassword"
-                type="password"
-                value={adminPassword}
-                onChange={(e) => setAdminPassword(e.target.value)}
-                className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                placeholder="הזן סיסמת אדמין"
-                autoComplete="off"
-              />
-            </div>
-          )}
-
-          {error && (
-            <div className="p-4 bg-red-50 border-r-4 border-red-500 rounded">
-              <p className="text-red-800 font-semibold">{error}</p>
-            </div>
-          )}
-
           <button
             type="submit"
             disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-lg text-xl transition-colors"
+            className={`w-full font-bold py-4 px-6 rounded-lg text-xl transition-colors ${
+              role === 'admin' 
+                ? 'bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400' 
+                : 'bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400'
+            } text-white`}
           >
-            {loading ? 'מתחבר...' : 'כניסה'}
+            {loading ? 'מתחבר...' : `כניסה ${role === 'admin' ? 'כמנהל' : 'כמוקדן'}`}
           </button>
         </form>
 
