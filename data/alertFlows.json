@@ -41,6 +41,7 @@
         "label": "שלב 3: אזעקה! שליחת סטיקר אזעקת אמת",
         "roleRequired": "admin",
         "reminder": "שלח סטיקר \"אזעקת אמת יהוד מונוסון\" בקבוצת חירום בוואטסאפ",
+        "roleNote": "⚠️ חשוב! רק צוות מוקד צריך להיות במוקד בזמן אזעקה. אף אחד נוסף!",
         "checklist": [
           "שלחתי סטיקר אזעקת אמת בקבוצת חירום"
         ],
@@ -54,6 +55,7 @@
         "question": "האם המקלטים נפתחו אוטומטית?",
         "yesNext": "alarm_update_contacts",
         "noNext": "alarm_manual_open",
+        "skipInWarMode": true,
         "criticalNote": "בדוק במערכת Ekron מיד"
       },
       {
@@ -96,26 +98,27 @@
           "התקשרתי למירי צרפתי (052-633-6430)"
         ],
         "nextStep": "alarm_cameras_5min",
-        "criticalNote": "חובה להתקשר טלפונית — לא רק הודעה!"
+        "criticalNote": "חובה להתקשר טלפונית — לא רק הודעה!",
+        "skipInWarMode": true
       },
       {
         "id": "alarm_cameras_5min",
         "type": "action",
-        "label": "שלב 6: סריקת מצלמות + מענה לתושבים (5 דק')",
+        "label": "שלב 6: סריקת מצלמות + מענה לתושבים (7 דק')",
         "roleNote": "מנהל/אחמ\"ש: סורק מצלמות | מוקדן: עונה לתושבים",
         "checklist": [
           "מנהל: צופה במצלמות",
           "מוקדן: נותן מענה לפניות תושבים"
         ],
         "nextStep": "alarm_5min_check",
-        "timer": 300,
+        "timer": 420,
         "timerCancelOn": "shrapnel_report"
       },
       {
         "id": "alarm_5min_check",
         "type": "decision",
-        "label": "שלב 7: בדיקה אחרי 5 דקות",
-        "question": "מה המצב אחרי 5 דקות?",
+        "label": "שלב 7: בדיקה אחרי 7 דקות",
+        "question": "מה המצב אחרי 7 דקות?",
         "options": [
           { "label": "✅ הכול תקין — אין דיווחים", "next": "all_clear" },
           { "label": "⚠️ דיווח רסיס", "next": "shrapnel_report" },
@@ -185,16 +188,30 @@
       },
       {
         "id": "missile_hit",
+        "type": "form",
+        "label": "נפילת טיל! — איסוף פרטי דיווח",
+        "criticalNote": "אירוע חמור — אסוף פרטים מהמדווח מיד!",
+        "formFields": [
+          { "id": "reporter_name", "label": "שם מדווח", "type": "text", "required": true },
+          { "id": "reporter_phone", "label": "טלפון מדווח", "type": "tel", "required": true },
+          { "id": "address", "label": "כתובת מדויקת", "type": "text", "required": true },
+          { "id": "description", "label": "תיאור האירוע", "type": "textarea", "required": true },
+          { "id": "notes", "label": "הערות נוספות", "type": "textarea", "required": false }
+        ],
+        "copyMessage": "דיווח נפילת טיל! — {time}\nמיקום: {address}\nמדווח: {reporter_name} ({reporter_phone})\nתיאור: {description}\n{notes}\n\nסטטוס: אירוע פעיל - מפעיל פרוטוקול מלא!",
+        "nextStep": "missile_emergency_calls"
+      },
+      {
+        "id": "missile_emergency_calls",
         "type": "action",
-        "label": "נפילת טיל! — הפעלת פרוטוקול מלא",
-        "criticalNote": "אירוע חמור — הקפצת כל הכוחות!",
+        "label": "הקפצת כוחות חירום",
+        "criticalNote": "הקפצה מיידית!",
         "checklist": [
           "הקפצת מד\"א",
           "הקפצת יחידת סער",
           "הקפצת כב\"א",
-          "עדכון בקשר לכוחות הביטחון על ההקפצות"
+          "עדכון כוחות ביטחון"
         ],
-        "copyMessage": "נפילת טיל — {time}\nמיקום: {address}\nסטטוס: אירוע פעיל.\nהוקפצו: מד\"א, סער, כב\"א.\nממתינים לתמונת מצב מלאה.",
         "nextStep": "missile_activate_makhlol"
       },
       {
@@ -266,11 +283,13 @@
         "label": "שלב 1: אזעקה! שליחת סטיקר אזעקת אמת",
         "roleRequired": "admin",
         "reminder": "שלח סטיקר \"אזעקת אמת יהוד מונוסון\" בקבוצת חירום בוואטסאפ",
+        "roleNote": "⚠️ חשוב! רק צוות מוקד צריך להיות במוקד בזמן אזעקה. אף אחד נוסף!",
         "checklist": [
           "שלחתי סטיקר אזעקת אמת בקבוצת חירום"
         ],
         "nextStep": "alarm_shelters_check",
-        "criticalNote": "מנהל/אחמ\"ש — שלח סטיקר אזעקת אמת מיד!"
+        "criticalNote": "מנהל/אחמ\"ש — שלח סטיקר אזעקת אמת מיד!",
+        "timer": 420
       },
       {
         "id": "alarm_shelters_check",
@@ -279,6 +298,7 @@
         "question": "האם המקלטים נפתחו אוטומטית?",
         "yesNext": "alarm_update_contacts",
         "noNext": "alarm_manual_open",
+        "skipInWarMode": true,
         "criticalNote": "בדוק במערכת Ekron מיד"
       },
       {
@@ -289,7 +309,8 @@
           "פתח ידנית את המקלטים דרך מערכת Ekron"
         ],
         "nextStep": "alarm_manual_verify",
-        "criticalNote": "דחיפות קריטית — פעולה מיידית!"
+        "criticalNote": "דחיפות קריטית — פעולה מיידית!",
+        "skipInWarMode": true
       },
       {
         "id": "alarm_manual_verify",
@@ -297,7 +318,8 @@
         "label": "וידוא פתיחת מקלטים",
         "question": "האם כל המקלטים נפתחו?",
         "yesNext": "alarm_update_contacts",
-        "noNext": "alarm_contact_tech"
+        "noNext": "alarm_contact_tech",
+        "skipInWarMode": true
       },
       {
         "id": "alarm_contact_tech",
@@ -309,7 +331,8 @@
           "עדכן על המצב ובקש קוד כניסה אם צריך"
         ],
         "nextStep": "alarm_update_contacts",
-        "criticalNote": "חייב ליצור קשר מיידי עם הצוות הטכני"
+        "criticalNote": "חייב ליצור קשר מיידי עם הצוות הטכני",
+        "skipInWarMode": true
       },
       {
         "id": "alarm_update_contacts",
@@ -321,26 +344,27 @@
           "התקשרתי למירי צרפתי (052-633-6430)"
         ],
         "nextStep": "alarm_cameras_5min",
-        "criticalNote": "חובה להתקשר טלפונית — לא רק הודעה!"
+        "criticalNote": "חובה להתקשר טלפונית — לא רק הודעה!",
+        "skipInWarMode": true
       },
       {
         "id": "alarm_cameras_5min",
         "type": "action",
-        "label": "שלב 4: סריקת מצלמות + מענה לתושבים (5 דק')",
+        "label": "שלב 4: סריקת מצלמות + מענה לתושבים (7 דק')",
         "roleNote": "מנהל/אחמ\"ש: סורק מצלמות | מוקדן: עונה לתושבים",
         "checklist": [
           "מנהל: צופה במצלמות",
           "מוקדן: נותן מענה לפניות תושבים"
         ],
         "nextStep": "alarm_5min_check",
-        "timer": 300,
+        "timer": 420,
         "timerCancelOn": "shrapnel_report"
       },
       {
         "id": "alarm_5min_check",
         "type": "decision",
-        "label": "שלב 5: בדיקה אחרי 5 דקות",
-        "question": "מה המצב אחרי 5 דקות?",
+        "label": "שלב 5: בדיקה אחרי 7 דקות",
+        "question": "מה המצב אחרי 7 דקות?",
         "options": [
           { "label": "✅ הכול תקין — אין דיווחים", "next": "all_clear" },
           { "label": "⚠️ דיווח רסיס", "next": "shrapnel_report" },
@@ -410,16 +434,30 @@
       },
       {
         "id": "missile_hit",
+        "type": "form",
+        "label": "נפילת טיל! — איסוף פרטי דיווח",
+        "criticalNote": "אירוע חמור — אסוף פרטים מהמדווח מיד!",
+        "formFields": [
+          { "id": "reporter_name", "label": "שם מדווח", "type": "text", "required": true },
+          { "id": "reporter_phone", "label": "טלפון מדווח", "type": "tel", "required": true },
+          { "id": "address", "label": "כתובת מדויקת", "type": "text", "required": true },
+          { "id": "description", "label": "תיאור האירוע", "type": "textarea", "required": true },
+          { "id": "notes", "label": "הערות נוספות", "type": "textarea", "required": false }
+        ],
+        "copyMessage": "דיווח נפילת טיל! — {time}\nמיקום: {address}\nמדווח: {reporter_name} ({reporter_phone})\nתיאור: {description}\n{notes}\n\nסטטוס: אירוע פעיל - מפעיל פרוטוקול מלא!",
+        "nextStep": "missile_emergency_calls"
+      },
+      {
+        "id": "missile_emergency_calls",
         "type": "action",
-        "label": "נפילת טיל! — הפעלת פרוטוקול מלא",
-        "criticalNote": "אירוע חמור — הקפצת כל הכוחות!",
+        "label": "הקפצת כוחות חירום",
+        "criticalNote": "הקפצה מיידית!",
         "checklist": [
           "הקפצת מד\"א",
           "הקפצת יחידת סער",
           "הקפצת כב\"א",
-          "עדכון בקשר לכוחות הביטחון על ההקפצות"
+          "עדכון כוחות ביטחון"
         ],
-        "copyMessage": "נפילת טיל — {time}\nמיקום: {address}\nסטטוס: אירוע פעיל.\nהוקפצו: מד\"א, סער, כב\"א.\nממתינים לתמונת מצב מלאה.",
         "nextStep": "missile_activate_makhlol"
       },
       {

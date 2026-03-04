@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
@@ -14,6 +14,25 @@ export default function OperatorPage() {
   const router = useRouter();
   const [selectedFlowId, setSelectedFlowId] = useState('early_warning_then_alarm');
   const [activeEvent, setActiveEvent] = useState(null);
+  const [warMode, setWarMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('warMode');
+    if (saved) {
+      try {
+        setWarMode(JSON.parse(saved));
+      } catch {}
+    }
+    const interval = setInterval(() => {
+      const saved = localStorage.getItem('warMode');
+      if (saved) {
+        try {
+          setWarMode(JSON.parse(saved));
+        } catch {}
+      }
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -42,21 +61,30 @@ export default function OperatorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">מקלטון - עמדת מפעיל</h1>
-          <div className="flex items-center gap-3">
-            <a
-              href="/on-call"
-              className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"
-            >
-              📞 אנשי קשר תורנים
-            </a>
-            <button
-              onClick={handleLogout}
-              className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-semibold transition-colors"
-            >
-              יציאה
-            </button>
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold">מקלטון - עמדת מפעיל</h1>
+              {warMode && (
+                <div className="mt-2 inline-flex items-center gap-2 bg-red-600 px-4 py-2 rounded-lg text-sm font-bold border-2 border-red-300">
+                  🚨 מצב מלחמה פעיל - שלבי מקלטים והתקשרויות ידלגו
+                </div>
+              )}
+            </div>
+            <div className="flex items-center gap-3">
+              <a
+                href="/on-call"
+                className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"
+              >
+                📞 אנשי קשר תורנים
+              </a>
+              <button
+                onClick={handleLogout}
+                className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                יציאה
+              </button>
+            </div>
           </div>
         </div>
       </header>

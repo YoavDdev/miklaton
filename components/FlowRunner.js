@@ -14,6 +14,17 @@ export default function FlowRunner({ flow, onEnd }) {
   const [eventData, setEventData] = useState({});
   const [activations, setActivations] = useState({});
   const [copySuccess, setCopySuccess] = useState(false);
+  const [stepHistory, setStepHistory] = useState([]);
+  const [warMode, setWarMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('warMode');
+    if (saved) {
+      try {
+        setWarMode(JSON.parse(saved));
+      } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     if (flow && flow.steps && flow.steps.length > 0) {
@@ -28,7 +39,11 @@ export default function FlowRunner({ flow, onEnd }) {
       setActivations({});
       setTimer(null);
       setTimerActive(false);
+      setStepHistory([]);
       addToLog(`התחלת אירוע: ${flow.title}`, now);
+      if (warMode) {
+        addToLog('🚨 מצב מלחמה פעיל - מדלג על שלבי מקלטים והתקשרויות');
+      }
     }
   }, [flow]);
 
@@ -42,7 +57,17 @@ export default function FlowRunner({ flow, onEnd }) {
   useEffect(() => {
     if (timer > 0 && timerActive) {
       const interval = setInterval(() => {
-        setTimer(prev => prev - 1);
+        setTimer(prev => {
+          if (prev === 1) {
+            // Play sound when timer ends
+            try {
+              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dyvm');
+              audio.play().catch(() => {}); // Ignore errors if audio fails
+            } catch (e) {}
+            addToLog('⏰ הטיימר הסתיים! בדוק מצב.');
+          }
+          return prev - 1;
+        });
       }, 1000);
       return () => clearInterval(interval);
     }
@@ -79,7 +104,42 @@ export default function FlowRunner({ flow, onEnd }) {
 
   const goToStep = (nextStepId) => {
     if (nextStepId) {
-      setCurrentStepId(nextStepId);
+      let targetStepId = nextStepId;
+      const targetStep = flow?.steps?.find(s => s.id === targetStepId);
+      
+      // Skip steps with skipInWarMode flag when war mode is active
+      if (warMode && targetStep?.skipInWarMode) {
+        addToLog(`⏭️ מדלג על שלב: ${targetStep.label} (מצב מלחמה)`);
+        // Find the next step and recursively check
+        if (targetStep.nextStep) {
+          targetStepId = targetStep.nextStep;
+          const recursiveCheck = (stepId) => {
+            const step = flow?.steps?.find(s => s.id === stepId);
+            if (step && warMode && step.skipInWarMode && step.nextStep) {
+              addToLog(`⏭️ מדלג על שלב: ${step.label} (מצב מלחמה)`);
+              return recursiveCheck(step.nextStep);
+            }
+            return stepId;
+          };
+          targetStepId = recursiveCheck(targetStepId);
+        } else if (targetStep.yesNext) {
+          // For decision steps, use yesNext path
+          targetStepId = targetStep.yesNext;
+          const recursiveCheck = (stepId) => {
+            const step = flow?.steps?.find(s => s.id === stepId);
+            if (step && warMode && step.skipInWarMode) {
+              addToLog(`⏭️ מדלג על שלב: ${step.label} (מצב מלחמה)`);
+              if (step.nextStep) return recursiveCheck(step.nextStep);
+              if (step.yesNext) return recursiveCheck(step.yesNext);
+            }
+            return stepId;
+          };
+          targetStepId = recursiveCheck(targetStepId);
+        }
+      }
+      
+      setStepHistory(prev => [...prev, currentStepId]);
+      setCurrentStepId(targetStepId);
       setCheckedItems({});
       setFormData({});
       setTimerActive(false);
@@ -87,6 +147,18 @@ export default function FlowRunner({ flow, onEnd }) {
     } else {
       handleEndEvent();
     }
+  };
+
+  const goBack = () => {
+    if (stepHistory.length === 0) return;
+    const prevStepId = stepHistory[stepHistory.length - 1];
+    setStepHistory(prev => prev.slice(0, -1));
+    setCurrentStepId(prevStepId);
+    setCheckedItems({});
+    setFormData({});
+    setTimerActive(false);
+    setTimer(null);
+    addToLog(`חזרה לשלב: ${flow.steps.find(s => s.id === prevStepId)?.label || prevStepId}`);
   };
 
   const handleDecision = (answer) => {
@@ -245,12 +317,15 @@ export default function FlowRunner({ flow, onEnd }) {
             </div>
           </div>
           {timer !== null && timerActive && (
-            <div className={`px-5 py-3 rounded-xl shadow-lg ${timer <= 60 ? 'bg-gradient-to-br from-red-500 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-indigo-600'}`}>
+            <div className={`px-8 py-6 rounded-2xl shadow-2xl border-4 ${timer <= 60 ? 'bg-gradient-to-br from-red-500 to-pink-600 border-red-300 animate-pulse' : 'bg-gradient-to-br from-blue-500 to-indigo-600 border-blue-300'}`}>
               <div className="text-center text-white">
-                <div className="text-sm font-semibold mb-1">טיימר</div>
-                <div className="text-3xl font-bold">
+                <div className="text-lg font-bold mb-2">⏱️ טיימר</div>
+                <div className="text-6xl font-black tracking-wider">
                   {Math.floor(timer / 60)}:{(timer % 60).toString().padStart(2, '0')}
                 </div>
+                {timer <= 60 && (
+                  <div className="text-sm font-semibold mt-2 animate-pulse">⚠️ פחות מדקה!</div>
+                )}
               </div>
             </div>
           )}
@@ -533,7 +608,17 @@ export default function FlowRunner({ flow, onEnd }) {
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
+        <button
+          onClick={goBack}
+          disabled={stepHistory.length === 0}
+          className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 disabled:from-gray-300 disabled:to-gray-400 disabled:cursor-not-allowed text-white font-bold py-4 px-5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"
+        >
+          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+            <path fillRule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clipRule="evenodd" />
+          </svg>
+          חזור אחורה
+        </button>
         <button
           onClick={handleEndEvent}
           className="bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold py-4 px-5 rounded-xl transition-all shadow-md hover:shadow-lg flex items-center justify-center gap-2"

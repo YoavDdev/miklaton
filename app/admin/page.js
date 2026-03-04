@@ -23,6 +23,18 @@ export default function AdminPage() {
   const [inspectionReports, setInspectionReports] = useState([]);
   const [reportsFilter, setReportsFilter] = useState('all');
   const [loadingReports, setLoadingReports] = useState(false);
+  const [warMode, setWarMode] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('warMode');
+    if (saved) setWarMode(JSON.parse(saved));
+  }, []);
+
+  const toggleWarMode = () => {
+    const newMode = !warMode;
+    setWarMode(newMode);
+    localStorage.setItem('warMode', JSON.stringify(newMode));
+  };
 
   const fetchReports = async () => {
     setLoadingReports(true);
@@ -129,21 +141,40 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-purple-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-3xl font-bold">מקלטון - ניהול מערכת</h1>
-          <div className="flex gap-3">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <h1 className="text-3xl font-bold">מקלטון - ניהול מערכת</h1>
+            <div className="flex gap-3">
+              <button
+                onClick={() => router.push('/operator')}
+                className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                לעמדת מפעיל
+              </button>
+              <button
+                onClick={handleLogout}
+                className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition-colors"
+              >
+                יציאה
+              </button>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => router.push('/operator')}
-              className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition-colors"
+              onClick={toggleWarMode}
+              className={`px-6 py-3 rounded-xl font-bold text-lg transition-all shadow-lg ${
+                warMode
+                  ? 'bg-red-600 hover:bg-red-700 border-2 border-red-300'
+                  : 'bg-white/20 hover:bg-white/30 border-2 border-white/30'
+              }`}
             >
-              לעמדת מפעיל
+              {warMode ? '🚨 מצב מלחמה פעיל' : '⚪ מצב רגיל'}
             </button>
-            <button
-              onClick={handleLogout}
-              className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition-colors"
-            >
-              יציאה
-            </button>
+            {warMode && (
+              <span className="text-sm bg-red-500/30 px-3 py-1 rounded-lg border border-red-300">
+                שלבי מקלטים והתקשרויות ידלגו אוטומטית
+              </span>
+            )}
           </div>
         </div>
       </header>
