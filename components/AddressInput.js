@@ -78,11 +78,11 @@ export default function AddressInput({ value, onChange, onNearbySheltersChange }
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       setSelectedIndex(prev => (prev > 0 ? prev - 1 : -1));
-    } else if (e.key === 'Enter') {
+    } else if (e.key === 'Enter' || (e.key === ' ' && selectedIndex >= 0)) {
       e.preventDefault();
       if (selectedIndex >= 0 && selectedIndex < allSuggestions.length) {
         selectStreet(allSuggestions[selectedIndex]);
-      } else {
+      } else if (e.key === 'Enter') {
         handleSearch(value);
       }
     } else if (e.key === 'Escape') {
