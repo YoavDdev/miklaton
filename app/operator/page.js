@@ -8,6 +8,7 @@ import ShelterSearch from '@/components/ShelterSearch';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
 import PrintableShelterList from '@/components/PrintableShelterList';
 import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
+import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -216,6 +217,10 @@ export default function OperatorPage() {
 
         <div className="mt-6">
           <ShelterStatusManager shelters={sheltersData} />
+        </div>
+
+        <div className="mt-6">
+          <WeeklyDutyRoster />
         </div>
 
         <div className="mt-6 bg-white rounded-lg shadow p-6">
