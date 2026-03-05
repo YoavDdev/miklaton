@@ -18,6 +18,7 @@ export default function FlowRunner({ flow, onEnd }) {
   const [stepHistory, setStepHistory] = useState([]);
   const [warMode, setWarMode] = useState(false);
   const [nearbyShelters, setNearbyShelters] = useState([]);
+  const [actionCompleted, setActionCompleted] = useState(false);
 
   useEffect(() => {
     const saved = localStorage.getItem('warMode');
@@ -42,6 +43,7 @@ export default function FlowRunner({ flow, onEnd }) {
       setTimer(null);
       setTimerActive(false);
       setStepHistory([]);
+      setActionCompleted(false);
       addToLog(`התחלת אירוע: ${flow.title}`, now);
       if (warMode) {
         addToLog('🚨 מצב מלחמה פעיל - מדלג על שלבי מקלטים והתקשרויות');
@@ -164,10 +166,12 @@ export default function FlowRunner({ flow, onEnd }) {
       
       setStepHistory(prev => [...prev, currentStepId]);
       setCurrentStepId(targetStepId);
+      addToLog(`מעבר לשלב: ${targetStep.label}`);
       setCheckedItems({});
       setFormData({});
       setTimerActive(false);
       setTimer(null);
+      setActionCompleted(false);
     } else {
       handleEndEvent();
     }
@@ -221,6 +225,11 @@ export default function FlowRunner({ flow, onEnd }) {
       setEventData(merged);
     }
     addToLog(`בוצע: ${currentStep.label}`);
+    setActionCompleted(true);
+  };
+
+  const handleActionContinue = () => {
+    setActionCompleted(false);
     goToStep(currentStep.nextStep);
   };
 
@@ -476,68 +485,111 @@ export default function FlowRunner({ flow, onEnd }) {
         {/* ACTION step */}
         {currentStep.type === 'action' && (
           <div>
-            {currentStep.formFields && (
-              <div className="mb-6 space-y-3">
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 mb-4">
-                  <p className="text-blue-900 font-bold">📝 מלא פרטים:</p>
-                </div>
-                {currentStep.formFields.map((field) => (
-                  <div key={field.id}>
-                    <label className="block text-sm font-bold text-gray-900 mb-1">{field.label}{field.required && ' *'}</label>
-                    {field.id === 'address' ? (
-                      <AddressInput
-                        value={formData[field.id] || ''}
-                        onChange={(value) => setFormData({ ...formData, [field.id]: value })}
-                        onNearbySheltersChange={setNearbyShelters}
-                      />
-                    ) : field.type === 'textarea' ? (
-                      <textarea
-                        value={formData[field.id] || ''}
-                        onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                        rows={3}
-                        required={field.required}
-                      />
-                    ) : (
-                      <input
-                        type={field.type || 'text'}
-                        value={formData[field.id] || ''}
-                        onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
-                        className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
-                        required={field.required}
-                      />
-                    )}
+            {!actionCompleted ? (
+              <>
+                {currentStep.formFields && (
+                  <div className="mb-6 space-y-3">
+                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-lg p-3 mb-4">
+                      <p className="text-blue-900 font-bold">📝 מלא פרטים:</p>
+                    </div>
+                    {currentStep.formFields.map((field) => (
+                      <div key={field.id}>
+                        <label className="block text-sm font-bold text-gray-900 mb-1">{field.label}{field.required && ' *'}</label>
+                        {field.id === 'address' ? (
+                          <AddressInput
+                            value={formData[field.id] || ''}
+                            onChange={(value) => setFormData({ ...formData, [field.id]: value })}
+                            onNearbySheltersChange={setNearbyShelters}
+                          />
+                        ) : field.type === 'textarea' ? (
+                          <textarea
+                            value={formData[field.id] || ''}
+                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                            rows={3}
+                            required={field.required}
+                          />
+                        ) : (
+                          <input
+                            type={field.type || 'text'}
+                            value={formData[field.id] || ''}
+                            onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
+                            className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+                            required={field.required}
+                          />
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+                {currentStep.checklist && currentStep.checklist.length > 0 && (
+                  <div className="mb-6 space-y-3">
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3 mb-4">
+                      <p className="text-purple-900 font-bold">✓ רשימת משימות לביצוע:</p>
+                    </div>
+                    {currentStep.checklist.map((item, index) => (
+                      <label key={index} className="flex items-center p-4 bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 hover:shadow-md transition-all">
+                        <input
+                          type="checkbox"
+                          checked={checkedItems[index] || false}
+                          onChange={(e) => handleChecklistChange(index, item, e.target.checked)}
+                          className="w-6 h-6 ml-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-lg text-gray-900 font-medium">{item}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+                <button
+                  onClick={handleAction}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-5 px-6 rounded-xl text-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
+                >
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                  בוצע בהצלחה
+                </button>
+              </>
+            ) : (
+              <>
+                {currentStep.copyMessage && (
+                  <div className="mb-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-400 rounded-xl">
+                    <div className="flex items-center gap-3 mb-4">
+                      <span className="text-4xl">⚠️</span>
+                      <div>
+                        <p className="text-orange-900 font-bold text-xl">שלח הודעה זו לקבוצת החירום!</p>
+                        <p className="text-orange-700 text-sm">העתק את ההודעה ושלח בוואטסאפ</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <p className="text-green-900 font-bold">📋 הודעה להעתקה:</p>
+                      <button
+                        onClick={() => handleCopyMessage(currentStep.copyMessage)}
+                        className={`px-5 py-2 rounded-lg font-bold transition-all shadow-md ${
+                          copySuccess
+                            ? 'bg-green-600 text-white'
+                            : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-lg'
+                        }`}
+                      >
+                        {copySuccess ? '✓ הועתק!' : '📋 העתק'}
+                      </button>
+                    </div>
+                    <pre className="bg-white rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap border border-green-200 font-sans leading-relaxed" dir="rtl">
+                      {resolveTemplate(currentStep.copyMessage)}
+                    </pre>
+                  </div>
+                )}
+                <button
+                  onClick={handleActionContinue}
+                  className="w-full bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 text-white font-bold py-5 px-6 rounded-xl text-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
+                >
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  המשך לשלב הבא
+                </button>
+              </>
             )}
-            {currentStep.checklist && currentStep.checklist.length > 0 && (
-              <div className="mb-6 space-y-3">
-                <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-lg p-3 mb-4">
-                  <p className="text-purple-900 font-bold">✓ רשימת משימות לביצוע:</p>
-                </div>
-                {currentStep.checklist.map((item, index) => (
-                  <label key={index} className="flex items-center p-4 bg-gradient-to-r from-white to-gray-50 border-2 border-gray-200 rounded-xl cursor-pointer hover:border-blue-400 hover:shadow-md transition-all">
-                    <input
-                      type="checkbox"
-                      checked={checkedItems[index] || false}
-                      onChange={(e) => handleChecklistChange(index, item, e.target.checked)}
-                      className="w-6 h-6 ml-3 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
-                    />
-                    <span className="text-lg text-gray-900 font-medium">{item}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-            <button
-              onClick={handleAction}
-              className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-5 px-6 rounded-xl text-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
-            >
-              <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-              </svg>
-              בוצע בהצלחה
-            </button>
           </div>
         )}
 
