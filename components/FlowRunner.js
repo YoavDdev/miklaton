@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import onCallData from '@/data/onCall.json';
+import AddressInput from './AddressInput';
 
 export default function FlowRunner({ flow, onEnd }) {
   const [currentStepId, setCurrentStepId] = useState(null);
@@ -16,6 +17,7 @@ export default function FlowRunner({ flow, onEnd }) {
   const [copySuccess, setCopySuccess] = useState(false);
   const [stepHistory, setStepHistory] = useState([]);
   const [warMode, setWarMode] = useState(false);
+  const [nearbyShelters, setNearbyShelters] = useState([]);
 
   useEffect(() => {
     const saved = localStorage.getItem('warMode');
@@ -96,13 +98,23 @@ export default function FlowRunner({ flow, onEnd }) {
       }
     }
     
+    // Add nearby shelters if available
+    let sheltersText = '';
+    if (nearbyShelters.length > 0) {
+      sheltersText = '\n\nמקלטים קרובים:\n';
+      nearbyShelters.forEach((shelter, idx) => {
+        const distance = (shelter.distance / 1000).toFixed(2);
+        sheltersText += `${idx + 1}. ${shelter.name} (${shelter.number}) - ${shelter.address} (${distance} ק"מ)\n`;
+      });
+    }
+    
     let result = template
       .replace(/\{time\}/g, `${dateStr} ${timeStr}`)
       .replace(/\{activated_count\}/g, String(Object.values(activations).filter(Boolean).length));
     Object.entries(eventData).forEach(([key, value]) => {
       result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
     });
-    return result + checklistText;
+    return result + checklistText + sheltersText;
   };
 
   const handleCopyMessage = (template) => {
@@ -472,7 +484,13 @@ export default function FlowRunner({ flow, onEnd }) {
                 {currentStep.formFields.map((field) => (
                   <div key={field.id}>
                     <label className="block text-sm font-bold text-gray-900 mb-1">{field.label}{field.required && ' *'}</label>
-                    {field.type === 'textarea' ? (
+                    {field.id === 'address' ? (
+                      <AddressInput
+                        value={formData[field.id] || ''}
+                        onChange={(value) => setFormData({ ...formData, [field.id]: value })}
+                        onNearbySheltersChange={setNearbyShelters}
+                      />
+                    ) : field.type === 'textarea' ? (
                       <textarea
                         value={formData[field.id] || ''}
                         onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
@@ -532,7 +550,13 @@ export default function FlowRunner({ flow, onEnd }) {
                   <label className="block text-lg font-bold text-gray-900 mb-2">
                     {field.label}{field.required && ' *'}
                   </label>
-                  {field.type === 'textarea' ? (
+                  {field.id === 'address' ? (
+                    <AddressInput
+                      value={formData[field.id] || ''}
+                      onChange={(value) => setFormData({ ...formData, [field.id]: value })}
+                      onNearbySheltersChange={setNearbyShelters}
+                    />
+                  ) : field.type === 'textarea' ? (
                     <textarea
                       value={formData[field.id] || ''}
                       onChange={(e) => setFormData({ ...formData, [field.id]: e.target.value })}
