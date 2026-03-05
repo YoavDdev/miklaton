@@ -392,6 +392,17 @@ export default function FlowRunner({ flow, onEnd }) {
                 {timer <= 60 && (
                   <div className="text-sm font-semibold mt-2 animate-pulse">⚠️ פחות מדקה!</div>
                 )}
+                <button
+                  onClick={() => {
+                    setTimerActive(false);
+                    setTimer(null);
+                    addToLog('⏭️ דילוג על טיימר - מעבר מיידי לשלב הבא');
+                    goToStep(currentStep.nextStep);
+                  }}
+                  className="mt-4 px-6 py-3 bg-white text-blue-600 font-bold rounded-lg hover:bg-gray-100 transition-all shadow-lg hover:shadow-xl hover:scale-105"
+                >
+                  ⏭️ דלג לשלב הבא
+                </button>
               </div>
             </div>
           )}
