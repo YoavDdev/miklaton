@@ -72,17 +72,3 @@ CREATE TRIGGER update_duty_roster_timestamp
   BEFORE UPDATE ON duty_roster
   FOR EACH ROW
   EXECUTE FUNCTION update_oncall_timestamp();
-
--- Seed initial departments from onCall.json
-INSERT INTO departments (name, display_order) VALUES
-  ('הנהלת העירייה', 1),
-  ('מכלול בטחון', 2),
-  ('מכלול אוכלוסיה', 3),
-  ('מכלול מידע לציבור', 4),
-  ('מכלול עיבוד מידע ואוכלוסיה', 5),
-  ('מכלול הנדסה ותשתיות', 6),
-  ('מכלול כוח אדם', 7),
-  ('מכלול חינוך', 8),
-  ('מכלול לוגיסטיקה ותפעול', 9),
-  ('תא פס"ח', 10)
-ON CONFLICT DO NOTHING;
