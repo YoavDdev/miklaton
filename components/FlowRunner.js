@@ -63,10 +63,23 @@ export default function FlowRunner({ flow, onEnd }) {
       const interval = setInterval(() => {
         setTimer(prev => {
           if (prev === 1) {
-            // Play sound when timer ends
+            // Play short clear beep when timer ends
             try {
-              const audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmwhBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+Dyvm');
-              audio.play().catch(() => {}); // Ignore errors if audio fails
+              const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+              const oscillator = audioContext.createOscillator();
+              const gainNode = audioContext.createGain();
+              
+              oscillator.connect(gainNode);
+              gainNode.connect(audioContext.destination);
+              
+              oscillator.frequency.value = 880; // A5 note - clear high beep
+              oscillator.type = 'sine';
+              
+              gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
+              gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.2);
+              
+              oscillator.start(audioContext.currentTime);
+              oscillator.stop(audioContext.currentTime + 0.2);
             } catch (e) {}
             addToLog('⏰ הטיימר הסתיים! בדוק מצב.');
           }
@@ -202,9 +215,20 @@ export default function FlowRunner({ flow, onEnd }) {
   };
 
   const handleChecklistChange = (index, item, checked) => {
-    setCheckedItems({ ...checkedItems, [index]: checked });
+    const newCheckedItems = { ...checkedItems, [index]: checked };
+    setCheckedItems(newCheckedItems);
     const status = checked ? '✓ הושלם' : '✗ בוטל';
     addToLog(`${status}: ${item}`);
+    
+    // Auto-proceed if all items checked (except timer steps)
+    if (currentStep?.checklist && !currentStep.timer) {
+      const allChecked = currentStep.checklist.every((_, idx) => 
+        idx === index ? checked : newCheckedItems[idx]
+      );
+      if (allChecked) {
+        setTimeout(() => handleAction(), 500);
+      }
+    }
   };
 
   const handleFormSubmit = () => {
