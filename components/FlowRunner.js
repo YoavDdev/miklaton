@@ -84,13 +84,25 @@ export default function FlowRunner({ flow, onEnd }) {
     const now = new Date();
     const timeStr = now.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' });
     const dateStr = now.toLocaleDateString('he-IL');
+    
+    // Add checked items from checklist
+    let checklistText = '';
+    if (currentStep?.checklist && currentStep.checklist.length > 0) {
+      const checkedList = currentStep.checklist
+        .map((item, idx) => checkedItems[idx] ? `✓ ${item}` : null)
+        .filter(Boolean);
+      if (checkedList.length > 0) {
+        checklistText = '\n\nפעולות שבוצעו:\n' + checkedList.join('\n');
+      }
+    }
+    
     let result = template
       .replace(/\{time\}/g, `${dateStr} ${timeStr}`)
       .replace(/\{activated_count\}/g, String(Object.values(activations).filter(Boolean).length));
     Object.entries(eventData).forEach(([key, value]) => {
       result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value || '');
     });
-    return result;
+    return result + checklistText;
   };
 
   const handleCopyMessage = (template) => {
@@ -368,7 +380,7 @@ export default function FlowRunner({ flow, onEnd }) {
           </div>
         )}
 
-        {currentStep.copyMessage && (
+        {currentStep.copyMessage && (!currentStep.checklist || Object.values(checkedItems).some(Boolean)) && (
           <div className="mb-5 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
             <div className="flex items-center justify-between mb-2">
               <div className="flex items-center gap-2">
