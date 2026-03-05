@@ -2,42 +2,45 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import onCallData from '@/data/onCall.json';
 
 export default function OnCallPage() {
   const router = useRouter();
   const [departmentContacts, setDepartmentContacts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState('');
 
   useEffect(() => {
-    const overrides = localStorage.getItem('onCallActiveOverrides');
-    const depts = [];
-
-    Object.keys(onCallData.departments).forEach(deptKey => {
-      const dept = onCallData.departments[deptKey];
-      let activeContacts = dept.contacts.filter(c => c.active);
-
-      if (overrides) {
-        try {
-          const parsed = JSON.parse(overrides);
-          activeContacts = dept.contacts.filter(c => {
-            const override = parsed[c.id];
-            return override !== undefined ? override : c.active;
-          });
-        } catch (e) {
-          console.error('Failed to parse on-call overrides', e);
-        }
-      }
-
-      if (activeContacts.length > 0) {
-        depts.push({
-          name: dept.name,
-          contacts: activeContacts
-        });
-      }
-    });
-
-    setDepartmentContacts(depts);
+    fetchContacts();
   }, []);
+
+  const fetchContacts = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/departments');
+      const data = await res.json();
+      
+      if (data.success) {
+        const depts = data.data
+          .filter(dept => dept.contacts && dept.contacts.length > 0)
+          .map(dept => ({
+            name: dept.name,
+            contacts: dept.contacts.map(contact => ({
+              id: contact.id,
+              name: contact.full_name,
+              phone: contact.phone,
+              shift: contact.role || 'תורן',
+              active: contact.active
+            }))
+          }));
+        
+        setDepartmentContacts(depts);
+        setLastUpdated(new Date().toLocaleDateString('he-IL'));
+      }
+    } catch (error) {
+      console.error('Failed to fetch contacts:', error);
+    }
+    setLoading(false);
+  };
 
   const copyPhone = (phone) => {
     navigator.clipboard.writeText(phone);
@@ -104,11 +107,21 @@ export default function OnCallPage() {
         {/* Print Header - Only visible in print */}
         <div className="hidden print:block text-center mb-6">
           <h1 className="text-2xl font-bold mb-2">📞 אנשי קשר תורנים - עיריית יהוד מונוסון</h1>
-          <p className="text-sm text-gray-600">עודכן: {onCallData.weekLabel}</p>
+          <p className="text-sm text-gray-600">עודכן: {lastUpdated}</p>
           <p className="text-xs text-gray-500">תאריך הדפסה: {new Date().toLocaleDateString('he-IL')}</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center">
+            <p className="text-gray-500 text-lg">טוען אנשי קשר...</p>
+          </div>
+        ) : departmentContacts.length === 0 ? (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 p-12 text-center">
+            <p className="text-gray-500 text-lg">אין אנשי קשר מוגדרים</p>
+            <p className="text-gray-400 text-sm mt-2">פנה למנהל להוספת אנשי קשר</p>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           {/* Info Banner */}
           <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4 no-print">
             <div className="flex items-center justify-between">
@@ -118,7 +131,7 @@ export default function OnCallPage() {
                 </svg>
                 <div className="text-right">
                   <h3 className="text-xl font-bold text-white">רשימת תורנים פעילה</h3>
-                  <p className="text-sm text-purple-100">📅 {onCallData.weekLabel}</p>
+                  <p className="text-sm text-purple-100">📅 {lastUpdated}</p>
                 </div>
               </div>
               <span className="text-white text-lg font-semibold">
@@ -182,6 +195,7 @@ export default function OnCallPage() {
             </table>
           </div>
         </div>
+        )}
 
         {/* Footer - Only visible in print */}
         <div className="hidden print:block mt-4 text-center text-xs text-gray-500">
