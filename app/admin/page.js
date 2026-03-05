@@ -23,17 +23,50 @@ export default function AdminPage() {
   const [inspectionReports, setInspectionReports] = useState([]);
   const [reportsFilter, setReportsFilter] = useState('all');
   const [loadingReports, setLoadingReports] = useState(false);
-  const [warMode, setWarMode] = useState(false);
+  const [warMode, setWarMode] = useState(null);
+  const [warModeLoading, setWarModeLoading] = useState(true);
 
   useEffect(() => {
-    const saved = localStorage.getItem('warMode');
-    if (saved) setWarMode(JSON.parse(saved));
+    fetchWarMode();
   }, []);
 
-  const toggleWarMode = () => {
+  const fetchWarMode = async () => {
+    try {
+      const res = await fetch('/api/war-mode');
+      const data = await res.json();
+      if (data.success) {
+        setWarMode(data.data?.is_active || false);
+      }
+    } catch (error) {
+      console.error('Failed to fetch war mode:', error);
+    } finally {
+      setWarModeLoading(false);
+    }
+  };
+
+  const toggleWarMode = async () => {
+    const username = localStorage.getItem('username') || 'מנהל';
     const newMode = !warMode;
-    setWarMode(newMode);
-    localStorage.setItem('warMode', JSON.stringify(newMode));
+    
+    try {
+      const res = await fetch('/api/war-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_active: newMode,
+          activated_by: username,
+          notes: newMode ? 'הופעל מעמוד ניהול' : null
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setWarMode(newMode);
+      }
+    } catch (error) {
+      console.error('Failed to toggle war mode:', error);
+      alert('שגיאה בעדכון מצב מלחמה');
+    }
   };
 
   const fetchReports = async () => {

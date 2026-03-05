@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
@@ -9,6 +10,11 @@ import PrintableShelterList from '@/components/PrintableShelterList';
 import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function OperatorPage() {
   const router = useRouter();
@@ -32,22 +38,47 @@ export default function OperatorPage() {
   }, []);
 
   useEffect(() => {
-    const saved = localStorage.getItem('warMode');
-    if (saved) {
+    // Fetch initial war mode status
+    const fetchWarMode = async () => {
       try {
-        setWarMode(JSON.parse(saved));
-      } catch {}
-    }
-    const interval = setInterval(() => {
-      const saved = localStorage.getItem('warMode');
-      if (saved) {
-        try {
-          setWarMode(JSON.parse(saved));
-        } catch {}
+        const res = await fetch('/api/war-mode');
+        const data = await res.json();
+        if (data.success && data.data) {
+          const isActive = data.data.is_active;
+          setWarMode(isActive);
+          
+          // Auto-start flow if war mode is already active and no event running
+          if (isActive && !activeEvent) {
+            setActiveEvent({ flowId: selectedFlowId, startedAt: new Date() });
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch war mode:', error);
       }
-    }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    };
+    fetchWarMode();
+
+    // Subscribe to war mode changes via Supabase realtime
+    const channel = supabase
+      .channel('war_mode_changes')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'war_mode' },
+        (payload) => {
+          const isActive = payload.new.is_active;
+          setWarMode(isActive);
+          
+          // Auto-start flow when war mode is activated
+          if (isActive && !activeEvent) {
+            setActiveEvent({ flowId: selectedFlowId, startedAt: new Date() });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [selectedFlowId, activeEvent]);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
