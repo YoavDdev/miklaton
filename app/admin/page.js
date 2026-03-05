@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import sheltersData from '@/data/shelters.json';
 import alertFlowsData from '@/data/alertFlows.json';
 import GeneralNotifications from '@/components/GeneralNotifications';
-import OnCallManager from '@/components/OnCallManager';
+import OnCallManagerNew from '@/components/OnCallManagerNew';
 
 const ZONE_LABELS = { A: 'מזרח וצפון', B: 'מרכז', C: 'מערב' };
 const ZONE_COLORS = {
@@ -274,7 +274,7 @@ export default function AdminPage() {
         </div>
 
         {activeTab === 'oncall' && (
-          <OnCallManager />
+          <OnCallManagerNew />
         )}
 
         {activeTab === 'shelters' && (

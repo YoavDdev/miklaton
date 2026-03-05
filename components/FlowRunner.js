@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import onCallData from '@/data/onCall.json';
 import AddressInput from './AddressInput';
 
 export default function FlowRunner({ flow, onEnd, warMode = false }) {
@@ -18,6 +17,7 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
   const [stepHistory, setStepHistory] = useState([]);
   const [nearbyShelters, setNearbyShelters] = useState([]);
   const [actionCompleted, setActionCompleted] = useState(false);
+  const [currentOnCall, setCurrentOnCall] = useState([]);
 
   useEffect(() => {
     if (flow && flow.steps && flow.steps.length > 0) {
@@ -30,8 +30,7 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
       setFormData({});
       setEventData({});
       setActivations({});
-      setTimer(null);
-      setTimerActive(false);
+      setCopySuccess(false);
       setStepHistory([]);
       setActionCompleted(false);
       addToLog(`התחלת אירוע: ${flow.title}`, now);
@@ -40,6 +39,33 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
       }
     }
   }, [flow]);
+
+  // Fetch current on-call personnel when step changes to activations
+  useEffect(() => {
+    const fetchCurrentOnCall = async () => {
+      if (currentStep?.type === 'activations') {
+        try {
+          const res = await fetch('/api/duty-roster?current=true');
+          const data = await res.json();
+          if (data.success) {
+            const formatted = data.data.map(item => ({
+              id: item.contact_id,
+              name: item.contacts.full_name,
+              phone: item.contacts.phone,
+              role: item.contacts.role,
+              department: item.departments.name,
+              active: true
+            }));
+            setCurrentOnCall(formatted);
+          }
+        } catch (error) {
+          console.error('Failed to fetch on-call personnel:', error);
+          setCurrentOnCall([]);
+        }
+      }
+    };
+    fetchCurrentOnCall();
+  }, [currentStepId]);
 
   useEffect(() => {
     if (currentStep?.timer && !timerActive) {
@@ -333,22 +359,8 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
   };
 
   const getAllOnCallContacts = () => {
-    const contacts = [];
-    const overrides = typeof window !== 'undefined' ? localStorage.getItem('onCallActiveOverrides') : null;
-    let parsed = null;
-    if (overrides) {
-      try { parsed = JSON.parse(overrides); } catch {}
-    }
-    Object.keys(onCallData.departments).forEach(deptKey => {
-      const dept = onCallData.departments[deptKey];
-      dept.contacts.forEach(contact => {
-        const isActive = parsed ? (parsed[contact.id] !== undefined ? parsed[contact.id] : contact.active) : contact.active;
-        if (isActive) {
-          contacts.push({ ...contact, department: dept.name });
-        }
-      });
-    });
-    return contacts;
+    // Return current on-call personnel based on current day/hour
+    return currentOnCall;
   };
 
   if (!currentStep) {
