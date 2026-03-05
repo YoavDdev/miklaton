@@ -401,30 +401,6 @@ export default function FlowRunner({ flow, onEnd }) {
           </div>
         )}
 
-        {currentStep.copyMessage && (!currentStep.checklist || Object.values(checkedItems).some(Boolean)) && (
-          <div className="mb-5 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">📋</span>
-                <p className="text-green-900 font-bold">הודעה להעתקה:</p>
-              </div>
-              <button
-                onClick={() => handleCopyMessage(currentStep.copyMessage)}
-                className={`px-5 py-2 rounded-lg font-bold transition-all shadow-md ${
-                  copySuccess
-                    ? 'bg-green-600 text-white'
-                    : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-lg'
-                }`}
-              >
-                {copySuccess ? '✓ הועתק!' : '📋 העתק'}
-              </button>
-            </div>
-            <pre className="bg-white rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap border border-green-200 font-sans leading-relaxed" dir="rtl">
-              {resolveTemplate(currentStep.copyMessage)}
-            </pre>
-          </div>
-        )}
-
         {/* DECISION step */}
         {currentStep.type === 'decision' && !currentStep.options && (
           <div>
@@ -557,7 +533,7 @@ export default function FlowRunner({ flow, onEnd }) {
                     <div className="flex items-center gap-3 mb-4">
                       <span className="text-4xl">⚠️</span>
                       <div>
-                        <p className="text-orange-900 font-bold text-xl">שלח הודעה זו לקבוצת החירום!</p>
+                        <p className="text-orange-900 font-bold text-xl">שלח הודעה זו לקבוצת החירום כדי להמשיך לשלב הבא</p>
                         <p className="text-orange-700 text-sm">העתק את ההודעה ושלח בוואטסאפ</p>
                       </div>
                     </div>
@@ -586,7 +562,7 @@ export default function FlowRunner({ flow, onEnd }) {
                   <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                   </svg>
-                  המשך לשלב הבא
+                  המשך
                 </button>
               </>
             )}
