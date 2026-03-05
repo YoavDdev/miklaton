@@ -228,14 +228,14 @@ export default function FlowRunner({ flow, onEnd }) {
       if (allChecked) {
         setActionCompleted(true);
         addToLog(`בוצע: ${currentStep.label}`);
-        // Show message for 3 seconds then proceed
+        // Show message briefly then proceed
         setTimeout(() => {
           if (currentStep.formFields) {
             const merged = { ...eventData, ...formData };
             setEventData(merged);
           }
           goToStep(currentStep.nextStep);
-        }, 3000);
+        }, 500);
       }
     }
   };
