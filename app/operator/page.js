@@ -44,13 +44,7 @@ export default function OperatorPage() {
         const res = await fetch('/api/war-mode');
         const data = await res.json();
         if (data.success && data.data) {
-          const isActive = data.data.is_active;
-          setWarMode(isActive);
-          
-          // Auto-start flow if war mode is already active and no event running
-          if (isActive && !activeEvent) {
-            setActiveEvent({ flowId: selectedFlowId, startedAt: new Date() });
-          }
+          setWarMode(data.data.is_active || false);
         }
       } catch (error) {
         console.error('Failed to fetch war mode:', error);
@@ -64,13 +58,7 @@ export default function OperatorPage() {
       .on('postgres_changes', 
         { event: 'UPDATE', schema: 'public', table: 'war_mode' },
         (payload) => {
-          const isActive = payload.new.is_active;
-          setWarMode(isActive);
-          
-          // Auto-start flow when war mode is activated
-          if (isActive && !activeEvent) {
-            setActiveEvent({ flowId: selectedFlowId, startedAt: new Date() });
-          }
+          setWarMode(payload.new.is_active || false);
         }
       )
       .subscribe();
@@ -78,7 +66,7 @@ export default function OperatorPage() {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [selectedFlowId, activeEvent]);
+  }, []);
 
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
@@ -194,7 +182,7 @@ export default function OperatorPage() {
                   </button>
                 </div>
               ) : (
-                <FlowRunner flow={activeEvent} onEnd={endEvent} />
+                <FlowRunner flow={activeEvent} onEnd={endEvent} warMode={warMode} />
               )}
             </div>
 

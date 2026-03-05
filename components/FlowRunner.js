@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import onCallData from '@/data/onCall.json';
 import AddressInput from './AddressInput';
 
-export default function FlowRunner({ flow, onEnd }) {
+export default function FlowRunner({ flow, onEnd, warMode = false }) {
   const [currentStepId, setCurrentStepId] = useState(null);
   const [sessionLog, setSessionLog] = useState([]);
   const [startTime, setStartTime] = useState(null);
@@ -16,18 +16,8 @@ export default function FlowRunner({ flow, onEnd }) {
   const [activations, setActivations] = useState({});
   const [copySuccess, setCopySuccess] = useState(false);
   const [stepHistory, setStepHistory] = useState([]);
-  const [warMode, setWarMode] = useState(false);
   const [nearbyShelters, setNearbyShelters] = useState([]);
   const [actionCompleted, setActionCompleted] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem('warMode');
-    if (saved) {
-      try {
-        setWarMode(JSON.parse(saved));
-      } catch {}
-    }
-  }, []);
 
   useEffect(() => {
     if (flow && flow.steps && flow.steps.length > 0) {
