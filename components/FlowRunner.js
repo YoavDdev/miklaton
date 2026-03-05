@@ -560,7 +560,7 @@ export default function FlowRunner({ flow, onEnd }) {
                 ))}
               </div>
             )}
-            {actionCompleted && currentStep.copyMessage && (
+            {((actionCompleted && currentStep.copyMessage) || (currentStep.copyMessage && (!currentStep.checklist || currentStep.checklist.length === 0))) && (
               <>
                 <div className="mb-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-400 rounded-xl">
                   <div className="flex items-center gap-3 mb-4">
