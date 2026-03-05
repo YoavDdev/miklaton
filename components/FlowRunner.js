@@ -220,7 +220,7 @@ export default function FlowRunner({ flow, onEnd }) {
     const status = checked ? '✓ הושלם' : '✗ בוטל';
     addToLog(`${status}: ${item}`);
     
-    // Auto-proceed if all items checked (except timer steps)
+    // Auto-proceed if all items checked (except timer steps and copyMessage steps)
     if (currentStep?.checklist && !currentStep.timer) {
       const allChecked = currentStep.checklist.every((_, idx) => 
         idx === index ? checked : newCheckedItems[idx]
@@ -228,14 +228,16 @@ export default function FlowRunner({ flow, onEnd }) {
       if (allChecked) {
         setActionCompleted(true);
         addToLog(`בוצע: ${currentStep.label}`);
-        // Show message briefly then proceed
-        setTimeout(() => {
-          if (currentStep.formFields) {
-            const merged = { ...eventData, ...formData };
-            setEventData(merged);
-          }
-          goToStep(currentStep.nextStep);
-        }, 500);
+        // If there's a copyMessage, don't auto-proceed - user needs to copy it
+        if (!currentStep.copyMessage) {
+          setTimeout(() => {
+            if (currentStep.formFields) {
+              const merged = { ...eventData, ...formData };
+              setEventData(merged);
+            }
+            goToStep(currentStep.nextStep);
+          }, 500);
+        }
       }
     }
   };
@@ -559,31 +561,42 @@ export default function FlowRunner({ flow, onEnd }) {
               </div>
             )}
             {actionCompleted && currentStep.copyMessage && (
-              <div className="mb-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-400 rounded-xl animate-pulse">
-                <div className="flex items-center gap-3 mb-4">
-                  <span className="text-4xl">⚠️</span>
-                  <div>
-                    <p className="text-orange-900 font-bold text-xl">שלח הודעה זו לקבוצת החירום!</p>
-                    <p className="text-orange-700 text-sm">עובר לשלב הבא אוטומטית...</p>
+              <>
+                <div className="mb-6 p-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-orange-400 rounded-xl">
+                  <div className="flex items-center gap-3 mb-4">
+                    <span className="text-4xl">⚠️</span>
+                    <div>
+                      <p className="text-orange-900 font-bold text-xl">העתק ושלח הודעה זו לקבוצת החירום!</p>
+                      <p className="text-orange-700 text-sm">לחץ המשך רק אחרי ששלחת את ההודעה</p>
+                    </div>
                   </div>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-green-900 font-bold">📋 הודעה להעתקה:</p>
+                    <button
+                      onClick={() => handleCopyMessage(currentStep.copyMessage)}
+                      className={`px-5 py-2 rounded-lg font-bold transition-all shadow-md ${
+                        copySuccess
+                          ? 'bg-green-600 text-white'
+                          : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-lg'
+                      }`}
+                    >
+                      {copySuccess ? '✓ הועתק!' : '📋 העתק'}
+                    </button>
+                  </div>
+                  <pre className="bg-white rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap border border-green-200 font-sans leading-relaxed" dir="rtl">
+                    {resolveTemplate(currentStep.copyMessage)}
+                  </pre>
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-green-900 font-bold">📋 הודעה להעתקה:</p>
-                  <button
-                    onClick={() => handleCopyMessage(currentStep.copyMessage)}
-                    className={`px-5 py-2 rounded-lg font-bold transition-all shadow-md ${
-                      copySuccess
-                        ? 'bg-green-600 text-white'
-                        : 'bg-green-500 hover:bg-green-600 text-white hover:shadow-lg'
-                    }`}
-                  >
-                    {copySuccess ? '✓ הועתק!' : '📋 העתק'}
-                  </button>
-                </div>
-                <pre className="bg-white rounded-lg p-4 text-sm text-gray-800 whitespace-pre-wrap border border-green-200 font-sans leading-relaxed" dir="rtl">
-                  {resolveTemplate(currentStep.copyMessage)}
-                </pre>
-              </div>
+                <button
+                  onClick={handleActionContinue}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-5 px-6 rounded-xl text-2xl transition-all shadow-lg hover:shadow-xl hover:scale-105 flex items-center justify-center gap-3"
+                >
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                  המשך לשלב הבא
+                </button>
+              </>
             )}
           </div>
         )}
