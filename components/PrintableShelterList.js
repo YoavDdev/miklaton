@@ -37,14 +37,19 @@ export default function PrintableShelterList({ shelters }) {
       <div ref={printRef} id="printable-shelter-list" className="print-content hidden print:block">
         <style jsx global>{`
           @media print {
-            /* Hide everything on page */
-            body > * {
-              display: none !important;
+            /* Hide everything except our component */
+            body * {
+              visibility: hidden;
             }
             
-            /* Show only the shelter list */
+            /* Show only the shelter list and its children */
+            #printable-shelter-list,
+            #printable-shelter-list * {
+              visibility: visible;
+            }
+            
+            /* Position it properly */
             #printable-shelter-list {
-              display: block !important;
               position: absolute;
               left: 0;
               top: 0;

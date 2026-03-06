@@ -250,14 +250,19 @@ export default function WeeklyDutyRoster() {
       {/* Print Styles */}
       <style jsx global>{`
         @media print {
-          /* Hide everything on page */
-          body > * {
-            display: none !important;
+          /* Hide everything except our component */
+          body * {
+            visibility: hidden;
           }
           
-          /* Show only the roster component */
+          /* Show only the roster component and its children */
+          #weekly-duty-roster-print,
+          #weekly-duty-roster-print * {
+            visibility: visible;
+          }
+          
+          /* Position it properly */
           #weekly-duty-roster-print {
-            display: block !important;
             position: absolute;
             left: 0;
             top: 0;
