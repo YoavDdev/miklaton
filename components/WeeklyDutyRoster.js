@@ -51,8 +51,7 @@ export default function WeeklyDutyRoster() {
   };
 
   const handlePrint = () => {
-    // Build HTML rows for each department
-    let tablesHtml = '';
+    const SHORT_DAYS = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'", "ש'"];
     
     const contactsByDeptForPrint = {};
     contacts.forEach(contact => {
@@ -61,67 +60,71 @@ export default function WeeklyDutyRoster() {
       contactsByDeptForPrint[deptName].push(contact);
     });
 
+    let tablesHtml = '';
     Object.entries(contactsByDeptForPrint).forEach(([deptName, deptContacts]) => {
       let rows = deptContacts.map(contact => {
-        let dayCells = DAYS.map((_, dayIndex) => {
+        let dayCells = SHORT_DAYS.map((_, dayIndex) => {
           const duties = dutyRoster.filter(d => d.contact_id === contact.id && d.day_of_week === dayIndex);
           let cellContent = duties.map(duty => {
-            let text = '';
-            if (duty.start_hour === duty.end_hour) {
-              text = '24 שעות';
-            } else if (duty.end_hour === 0) {
-              text = `${String(duty.start_hour).padStart(2,'0')}:00-חצות`;
-            } else {
-              text = `${String(duty.start_hour).padStart(2,'0')}:00-${String(duty.end_hour).padStart(2,'0')}:00`;
-            }
-            return `<span style="display:inline-block;background:#e0e7ff;padding:2px 4px;border-radius:3px;margin:1px;font-size:10px">${text}</span>`;
-          }).join('');
-          return `<td style="border:1px solid #999;padding:4px;text-align:center">${cellContent || '-'}</td>`;
+            if (duty.start_hour === duty.end_hour) return '24h';
+            if (duty.end_hour === 0) return `${duty.start_hour}-00`;
+            return `${duty.start_hour}-${duty.end_hour}`;
+          }).join('<br>');
+          return `<td>${cellContent || '-'}</td>`;
         }).join('');
         return `<tr>
-          <td style="border:1px solid #999;padding:4px;font-weight:bold">${contact.full_name}<br><span style="font-weight:normal;font-size:10px;color:#666">${contact.phone || ''}</span></td>
+          <td style="font-weight:bold;white-space:nowrap">${contact.full_name}</td>
+          <td style="direction:ltr">${contact.phone || ''}</td>
           ${dayCells}
         </tr>`;
       }).join('');
 
-      let dayHeaders = DAYS.map(day => `<th style="border:1px solid #999;padding:4px;background:#f0f0f0">${day}</th>`).join('');
+      let dayHeaders = SHORT_DAYS.map(d => `<th>${d}</th>`).join('');
       
       tablesHtml += `
-        <h2 style="font-size:14px;font-weight:bold;color:#7c3aed;margin:16px 0 6px 0">${deptName}</h2>
-        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
-          <thead>
-            <tr>
-              <th style="border:1px solid #999;padding:4px;background:#f0f0f0;width:15%">איש קשר</th>
-              ${dayHeaders}
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <div class="dept">
+          <div class="dept-title">${deptName}</div>
+          <table>
+            <thead>
+              <tr>
+                <th style="width:18%">שם</th>
+                <th style="width:12%">טלפון</th>
+                ${dayHeaders}
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
       `;
     });
 
-    // Open new window and print
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <html dir="rtl">
       <head>
         <title>כוננויות השבוע</title>
         <style>
-          * { box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; margin: 10px; padding: 0; direction: rtl; font-size: 10px; }
+          * { box-sizing: border-box; margin: 0; padding: 0; }
+          body { font-family: Arial, sans-serif; padding: 8px; direction: rtl; }
           @page { margin: 0.5cm; size: A4; }
-          table { page-break-inside: auto; width: 100%; border-collapse: collapse; }
-          tr { page-break-inside: avoid; page-break-after: auto; }
-          td, th { padding: 3px 4px; overflow: hidden; }
+          
+          h1 { font-size: 16px; text-align: center; margin-bottom: 2px; }
+          .date { font-size: 10px; color: #666; text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #000; }
+          
+          .dept { margin-bottom: 10px; page-break-inside: avoid; }
+          .dept-title { font-size: 12px; font-weight: bold; background: #7c3aed; color: white; padding: 3px 8px; margin-bottom: 2px; }
+          
+          table { width: 100%; border-collapse: collapse; font-size: 9px; }
+          th { background: #f3f4f6; border: 1px solid #999; padding: 2px 3px; text-align: center; font-size: 8px; }
+          td { border: 1px solid #999; padding: 2px 3px; text-align: center; font-size: 8px; }
+          
           thead { display: table-header-group; }
-          h2 { page-break-after: avoid; margin: 10px 0 4px 0; }
+          tr { page-break-inside: avoid; }
         </style>
       </head>
       <body>
-        <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px">
-          <h1 style="font-size:18px;margin:0">כוננויות השבוע</h1>
-          <p style="font-size:11px;color:#666;margin:4px 0 0 0">${new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
-        </div>
+        <h1>כוננויות השבוע</h1>
+        <div class="date">${new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
         ${tablesHtml}
       </body>
       </html>
