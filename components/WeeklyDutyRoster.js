@@ -104,18 +104,18 @@ export default function WeeklyDutyRoster() {
         <title>כוננויות השבוע</title>
         <style>
           * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, sans-serif; padding: 8px; direction: rtl; }
-          @page { margin: 0.5cm; size: A4; }
+          body { font-family: Arial, sans-serif; padding: 15px 20px; direction: rtl; }
+          @page { margin: 1.5cm; size: A4; }
           
           h1 { font-size: 16px; text-align: center; margin-bottom: 2px; }
           .date { font-size: 10px; color: #666; text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #000; }
           
-          .dept { margin-bottom: 10px; page-break-inside: avoid; }
-          .dept-title { font-size: 12px; font-weight: bold; background: #7c3aed; color: white; padding: 3px 8px; margin-bottom: 2px; }
+          .dept { margin-bottom: 12px; page-break-inside: avoid; }
+          .dept-title { font-size: 11px; font-weight: bold; background: #7c3aed; color: white; padding: 3px 8px; margin-bottom: 2px; }
           
-          table { width: 100%; border-collapse: collapse; font-size: 9px; }
-          th { background: #f3f4f6; border: 1px solid #999; padding: 2px 3px; text-align: center; font-size: 8px; }
-          td { border: 1px solid #999; padding: 2px 3px; text-align: center; font-size: 8px; }
+          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+          th { background: #f3f4f6; border: 1px solid #999; padding: 2px 2px; text-align: center; font-size: 7px; overflow: hidden; word-wrap: break-word; }
+          td { border: 1px solid #999; padding: 2px 2px; text-align: center; font-size: 7px; overflow: hidden; word-wrap: break-word; }
           
           thead { display: table-header-group; }
           tr { page-break-inside: avoid; }
