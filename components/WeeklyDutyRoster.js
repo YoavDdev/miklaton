@@ -100,21 +100,30 @@ export default function WeeklyDutyRoster() {
   <title>כוננויות השבוע</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body { font-family: Arial, sans-serif; direction: rtl; }
-    @page { margin: 1cm; size: landscape; }
+    body { 
+      font-family: Arial, sans-serif; 
+      direction: rtl; 
+      width: 257mm;
+      margin: 0 auto;
+      padding: 5mm;
+    }
+    @page { 
+      margin: 8mm; 
+      size: 297mm 210mm;
+    }
     
-    h1 { font-size: 16px; text-align: center; margin-bottom: 2px; }
-    .date { font-size: 10px; color: #666; text-align: center; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #000; }
+    h1 { font-size: 14px; text-align: center; margin-bottom: 2px; }
+    .date { font-size: 9px; color: #666; text-align: center; margin-bottom: 6px; padding-bottom: 3px; border-bottom: 1px solid #000; }
     
-    .dept { margin-bottom: 10px; }
-    .dept-title { font-size: 11px; font-weight: bold; background: #333; color: white; padding: 3px 8px; }
+    .dept { margin-bottom: 8px; }
+    .dept-title { font-size: 10px; font-weight: bold; background: #333; color: white; padding: 2px 6px; }
     
     table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-    .name-col { width: 14%; }
-    th { background: #eee; border: 1px solid #333; padding: 3px 2px; text-align: center; font-size: 9px; }
-    td { border: 1px solid #333; padding: 3px 2px; text-align: center; font-size: 8px; }
-    .name-cell { text-align: right; font-weight: bold; font-size: 8px; padding-right: 4px; }
-    .phone { font-weight: normal; color: #555; font-size: 7px; direction: ltr; display: inline-block; }
+    .name-col { width: 15%; }
+    th { background: #eee; border: 1px solid #333; padding: 2px 1px; text-align: center; font-size: 7px; }
+    td { border: 1px solid #333; padding: 2px 1px; text-align: center; font-size: 7px; }
+    .name-cell { text-align: right; font-weight: bold; font-size: 7px; padding-right: 3px; }
+    .phone { font-weight: normal; color: #555; font-size: 6px; direction: ltr; display: inline-block; }
     
     thead { display: table-header-group; }
     tr { page-break-inside: avoid; }
