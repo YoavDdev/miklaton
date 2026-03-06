@@ -434,10 +434,73 @@ export default function OnCallManagerNew() {
             <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-purple-200">
               <h3 className="font-bold mb-3">{editingItem ? 'ערוך כוננות' : 'כוננות חדשה'}</h3>
               
-              {/* Shift Preset Selector */}
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                {/* Step 1: Select Department */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    1️⃣ בחר מכלול:
+                  </label>
+                  <select
+                    value={rosterForm.department_id}
+                    onChange={(e) => setRosterForm({ 
+                      ...rosterForm, 
+                      department_id: e.target.value,
+                      contact_id: '' // Reset contact when department changes
+                    })}
+                    className="w-full px-3 py-2 border-2 border-purple-300 rounded font-medium"
+                  >
+                    <option value="">בחר מכלול</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Step 2: Select Contact (filtered by department) */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    2️⃣ בחר איש קשר:
+                  </label>
+                  <select
+                    value={rosterForm.contact_id}
+                    onChange={(e) => setRosterForm({ ...rosterForm, contact_id: e.target.value })}
+                    className="w-full px-3 py-2 border-2 border-purple-300 rounded font-medium"
+                    disabled={!rosterForm.department_id}
+                  >
+                    <option value="">
+                      {rosterForm.department_id ? 'בחר איש קשר' : 'בחר מכלול תחילה'}
+                    </option>
+                    {contacts
+                      .filter(c => c.department_id === rosterForm.department_id)
+                      .map(contact => (
+                        <option key={contact.id} value={contact.id}>
+                          {contact.full_name} - {contact.phone}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+
+                {/* Step 3: Select Day */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">
+                    3️⃣ בחר יום:
+                  </label>
+                  <select
+                    value={rosterForm.day_of_week}
+                    onChange={(e) => setRosterForm({ ...rosterForm, day_of_week: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border-2 border-purple-300 rounded font-medium"
+                  >
+                    {DAYS.map((day, i) => (
+                      <option key={i} value={i}>{day}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Step 4: Shift Preset Selector */}
               <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
                 <label className="block text-sm font-semibold text-blue-900 mb-2">
-                  💡 בחר סוג משמרת (מומלץ):
+                  4️⃣ בחר סוג משמרת:
                 </label>
                 <div className="grid grid-cols-2 gap-2">
                   {SHIFT_PRESETS.map((preset, idx) => (
@@ -468,34 +531,6 @@ export default function OnCallManagerNew() {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                <select
-                  value={rosterForm.contact_id}
-                  onChange={(e) => {
-                    const contact = contacts.find(c => c.id === e.target.value);
-                    setRosterForm({ 
-                      ...rosterForm, 
-                      contact_id: e.target.value,
-                      department_id: contact?.department_id || ''
-                    });
-                  }}
-                  className="px-3 py-2 border rounded"
-                >
-                  <option value="">בחר איש קשר</option>
-                  {contacts.map(contact => (
-                    <option key={contact.id} value={contact.id}>
-                      {contact.full_name} ({contact.departments?.name})
-                    </option>
-                  ))}
-                </select>
-                <select
-                  value={rosterForm.day_of_week}
-                  onChange={(e) => setRosterForm({ ...rosterForm, day_of_week: parseInt(e.target.value) })}
-                  className="px-3 py-2 border rounded"
-                >
-                  {DAYS.map((day, i) => (
-                    <option key={i} value={i}>{day}</option>
-                  ))}
-                </select>
                 
                 {/* Hour inputs with helper text */}
                 <div>

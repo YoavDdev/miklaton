@@ -55,12 +55,26 @@ export default function WeeklyDutyRoster() {
   };
 
   const getDutiesForDayAndHour = (contactId, dayOfWeek, hour) => {
-    return dutyRoster.filter(
-      d => d.contact_id === contactId && 
-           d.day_of_week === dayOfWeek &&
-           d.start_hour <= hour &&
-           d.end_hour >= hour
-    );
+    return dutyRoster.filter(d => {
+      if (d.contact_id !== contactId || d.day_of_week !== dayOfWeek) {
+        return false;
+      }
+      
+      const { start_hour, end_hour } = d;
+      
+      // 24-hour shift (e.g., 8-8)
+      if (start_hour === end_hour) {
+        return true;
+      }
+      
+      // Overnight shift ending at midnight (e.g., 16-0)
+      if (end_hour === 0) {
+        return hour >= start_hour || hour === 0;
+      }
+      
+      // Normal shift
+      return hour >= start_hour && hour <= end_hour;
+    });
   };
 
   const getDutiesForDay = (contactId, dayOfWeek) => {
@@ -180,16 +194,34 @@ export default function WeeklyDutyRoster() {
                           >
                             {duties.map(duty => {
                               const isActive = getDutiesForDayAndHour(contact.id, dayIndex, currentHour).length > 0;
+                              
+                              // Determine display text and color
+                              let displayText = '';
+                              let baseColor = 'bg-blue-100 text-blue-800';
+                              
+                              if (duty.start_hour === duty.end_hour) {
+                                // 24-hour shift
+                                displayText = '24 שעות';
+                                baseColor = 'bg-green-200 text-green-900';
+                              } else if (duty.end_hour === 0) {
+                                // Overnight shift ending at midnight
+                                displayText = `${String(duty.start_hour).padStart(2, '0')}:00-חצות`;
+                                baseColor = 'bg-purple-200 text-purple-900';
+                              } else {
+                                // Normal shift
+                                displayText = `${String(duty.start_hour).padStart(2, '0')}:00-${String(duty.end_hour).padStart(2, '0')}:00`;
+                              }
+                              
                               return (
                                 <div 
                                   key={duty.id} 
-                                  className={`text-xs px-1 py-0.5 rounded mb-1 ${
+                                  className={`text-xs px-1 py-0.5 rounded mb-1 font-medium ${
                                     isActive && isToday
                                       ? 'bg-green-500 text-white font-bold print:bg-gray-800 print:text-white'
-                                      : 'bg-blue-100 text-blue-800 print:bg-gray-300 print:text-black'
+                                      : `${baseColor} print:bg-gray-300 print:text-black`
                                   }`}
                                 >
-                                  {String(duty.start_hour).padStart(2, '0')}:00-{String(duty.end_hour).padStart(2, '0')}:00
+                                  {displayText}
                                   {duty.notes && (
                                     <div className="text-xs opacity-75">{duty.notes}</div>
                                   )}
