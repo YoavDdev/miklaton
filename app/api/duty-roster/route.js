@@ -19,7 +19,8 @@ export async function GET(request) {
       const dayOfWeek = israelTime.getDay(); // 0=Sunday
       const currentHour = israelTime.getHours();
 
-      const { data, error } = await supabase
+      // Get all duties for current day
+      const { data: allDuties, error } = await supabase
         .from('duty_roster')
         .select(`
           *,
@@ -27,13 +28,32 @@ export async function GET(request) {
           departments (name)
         `)
         .eq('day_of_week', dayOfWeek)
-        .lte('start_hour', currentHour)
-        .gte('end_hour', currentHour)
         .eq('active', true);
 
       if (error) throw error;
 
-      return NextResponse.json({ success: true, data });
+      // Filter in JavaScript to handle special cases:
+      // 1. 24-hour shift: start_hour === end_hour (e.g., 8-8 means all day)
+      // 2. Overnight shift: end_hour === 0 means midnight (e.g., 16-0 means 16:00-00:00)
+      // 3. Normal shift: start_hour < end_hour
+      const currentDuties = allDuties.filter(duty => {
+        const { start_hour, end_hour } = duty;
+        
+        // 24-hour shift (e.g., 8-8)
+        if (start_hour === end_hour) {
+          return true;
+        }
+        
+        // Overnight shift ending at midnight (e.g., 16-0)
+        if (end_hour === 0) {
+          return currentHour >= start_hour || currentHour === 0;
+        }
+        
+        // Normal shift
+        return currentHour >= start_hour && currentHour <= end_hour;
+      });
+
+      return NextResponse.json({ success: true, data: currentDuties });
     } else {
       // Get all duty roster entries
       const { data, error } = await supabase

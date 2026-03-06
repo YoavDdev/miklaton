@@ -10,6 +10,16 @@ const supabase = createClient(
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
+// Preset shift options for easier selection
+const SHIFT_PRESETS = [
+  { label: 'יום שלם (24 שעות)', start: 8, end: 8, description: '08:00-08:00 (כל היום)' },
+  { label: 'בוקר (08:00-16:00)', start: 8, end: 16, description: 'משמרת בוקר' },
+  { label: 'אחה"צ (16:00-00:00)', start: 16, end: 0, description: 'משמרת אחר הצהריים עד חצות' },
+  { label: 'לילה (00:00-08:00)', start: 0, end: 8, description: 'משמרת לילה' },
+  { label: 'יום עבודה (08:00-17:00)', start: 8, end: 17, description: 'שעות עבודה רגילות' },
+  { label: 'מותאם אישית', start: null, end: null, description: 'בחר שעות בעצמך' }
+];
+
 export default function OnCallManagerNew() {
   const [activeTab, setActiveTab] = useState('contacts'); // contacts, departments, roster
   const [departments, setDepartments] = useState([]);
@@ -22,6 +32,10 @@ export default function OnCallManagerNew() {
   const [showContactForm, setShowContactForm] = useState(false);
   const [showRosterForm, setShowRosterForm] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+  
+  // Filters
+  const [filterDepartment, setFilterDepartment] = useState('all');
+  const [selectedPreset, setSelectedPreset] = useState(null);
   
   const [deptForm, setDeptForm] = useState({ name: '', display_order: 0 });
   const [contactForm, setContactForm] = useState({ 
@@ -419,6 +433,40 @@ export default function OnCallManagerNew() {
           {showRosterForm && (
             <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-purple-200">
               <h3 className="font-bold mb-3">{editingItem ? 'ערוך כוננות' : 'כוננות חדשה'}</h3>
+              
+              {/* Shift Preset Selector */}
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                <label className="block text-sm font-semibold text-blue-900 mb-2">
+                  💡 בחר סוג משמרת (מומלץ):
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  {SHIFT_PRESETS.map((preset, idx) => (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => {
+                        setSelectedPreset(idx);
+                        if (preset.start !== null) {
+                          setRosterForm({
+                            ...rosterForm,
+                            start_hour: preset.start,
+                            end_hour: preset.end
+                          });
+                        }
+                      }}
+                      className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
+                        selectedPreset === idx
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+                      }`}
+                    >
+                      <div className="font-bold">{preset.label}</div>
+                      <div className="text-xs opacity-75">{preset.description}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-3">
                 <select
                   value={rosterForm.contact_id}
@@ -448,24 +496,43 @@ export default function OnCallManagerNew() {
                     <option key={i} value={i}>{day}</option>
                   ))}
                 </select>
-                <input
-                  type="number"
-                  min="0"
-                  max="23"
-                  placeholder="שעת התחלה"
-                  value={rosterForm.start_hour}
-                  onChange={(e) => setRosterForm({ ...rosterForm, start_hour: parseInt(e.target.value) })}
-                  className="px-3 py-2 border rounded"
-                />
-                <input
-                  type="number"
-                  min="0"
-                  max="23"
-                  placeholder="שעת סיום"
-                  value={rosterForm.end_hour}
-                  onChange={(e) => setRosterForm({ ...rosterForm, end_hour: parseInt(e.target.value) })}
-                  className="px-3 py-2 border rounded"
-                />
+                
+                {/* Hour inputs with helper text */}
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">שעת התחלה (0-23)</label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={rosterForm.start_hour}
+                    onChange={(e) => setRosterForm({ ...rosterForm, start_hour: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs text-gray-600 mb-1">
+                    שעת סיום (0-23)
+                    <span className="text-blue-600 font-semibold"> • 0=חצות • שווה להתחלה=24 שעות</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="23"
+                    value={rosterForm.end_hour}
+                    onChange={(e) => setRosterForm({ ...rosterForm, end_hour: parseInt(e.target.value) })}
+                    className="w-full px-3 py-2 border rounded"
+                  />
+                </div>
+                
+                {/* Preview of selected time */}
+                <div className="col-span-2 p-2 bg-green-50 border border-green-200 rounded text-center">
+                  <span className="text-sm font-semibold text-green-800">
+                    ⏰ כוננות: {String(rosterForm.start_hour).padStart(2, '0')}:00 - {String(rosterForm.end_hour).padStart(2, '0')}:00
+                    {rosterForm.start_hour === rosterForm.end_hour && ' (24 שעות)'}
+                    {rosterForm.end_hour === 0 && rosterForm.start_hour > 0 && ' (עד חצות)'}
+                  </span>
+                </div>
+                
                 <input
                   type="text"
                   placeholder="הערות (אופציונלי)"
@@ -494,6 +561,29 @@ export default function OnCallManagerNew() {
             </div>
           )}
 
+          {/* Department Filter */}
+          <div className="mb-4 flex items-center gap-3">
+            <label className="font-semibold text-gray-700">🏢 סינון לפי מכלול:</label>
+            <select
+              value={filterDepartment}
+              onChange={(e) => setFilterDepartment(e.target.value)}
+              className="px-4 py-2 border-2 border-purple-300 rounded-lg font-medium"
+            >
+              <option value="all">כל המכלולים</option>
+              {departments.map(dept => (
+                <option key={dept.id} value={dept.id}>{dept.name}</option>
+              ))}
+            </select>
+            {filterDepartment !== 'all' && (
+              <button
+                onClick={() => setFilterDepartment('all')}
+                className="text-sm text-purple-600 hover:text-purple-800 underline"
+              >
+                נקה סינון
+              </button>
+            )}
+          </div>
+
           {/* Weekly Table */}
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-sm">
@@ -507,7 +597,9 @@ export default function OnCallManagerNew() {
                 </tr>
               </thead>
               <tbody>
-                {contacts.map(contact => (
+                {contacts
+                  .filter(contact => filterDepartment === 'all' || contact.department_id === filterDepartment)
+                  .map(contact => (
                   <tr key={contact.id}>
                     <td className="border p-2 font-semibold">
                       {contact.full_name}
@@ -519,11 +611,30 @@ export default function OnCallManagerNew() {
                       );
                       return (
                         <td key={dayIndex} className="border p-1">
-                          {duties.map(duty => (
-                            <div key={duty.id} className="text-xs bg-blue-100 px-1 py-0.5 rounded mb-1">
-                              {duty.start_hour}:00-{duty.end_hour}:00
-                            </div>
-                          ))}
+                          {duties.map(duty => {
+                            let displayText = '';
+                            let bgColor = 'bg-blue-100';
+                            
+                            if (duty.start_hour === duty.end_hour) {
+                              // 24-hour shift
+                              displayText = '24 שעות';
+                              bgColor = 'bg-green-200';
+                            } else if (duty.end_hour === 0) {
+                              // Overnight shift ending at midnight
+                              displayText = `${String(duty.start_hour).padStart(2, '0')}:00-חצות`;
+                              bgColor = 'bg-purple-200';
+                            } else {
+                              // Normal shift
+                              displayText = `${String(duty.start_hour).padStart(2, '0')}:00-${String(duty.end_hour).padStart(2, '0')}:00`;
+                            }
+                            
+                            return (
+                              <div key={duty.id} className={`text-xs ${bgColor} px-1 py-0.5 rounded mb-1 font-medium`}>
+                                {displayText}
+                                {duty.notes && <div className="text-xs opacity-75">{duty.notes}</div>}
+                              </div>
+                            );
+                          })}
                         </td>
                       );
                     })}
