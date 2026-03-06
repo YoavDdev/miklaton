@@ -107,7 +107,7 @@ export default function WeeklyDutyRoster() {
 
   return (
     <div className="bg-white rounded-lg shadow">
-      <div className="roster-print-content p-6 print:p-4">
+      <div className="print-roster-content p-6 print:p-4">
         <div className="flex items-center justify-between mb-6 print:mb-4">
           <div>
             <h2 className="text-2xl font-bold text-gray-900 print:text-xl">כוננויות השבוע</h2>
@@ -250,22 +250,27 @@ export default function WeeklyDutyRoster() {
       {/* Print Styles */}
       <style jsx global>{`
         @media print {
-          /* Hide all page content except roster */
-          body > *:not(.bg-white.rounded-lg.shadow) {
-            display: none !important;
-          }
-          
-          /* Show only roster content */
-          .roster-print-content {
-            display: block !important;
-          }
-          
           @page {
             margin: 1cm;
             size: A4 landscape;
           }
           
-          /* Ensure tables fit on page */
+          body * {
+            visibility: hidden;
+          }
+          
+          .print-roster-content,
+          .print-roster-content * {
+            visibility: visible;
+          }
+          
+          .print-roster-content {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+          }
+          
           table {
             page-break-inside: auto;
             font-size: 10px;

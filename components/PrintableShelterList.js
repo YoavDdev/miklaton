@@ -29,51 +29,38 @@ export default function PrintableShelterList({ shelters }) {
     <>
       <button
         onClick={handlePrint}
-        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors print:hidden flex items-center gap-2"
+        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors flex items-center gap-2 print:hidden"
       >
         🖨️ הדפס רשימת מקלטים
       </button>
 
-      <div ref={printRef} className="shelter-print-content" style={{ display: 'none' }}>
+      <div ref={printRef} className="hidden print:block">
         <style jsx global>{`
           @media print {
-            /* Hide all page content */
-            body > *:not(.shelter-print-content) {
-              display: none !important;
+            @page {
+              margin: 1cm;
+              size: A4;
             }
             
-            /* Show only shelter list */
-            .shelter-print-content {
-              display: block !important;
+            body * {
+              visibility: hidden;
+            }
+            
+            .print-shelter-content,
+            .print-shelter-content * {
+              visibility: visible;
+            }
+            
+            .print-shelter-content {
               position: absolute;
               left: 0;
               top: 0;
               width: 100%;
             }
-            
-            body {
-              margin: 0;
-              padding: 10px;
-              font-size: 9px;
-            }
-            
-            @page {
-              margin: 0.5cm;
-              size: A4;
-            }
-            
-            table {
-              page-break-inside: auto;
-            }
-            
-            tr {
-              page-break-inside: avoid;
-              page-break-after: auto;
-            }
           }
         `}</style>
 
-        <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '9px' }}>
+        <div className="print-shelter-content" style={{ fontFamily: 'Arial, sans-serif', fontSize: '9px' }}>
           {/* Minimal Header */}
           <div style={{ textAlign: 'center', marginBottom: '8px', borderBottom: '2px solid #000', paddingBottom: '4px' }}>
             <h1 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>
