@@ -51,7 +51,80 @@ export default function WeeklyDutyRoster() {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Build HTML rows for each department
+    let tablesHtml = '';
+    
+    const contactsByDeptForPrint = {};
+    contacts.forEach(contact => {
+      const deptName = contact.departments?.name || 'ללא מכלול';
+      if (!contactsByDeptForPrint[deptName]) contactsByDeptForPrint[deptName] = [];
+      contactsByDeptForPrint[deptName].push(contact);
+    });
+
+    Object.entries(contactsByDeptForPrint).forEach(([deptName, deptContacts]) => {
+      let rows = deptContacts.map(contact => {
+        let dayCells = DAYS.map((_, dayIndex) => {
+          const duties = dutyRoster.filter(d => d.contact_id === contact.id && d.day_of_week === dayIndex);
+          let cellContent = duties.map(duty => {
+            let text = '';
+            if (duty.start_hour === duty.end_hour) {
+              text = '24 שעות';
+            } else if (duty.end_hour === 0) {
+              text = `${String(duty.start_hour).padStart(2,'0')}:00-חצות`;
+            } else {
+              text = `${String(duty.start_hour).padStart(2,'0')}:00-${String(duty.end_hour).padStart(2,'0')}:00`;
+            }
+            return `<span style="display:inline-block;background:#e0e7ff;padding:2px 4px;border-radius:3px;margin:1px;font-size:10px">${text}</span>`;
+          }).join('');
+          return `<td style="border:1px solid #999;padding:4px;text-align:center">${cellContent || '-'}</td>`;
+        }).join('');
+        return `<tr>
+          <td style="border:1px solid #999;padding:4px;font-weight:bold">${contact.full_name}<br><span style="font-weight:normal;font-size:10px;color:#666">${contact.phone || ''}</span></td>
+          ${dayCells}
+        </tr>`;
+      }).join('');
+
+      let dayHeaders = DAYS.map(day => `<th style="border:1px solid #999;padding:4px;background:#f0f0f0">${day}</th>`).join('');
+      
+      tablesHtml += `
+        <h2 style="font-size:14px;font-weight:bold;color:#7c3aed;margin:16px 0 6px 0">${deptName}</h2>
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:12px">
+          <thead>
+            <tr>
+              <th style="border:1px solid #999;padding:4px;background:#f0f0f0;width:15%">איש קשר</th>
+              ${dayHeaders}
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      `;
+    });
+
+    // Open new window and print
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`
+      <html dir="rtl">
+      <head>
+        <title>כוננויות השבוע</title>
+        <style>
+          body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; }
+          @page { margin: 1cm; size: A4 landscape; }
+          table { page-break-inside: auto; }
+          tr { page-break-inside: avoid; }
+        </style>
+      </head>
+      <body>
+        <div style="text-align:center;border-bottom:2px solid #000;padding-bottom:8px;margin-bottom:12px">
+          <h1 style="font-size:18px;margin:0">כוננויות השבוע</h1>
+          <p style="font-size:11px;color:#666;margin:4px 0 0 0">${new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+        </div>
+        ${tablesHtml}
+      </body>
+      </html>
+    `);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
 
   const getDutiesForDayAndHour = (contactId, dayOfWeek, hour) => {
@@ -106,7 +179,7 @@ export default function WeeklyDutyRoster() {
   });
 
   return (
-    <div className="roster-print-area bg-white rounded-lg shadow">
+    <div className="bg-white rounded-lg shadow">
       <div className="p-6 print:p-4">
         <div className="flex items-center justify-between mb-6 print:mb-4">
           <div>
@@ -247,35 +320,6 @@ export default function WeeklyDutyRoster() {
         )}
       </div>
 
-      {/* Print Styles */}
-      <style jsx global>{`
-        @media print {
-          @page {
-            margin: 1cm;
-            size: A4 landscape;
-          }
-          
-          /* Hide everything on screen */
-          body > * {
-            display: none !important;
-          }
-          
-          /* Show only roster content */
-          .roster-print-area {
-            display: block !important;
-          }
-          
-          table {
-            page-break-inside: auto;
-            font-size: 10px;
-          }
-          
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-          }
-        }
-      `}</style>
     </div>
   );
 }
