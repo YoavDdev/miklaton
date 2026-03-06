@@ -51,7 +51,7 @@ export default function WeeklyDutyRoster() {
   };
 
   const handlePrint = () => {
-    const SHORT_DAYS = ["א'", "ב'", "ג'", "ד'", "ה'", "ו'", "ש'"];
+    const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
     
     const contactsByDeptForPrint = {};
     contacts.forEach(contact => {
@@ -63,39 +63,29 @@ export default function WeeklyDutyRoster() {
     let tablesHtml = '';
     Object.entries(contactsByDeptForPrint).forEach(([deptName, deptContacts]) => {
       let rows = deptContacts.map(contact => {
-        // Build schedule as text
-        let schedule = SHORT_DAYS.map((dayName, dayIndex) => {
+        let dayCells = DAY_NAMES.map((_, dayIndex) => {
           const duties = dutyRoster.filter(d => d.contact_id === contact.id && d.day_of_week === dayIndex);
-          if (duties.length === 0) return null;
-          let times = duties.map(duty => {
+          let cellContent = duties.map(duty => {
             if (duty.start_hour === duty.end_hour) return '24 שעות';
             const sh = String(duty.start_hour).padStart(2,'0');
             const eh = duty.end_hour === 0 ? '00' : String(duty.end_hour).padStart(2,'0');
             return `${sh}:00-${eh}:00`;
-          }).join(', ');
-          return `${dayName} ${times}`;
-        }).filter(Boolean).join(' &nbsp;|&nbsp; ');
-        
-        if (!schedule) schedule = '<span style="color:#999">אין כוננות</span>';
-        
+          }).join('<br>');
+          return `<td>${cellContent || '-'}</td>`;
+        }).join('');
         return `<tr>
-          <td class="name-cell">${contact.full_name}</td>
-          <td class="phone-cell">${contact.phone || ''}</td>
-          <td class="schedule-cell">${schedule}</td>
+          <td class="name-cell">${contact.full_name}<br><span class="phone">${contact.phone || ''}</span></td>
+          ${dayCells}
         </tr>`;
       }).join('');
+
+      let dayHeaders = DAY_NAMES.map(d => `<th>${d}</th>`).join('');
       
       tablesHtml += `
         <div class="dept">
           <div class="dept-title">${deptName}</div>
           <table>
-            <thead>
-              <tr>
-                <th style="width:20%">שם</th>
-                <th style="width:18%">טלפון</th>
-                <th style="width:62%">כוננויות</th>
-              </tr>
-            </thead>
+            <thead><tr><th class="name-col">שם / טלפון</th>${dayHeaders}</tr></thead>
             <tbody>${rows}</tbody>
           </table>
         </div>
@@ -103,39 +93,40 @@ export default function WeeklyDutyRoster() {
     });
 
     const printWindow = window.open('', '_blank');
-    printWindow.document.write(`
-      <html dir="rtl">
-      <head>
-        <title>כוננויות השבוע</title>
-        <style>
-          * { box-sizing: border-box; margin: 0; padding: 0; }
-          body { font-family: Arial, sans-serif; padding: 15px 20px; direction: rtl; }
-          @page { margin: 1.5cm; size: A4; }
-          
-          h1 { font-size: 18px; text-align: center; margin-bottom: 2px; }
-          .date { font-size: 11px; color: #666; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #000; }
-          
-          .dept { margin-bottom: 14px; page-break-inside: avoid; }
-          .dept-title { font-size: 13px; font-weight: bold; background: #333; color: white; padding: 4px 10px; margin-bottom: 0; }
-          
-          table { width: 100%; border-collapse: collapse; }
-          th { background: #f3f4f6; border: 1px solid #999; padding: 4px 6px; text-align: right; font-size: 10px; }
-          td { border: 1px solid #999; padding: 4px 6px; font-size: 10px; }
-          .name-cell { font-weight: bold; text-align: right; }
-          .phone-cell { direction: ltr; text-align: left; }
-          .schedule-cell { text-align: right; font-size: 9px; }
-          
-          thead { display: table-header-group; }
-          tr { page-break-inside: avoid; }
-        </style>
-      </head>
-      <body>
-        <h1>כוננויות השבוע</h1>
-        <div class="date">${new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
-        ${tablesHtml}
-      </body>
-      </html>
-    `);
+    printWindow.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>כוננויות השבוע</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; direction: rtl; }
+    @page { margin: 1cm; size: landscape; }
+    
+    h1 { font-size: 16px; text-align: center; margin-bottom: 2px; }
+    .date { font-size: 10px; color: #666; text-align: center; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 2px solid #000; }
+    
+    .dept { margin-bottom: 10px; }
+    .dept-title { font-size: 11px; font-weight: bold; background: #333; color: white; padding: 3px 8px; }
+    
+    table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+    .name-col { width: 14%; }
+    th { background: #eee; border: 1px solid #333; padding: 3px 2px; text-align: center; font-size: 9px; }
+    td { border: 1px solid #333; padding: 3px 2px; text-align: center; font-size: 8px; }
+    .name-cell { text-align: right; font-weight: bold; font-size: 8px; padding-right: 4px; }
+    .phone { font-weight: normal; color: #555; font-size: 7px; direction: ltr; display: inline-block; }
+    
+    thead { display: table-header-group; }
+    tr { page-break-inside: avoid; }
+    .dept { page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+  <h1>כוננויות השבוע</h1>
+  <div class="date">${new Date().toLocaleDateString('he-IL', { year: 'numeric', month: 'long', day: 'numeric' })}</div>
+  ${tablesHtml}
+</body>
+</html>`);
     printWindow.document.close();
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
