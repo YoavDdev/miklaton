@@ -63,23 +63,27 @@ export default function WeeklyDutyRoster() {
     let tablesHtml = '';
     Object.entries(contactsByDeptForPrint).forEach(([deptName, deptContacts]) => {
       let rows = deptContacts.map(contact => {
-        let dayCells = SHORT_DAYS.map((_, dayIndex) => {
+        // Build schedule as text
+        let schedule = SHORT_DAYS.map((dayName, dayIndex) => {
           const duties = dutyRoster.filter(d => d.contact_id === contact.id && d.day_of_week === dayIndex);
-          let cellContent = duties.map(duty => {
+          if (duties.length === 0) return null;
+          let times = duties.map(duty => {
             if (duty.start_hour === duty.end_hour) return '24 שעות';
             const sh = String(duty.start_hour).padStart(2,'0');
             const eh = duty.end_hour === 0 ? '00' : String(duty.end_hour).padStart(2,'0');
             return `${sh}:00-${eh}:00`;
-          }).join('<br>');
-          return `<td>${cellContent || '-'}</td>`;
-        }).join('');
+          }).join(', ');
+          return `${dayName} ${times}`;
+        }).filter(Boolean).join(' &nbsp;|&nbsp; ');
+        
+        if (!schedule) schedule = '<span style="color:#999">אין כוננות</span>';
+        
         return `<tr>
-          <td style="text-align:right"><strong>${contact.full_name}</strong><br><span style="color:#666;direction:ltr;display:inline-block">${contact.phone || ''}</span></td>
-          ${dayCells}
+          <td class="name-cell">${contact.full_name}</td>
+          <td class="phone-cell">${contact.phone || ''}</td>
+          <td class="schedule-cell">${schedule}</td>
         </tr>`;
       }).join('');
-
-      let dayHeaders = SHORT_DAYS.map(d => `<th>${d}</th>`).join('');
       
       tablesHtml += `
         <div class="dept">
@@ -87,8 +91,9 @@ export default function WeeklyDutyRoster() {
           <table>
             <thead>
               <tr>
-                <th style="width:22%">שם / טלפון</th>
-                ${dayHeaders}
+                <th style="width:20%">שם</th>
+                <th style="width:18%">טלפון</th>
+                <th style="width:62%">כוננויות</th>
               </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -107,15 +112,18 @@ export default function WeeklyDutyRoster() {
           body { font-family: Arial, sans-serif; padding: 15px 20px; direction: rtl; }
           @page { margin: 1.5cm; size: A4; }
           
-          h1 { font-size: 16px; text-align: center; margin-bottom: 2px; }
-          .date { font-size: 10px; color: #666; text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #000; }
+          h1 { font-size: 18px; text-align: center; margin-bottom: 2px; }
+          .date { font-size: 11px; color: #666; text-align: center; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 2px solid #000; }
           
-          .dept { margin-bottom: 12px; page-break-inside: avoid; }
-          .dept-title { font-size: 11px; font-weight: bold; background: #7c3aed; color: white; padding: 3px 8px; margin-bottom: 2px; }
+          .dept { margin-bottom: 14px; page-break-inside: avoid; }
+          .dept-title { font-size: 13px; font-weight: bold; background: #333; color: white; padding: 4px 10px; margin-bottom: 0; }
           
-          table { width: 100%; border-collapse: collapse; table-layout: fixed; }
-          th { background: #f3f4f6; border: 1px solid #999; padding: 2px 2px; text-align: center; font-size: 7px; overflow: hidden; word-wrap: break-word; }
-          td { border: 1px solid #999; padding: 2px 2px; text-align: center; font-size: 7px; overflow: hidden; word-wrap: break-word; }
+          table { width: 100%; border-collapse: collapse; }
+          th { background: #f3f4f6; border: 1px solid #999; padding: 4px 6px; text-align: right; font-size: 10px; }
+          td { border: 1px solid #999; padding: 4px 6px; font-size: 10px; }
+          .name-cell { font-weight: bold; text-align: right; }
+          .phone-cell { direction: ltr; text-align: left; }
+          .schedule-cell { text-align: right; font-size: 9px; }
           
           thead { display: table-header-group; }
           tr { page-break-inside: avoid; }
