@@ -255,10 +255,18 @@ export default function WeeklyDutyRoster() {
             size: A4 landscape;
           }
           
+          /* Hide everything */
           body * {
             visibility: hidden;
           }
           
+          /* Hide shelter content specifically */
+          .print-shelter-content,
+          .print-shelter-content * {
+            display: none !important;
+          }
+          
+          /* Show only roster content */
           .print-roster-content,
           .print-roster-content * {
             visibility: visible;

@@ -42,10 +42,18 @@ export default function PrintableShelterList({ shelters }) {
               size: A4;
             }
             
+            /* Hide everything */
             body * {
               visibility: hidden;
             }
             
+            /* Hide roster specifically */
+            .print-roster-content,
+            .print-roster-content * {
+              display: none !important;
+            }
+            
+            /* Show only shelter content */
             .print-shelter-content,
             .print-shelter-content * {
               visibility: visible;
