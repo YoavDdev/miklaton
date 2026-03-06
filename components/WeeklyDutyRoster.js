@@ -109,7 +109,7 @@ export default function WeeklyDutyRoster() {
         <style>
           * { box-sizing: border-box; }
           body { font-family: Arial, sans-serif; margin: 10px; padding: 0; direction: rtl; font-size: 10px; }
-          @page { margin: 0.5cm; size: A4 landscape; }
+          @page { margin: 0.5cm; size: A4; }
           table { page-break-inside: auto; width: 100%; border-collapse: collapse; }
           tr { page-break-inside: avoid; page-break-after: auto; }
           td, th { padding: 3px 4px; overflow: hidden; }
