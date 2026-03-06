@@ -109,8 +109,10 @@ export default function WeeklyDutyRoster() {
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; }
           @page { margin: 1cm; size: A4 landscape; }
-          table { page-break-inside: auto; }
-          tr { page-break-inside: avoid; }
+          table { page-break-inside: auto; width: 100%; border-collapse: collapse; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
+          h2 { page-break-after: avoid; }
         </style>
       </head>
       <body>

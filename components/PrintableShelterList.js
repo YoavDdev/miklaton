@@ -34,7 +34,7 @@ export default function PrintableShelterList({ shelters }) {
       `).join('');
       
       tablesHtml += `
-        <h2 style="font-size:13px;font-weight:bold;background:#e0e0e0;padding:4px 8px;margin:12px 0 4px 0">${category} (${list.length})</h2>
+        <h2 style="font-size:13px;font-weight:bold;background:#e0e0e0;padding:4px 8px;margin:12px 0 4px 0;page-break-after:avoid">${category} (${list.length})</h2>
         <table style="width:100%;border-collapse:collapse;font-size:11px;margin-bottom:8px">
           <thead>
             <tr style="background:#f0f0f0">
@@ -58,8 +58,11 @@ export default function PrintableShelterList({ shelters }) {
         <style>
           body { font-family: Arial, sans-serif; margin: 20px; direction: rtl; }
           @page { margin: 1cm; size: A4; }
-          table { page-break-inside: auto; }
-          tr { page-break-inside: avoid; }
+          table { page-break-inside: auto; width: 100%; border-collapse: collapse; }
+          tr { page-break-inside: avoid; page-break-after: auto; }
+          thead { display: table-header-group; }
+          h2 { page-break-after: avoid; }
+          div.category { page-break-inside: avoid; }
         </style>
       </head>
       <body>
