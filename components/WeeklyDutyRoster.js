@@ -106,7 +106,7 @@ export default function WeeklyDutyRoster() {
   });
 
   return (
-    <div className="bg-white rounded-lg shadow">
+    <div id="weekly-duty-roster-print" className="bg-white rounded-lg shadow">
       <div className="p-6 print:p-4">
         <div className="flex items-center justify-between mb-6 print:mb-4">
           <div>
@@ -250,23 +250,34 @@ export default function WeeklyDutyRoster() {
       {/* Print Styles */}
       <style jsx global>{`
         @media print {
-          body * {
-            visibility: hidden;
+          /* Hide everything on page */
+          body > * {
+            display: none !important;
           }
-          .bg-white.rounded-lg.shadow,
-          .bg-white.rounded-lg.shadow * {
-            visibility: visible;
-          }
-          .bg-white.rounded-lg.shadow {
+          
+          /* Show only the roster component */
+          #weekly-duty-roster-print {
+            display: block !important;
             position: absolute;
             left: 0;
             top: 0;
             width: 100%;
-            box-shadow: none;
-            border-radius: 0;
           }
+          
           @page {
             margin: 1cm;
+            size: A4 landscape;
+          }
+          
+          /* Ensure tables fit on page */
+          table {
+            page-break-inside: auto;
+            font-size: 10px;
+          }
+          
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
           }
         }
       `}</style>

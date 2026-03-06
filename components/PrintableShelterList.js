@@ -34,29 +34,38 @@ export default function PrintableShelterList({ shelters }) {
         🖨️ הדפס רשימת מקלטים
       </button>
 
-      <div ref={printRef} className="print-content hidden print:block">
+      <div ref={printRef} id="printable-shelter-list" className="print-content hidden print:block">
         <style jsx global>{`
           @media print {
-            * {
-              margin: 0;
-              padding: 0;
-              box-sizing: border-box;
+            /* Hide everything on page */
+            body > * {
+              display: none !important;
             }
+            
+            /* Show only the shelter list */
+            #printable-shelter-list {
+              display: block !important;
+              position: absolute;
+              left: 0;
+              top: 0;
+              width: 100%;
+            }
+            
             body {
               margin: 0;
               padding: 10px;
               font-size: 9px;
             }
-            .print-content {
-              display: block !important;
-            }
+            
             @page {
               margin: 0.5cm;
               size: A4;
             }
+            
             table {
               page-break-inside: auto;
             }
+            
             tr {
               page-break-inside: avoid;
               page-break-after: auto;
