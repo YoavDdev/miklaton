@@ -66,15 +66,15 @@ export default function WeeklyDutyRoster() {
         let dayCells = SHORT_DAYS.map((_, dayIndex) => {
           const duties = dutyRoster.filter(d => d.contact_id === contact.id && d.day_of_week === dayIndex);
           let cellContent = duties.map(duty => {
-            if (duty.start_hour === duty.end_hour) return '24h';
-            if (duty.end_hour === 0) return `${duty.start_hour}-00`;
-            return `${duty.start_hour}-${duty.end_hour}`;
+            if (duty.start_hour === duty.end_hour) return '24 שעות';
+            const sh = String(duty.start_hour).padStart(2,'0');
+            const eh = duty.end_hour === 0 ? '00' : String(duty.end_hour).padStart(2,'0');
+            return `${sh}:00-${eh}:00`;
           }).join('<br>');
           return `<td>${cellContent || '-'}</td>`;
         }).join('');
         return `<tr>
-          <td style="font-weight:bold;white-space:nowrap">${contact.full_name}</td>
-          <td style="direction:ltr">${contact.phone || ''}</td>
+          <td style="text-align:right"><strong>${contact.full_name}</strong><br><span style="color:#666;direction:ltr;display:inline-block">${contact.phone || ''}</span></td>
           ${dayCells}
         </tr>`;
       }).join('');
@@ -87,8 +87,7 @@ export default function WeeklyDutyRoster() {
           <table>
             <thead>
               <tr>
-                <th style="width:18%">שם</th>
-                <th style="width:12%">טלפון</th>
+                <th style="width:22%">שם / טלפון</th>
                 ${dayHeaders}
               </tr>
             </thead>
