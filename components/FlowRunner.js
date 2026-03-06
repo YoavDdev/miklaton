@@ -201,6 +201,7 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
       setTimerActive(false);
       setTimer(null);
       setActionCompleted(false);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else {
       handleEndEvent();
     }
@@ -216,6 +217,7 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
     setTimerActive(false);
     setTimer(null);
     addToLog(`חזרה לשלב: ${flow.steps.find(s => s.id === prevStepId)?.label || prevStepId}`);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleDecision = (answer) => {
