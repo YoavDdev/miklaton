@@ -29,12 +29,12 @@ export default function PrintableShelterList({ shelters }) {
     <>
       <button
         onClick={handlePrint}
-        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors flex items-center gap-2 print:hidden"
+        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors flex items-center gap-2"
       >
         🖨️ הדפס רשימת מקלטים
       </button>
 
-      <div ref={printRef} className="hidden print:block">
+      <div ref={printRef} className="shelter-print-area" style={{ display: 'none' }}>
         <style jsx global>{`
           @media print {
             @page {
@@ -42,33 +42,19 @@ export default function PrintableShelterList({ shelters }) {
               size: A4;
             }
             
-            /* Hide everything */
-            body * {
-              visibility: hidden;
-            }
-            
-            /* Hide roster specifically */
-            .print-roster-content,
-            .print-roster-content * {
+            /* Hide everything on screen */
+            body > * {
               display: none !important;
             }
             
-            /* Show only shelter content */
-            .print-shelter-content,
-            .print-shelter-content * {
-              visibility: visible;
-            }
-            
-            .print-shelter-content {
-              position: absolute;
-              left: 0;
-              top: 0;
-              width: 100%;
+            /* Show only shelter print area */
+            .shelter-print-area {
+              display: block !important;
             }
           }
         `}</style>
 
-        <div className="print-shelter-content" style={{ fontFamily: 'Arial, sans-serif', fontSize: '9px' }}>
+        <div style={{ fontFamily: 'Arial, sans-serif', fontSize: '9px' }}>
           {/* Minimal Header */}
           <div style={{ textAlign: 'center', marginBottom: '8px', borderBottom: '2px solid #000', paddingBottom: '4px' }}>
             <h1 style={{ fontSize: '14px', fontWeight: 'bold', margin: 0 }}>
