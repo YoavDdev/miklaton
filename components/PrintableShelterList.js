@@ -34,22 +34,17 @@ export default function PrintableShelterList({ shelters }) {
         🖨️ הדפס רשימת מקלטים
       </button>
 
-      <div ref={printRef} id="printable-shelter-list" className="print-content hidden print:block">
+      <div ref={printRef} className="shelter-print-content" style={{ display: 'none' }}>
         <style jsx global>{`
           @media print {
-            /* Hide everything except our component */
-            body * {
-              visibility: hidden;
+            /* Hide all page content */
+            body > *:not(.shelter-print-content) {
+              display: none !important;
             }
             
-            /* Show only the shelter list and its children */
-            #printable-shelter-list,
-            #printable-shelter-list * {
-              visibility: visible;
-            }
-            
-            /* Position it properly */
-            #printable-shelter-list {
+            /* Show only shelter list */
+            .shelter-print-content {
+              display: block !important;
               position: absolute;
               left: 0;
               top: 0;
