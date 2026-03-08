@@ -53,6 +53,17 @@ export default function OnCallManagerNew() {
     notes: '' 
   });
 
+  // Bulk roster form states
+  const [bulkSelectedDays, setBulkSelectedDays] = useState([]);
+  const [bulkSelectedContacts, setBulkSelectedContacts] = useState([]);
+  const [bulkDepartmentFilter, setBulkDepartmentFilter] = useState('');
+  const [bulkPreset, setBulkPreset] = useState(0);
+  const [bulkStartHour, setBulkStartHour] = useState(8);
+  const [bulkEndHour, setBulkEndHour] = useState(8);
+  const [bulkNotes, setBulkNotes] = useState('');
+  const [savingBulk, setSavingBulk] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(null);
+
   useEffect(() => {
     fetchAll();
     
@@ -175,10 +186,68 @@ export default function OnCallManagerNew() {
   };
 
   const handleDeleteRoster = async (id) => {
-    if (!confirm('למחוק כוננות זו?')) return;
-    
     await fetch(`/api/duty-roster?id=${id}`, { method: 'DELETE' });
+    setDeleteConfirm(null);
     fetchDutyRoster();
+  };
+
+  const handleBulkSave = async () => {
+    if (bulkSelectedContacts.length === 0 || bulkSelectedDays.length === 0) {
+      alert('יש לבחור לפחות איש קשר אחד ויום אחד');
+      return;
+    }
+    setSavingBulk(true);
+    try {
+      const promises = [];
+      for (const contactId of bulkSelectedContacts) {
+        const contact = contacts.find(c => c.id === contactId);
+        for (const day of bulkSelectedDays) {
+          promises.push(
+            fetch('/api/duty-roster', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contact_id: contactId,
+                department_id: contact?.department_id || '',
+                day_of_week: day,
+                start_hour: bulkStartHour,
+                end_hour: bulkEndHour,
+                notes: bulkNotes
+              })
+            })
+          );
+        }
+      }
+      await Promise.all(promises);
+      setBulkSelectedDays([]);
+      setBulkSelectedContacts([]);
+      setBulkNotes('');
+      setShowRosterForm(false);
+      fetchDutyRoster();
+    } catch (error) {
+      alert('שגיאה בשמירת כוננויות');
+    }
+    setSavingBulk(false);
+  };
+
+  const toggleBulkDay = (day) => {
+    setBulkSelectedDays(prev => 
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    );
+  };
+
+  const toggleBulkContact = (id) => {
+    setBulkSelectedContacts(prev => 
+      prev.includes(id) ? prev.filter(c => c !== id) : [...prev, id]
+    );
+  };
+
+  const selectAllDays = () => {
+    setBulkSelectedDays(bulkSelectedDays.length === 7 ? [] : [0,1,2,3,4,5,6]);
+  };
+
+  const selectWeekdays = () => {
+    setBulkSelectedDays([0,1,2,3,4]);
   };
 
   if (loading) {
@@ -412,183 +481,247 @@ export default function OnCallManagerNew() {
       {/* Duty Roster Tab */}
       {activeTab === 'roster' && (
         <div>
+          {/* Add Duty Button */}
           <button
             onClick={() => {
-              setShowRosterForm(true);
-              setEditingItem(null);
-              setRosterForm({ 
-                contact_id: contacts[0]?.id || '', 
-                department_id: contacts[0]?.department_id || '',
-                day_of_week: 0, 
-                start_hour: 8, 
-                end_hour: 17, 
-                notes: '' 
-              });
+              setShowRosterForm(!showRosterForm);
+              setBulkSelectedDays([]);
+              setBulkSelectedContacts([]);
+              setBulkDepartmentFilter('');
+              setBulkPreset(0);
+              setBulkStartHour(8);
+              setBulkEndHour(8);
+              setBulkNotes('');
             }}
-            className="mb-4 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg"
+            className={`mb-4 font-semibold px-6 py-3 rounded-lg text-lg transition-all ${
+              showRosterForm 
+                ? 'bg-gray-200 text-gray-700 hover:bg-gray-300' 
+                : 'bg-green-600 hover:bg-green-700 text-white shadow-md'
+            }`}
           >
-            + הוסף כוננות
+            {showRosterForm ? 'סגור טופס' : '+ הוסף כוננויות'}
           </button>
 
+          {/* ===== BULK ADD FORM ===== */}
           {showRosterForm && (
-            <div className="mb-6 p-4 bg-gray-50 rounded-lg border-2 border-purple-200">
-              <h3 className="font-bold mb-3">{editingItem ? 'ערוך כוננות' : 'כוננות חדשה'}</h3>
-              
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                {/* Step 1: Select Department */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    1️⃣ בחר מכלול:
-                  </label>
-                  <select
-                    value={rosterForm.department_id}
-                    onChange={(e) => setRosterForm({ 
-                      ...rosterForm, 
-                      department_id: e.target.value,
-                      contact_id: '' // Reset contact when department changes
-                    })}
-                    className="w-full px-3 py-2 border-2 border-purple-300 rounded font-medium"
-                  >
-                    <option value="">בחר מכלול</option>
-                    {departments.map(dept => (
-                      <option key={dept.id} value={dept.id}>{dept.name}</option>
-                    ))}
-                  </select>
-                </div>
+            <div className="mb-6 p-5 bg-gradient-to-b from-purple-50 to-white rounded-xl border-2 border-purple-300 shadow-sm">
+              <h3 className="text-lg font-bold text-purple-800 mb-4">הוספת כוננויות</h3>
 
-                {/* Step 2: Select Contact (filtered by department) */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    2️⃣ בחר איש קשר:
-                  </label>
-                  <select
-                    value={rosterForm.contact_id}
-                    onChange={(e) => setRosterForm({ ...rosterForm, contact_id: e.target.value })}
-                    className="w-full px-3 py-2 border-2 border-purple-300 rounded font-medium"
-                    disabled={!rosterForm.department_id}
-                  >
-                    <option value="">
-                      {rosterForm.department_id ? 'בחר איש קשר' : 'בחר מכלול תחילה'}
-                    </option>
-                    {contacts
-                      .filter(c => c.department_id === rosterForm.department_id)
-                      .map(contact => (
-                        <option key={contact.id} value={contact.id}>
-                          {contact.full_name} - {contact.phone}
-                        </option>
-                      ))}
-                  </select>
-                </div>
-
-                {/* Step 3: Select Day */}
-                <div className="col-span-2">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">
-                    3️⃣ בחר יום:
-                  </label>
-                  <select
-                    value={rosterForm.day_of_week}
-                    onChange={(e) => setRosterForm({ ...rosterForm, day_of_week: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border-2 border-purple-300 rounded font-medium"
-                  >
-                    {DAYS.map((day, i) => (
-                      <option key={i} value={i}>{day}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Step 4: Shift Preset Selector */}
-              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                <label className="block text-sm font-semibold text-blue-900 mb-2">
-                  4️⃣ בחר סוג משמרת:
+              {/* Step 1: Select Shift Type */}
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  בחר משמרת:
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-3 gap-2">
                   {SHIFT_PRESETS.map((preset, idx) => (
                     <button
                       key={idx}
                       type="button"
                       onClick={() => {
-                        setSelectedPreset(idx);
+                        setBulkPreset(idx);
                         if (preset.start !== null) {
-                          setRosterForm({
-                            ...rosterForm,
-                            start_hour: preset.start,
-                            end_hour: preset.end
-                          });
+                          setBulkStartHour(preset.start);
+                          setBulkEndHour(preset.end);
                         }
                       }}
-                      className={`px-3 py-2 rounded text-sm font-medium transition-colors ${
-                        selectedPreset === idx
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white text-blue-700 hover:bg-blue-100 border border-blue-300'
+                      className={`px-3 py-3 rounded-lg text-sm font-medium transition-all border-2 ${
+                        bulkPreset === idx
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-md scale-[1.02]'
+                          : 'bg-white text-gray-700 hover:bg-purple-50 border-gray-200 hover:border-purple-300'
                       }`}
                     >
-                      <div className="font-bold">{preset.label}</div>
-                      <div className="text-xs opacity-75">{preset.description}</div>
+                      <div className="font-bold text-sm">{preset.label}</div>
+                      <div className="text-xs opacity-75 mt-0.5">{preset.description}</div>
                     </button>
                   ))}
                 </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                
-                {/* Hour inputs with helper text */}
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">שעת התחלה (0-23)</label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={rosterForm.start_hour}
-                    onChange={(e) => setRosterForm({ ...rosterForm, start_hour: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border rounded"
-                  />
-                </div>
-                <div>
-                  <label className="block text-xs text-gray-600 mb-1">
-                    שעת סיום (0-23)
-                    <span className="text-blue-600 font-semibold"> • 0=חצות • שווה להתחלה=24 שעות</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="23"
-                    value={rosterForm.end_hour}
-                    onChange={(e) => setRosterForm({ ...rosterForm, end_hour: parseInt(e.target.value) })}
-                    className="w-full px-3 py-2 border rounded"
-                  />
-                </div>
-                
-                {/* Preview of selected time */}
-                <div className="col-span-2 p-2 bg-green-50 border border-green-200 rounded text-center">
-                  <span className="text-sm font-semibold text-green-800">
-                    ⏰ כוננות: {String(rosterForm.start_hour).padStart(2, '0')}:00 - {String(rosterForm.end_hour).padStart(2, '0')}:00
-                    {rosterForm.start_hour === rosterForm.end_hour && ' (24 שעות)'}
-                    {rosterForm.end_hour === 0 && rosterForm.start_hour > 0 && ' (עד חצות)'}
+                {/* Custom hours - only show when "custom" preset selected */}
+                {bulkPreset === SHIFT_PRESETS.length - 1 && (
+                  <div className="mt-3 flex gap-3 items-center bg-white p-3 rounded-lg border border-gray-200">
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-600 mb-1">שעת התחלה</label>
+                      <input
+                        type="number" min="0" max="23"
+                        value={bulkStartHour}
+                        onChange={(e) => setBulkStartHour(parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg text-center font-bold text-lg"
+                      />
+                    </div>
+                    <span className="text-2xl text-gray-400 pt-4">-</span>
+                    <div className="flex-1">
+                      <label className="block text-xs text-gray-600 mb-1">שעת סיום</label>
+                      <input
+                        type="number" min="0" max="23"
+                        value={bulkEndHour}
+                        onChange={(e) => setBulkEndHour(parseInt(e.target.value) || 0)}
+                        className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg text-center font-bold text-lg"
+                      />
+                    </div>
+                  </div>
+                )}
+                {/* Time preview */}
+                <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-lg text-center">
+                  <span className="text-sm font-bold text-green-800">
+                    {String(bulkStartHour).padStart(2, '0')}:00 - {String(bulkEndHour).padStart(2, '0')}:00
+                    {bulkStartHour === bulkEndHour && ' (24 שעות)'}
+                    {bulkEndHour === 0 && bulkStartHour > 0 && ' (עד חצות)'}
                   </span>
                 </div>
-                
-                <input
-                  type="text"
-                  placeholder="הערות (אופציונלי)"
-                  value={rosterForm.notes}
-                  onChange={(e) => setRosterForm({ ...rosterForm, notes: e.target.value })}
-                  className="px-3 py-2 border rounded col-span-2"
-                />
               </div>
-              <div className="flex gap-2 mt-3">
+
+              {/* Step 2: Select Days - Checkboxes with quick select */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-bold text-gray-800">בחר ימים:</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={selectAllDays}
+                      className="text-xs px-3 py-1 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200 font-semibold transition-colors"
+                    >
+                      {bulkSelectedDays.length === 7 ? 'נקה הכל' : 'כל השבוע'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={selectWeekdays}
+                      className="text-xs px-3 py-1 rounded-full bg-blue-100 text-blue-700 hover:bg-blue-200 font-semibold transition-colors"
+                    >
+                      א׳-ה׳
+                    </button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-7 gap-1">
+                  {DAYS.map((day, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => toggleBulkDay(i)}
+                      className={`py-3 rounded-lg text-sm font-bold transition-all border-2 ${
+                        bulkSelectedDays.includes(i)
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                          : 'bg-white text-gray-600 border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      {day}
+                    </button>
+                  ))}
+                </div>
+                {bulkSelectedDays.length > 0 && (
+                  <p className="text-xs text-purple-600 mt-1 font-semibold">
+                    נבחרו {bulkSelectedDays.length} ימים
+                  </p>
+                )}
+              </div>
+
+              {/* Step 3: Select People - Multi-select with department filter */}
+              <div className="mb-5">
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-sm font-bold text-gray-800">בחר כוננים:</label>
+                  <select
+                    value={bulkDepartmentFilter}
+                    onChange={(e) => setBulkDepartmentFilter(e.target.value)}
+                    className="text-xs px-3 py-1.5 border border-gray-300 rounded-lg font-medium"
+                  >
+                    <option value="">כל המכלולים</option>
+                    {departments.map(dept => (
+                      <option key={dept.id} value={dept.id}>{dept.name}</option>
+                    ))}
+                  </select>
+                </div>
+                
+                {/* Select all in filtered department */}
+                {bulkDepartmentFilter && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const deptContacts = contacts.filter(c => c.department_id === bulkDepartmentFilter).map(c => c.id);
+                      const allSelected = deptContacts.every(id => bulkSelectedContacts.includes(id));
+                      if (allSelected) {
+                        setBulkSelectedContacts(prev => prev.filter(id => !deptContacts.includes(id)));
+                      } else {
+                        setBulkSelectedContacts(prev => [...new Set([...prev, ...deptContacts])]);
+                      }
+                    }}
+                    className="mb-2 text-xs px-3 py-1 rounded-full bg-purple-100 text-purple-700 hover:bg-purple-200 font-semibold transition-colors"
+                  >
+                    בחר/נקה כל המכלול
+                  </button>
+                )}
+
+                <div className="grid grid-cols-2 gap-2 max-h-48 overflow-y-auto p-1">
+                  {contacts
+                    .filter(c => !bulkDepartmentFilter || c.department_id === bulkDepartmentFilter)
+                    .map(contact => (
+                    <button
+                      key={contact.id}
+                      type="button"
+                      onClick={() => toggleBulkContact(contact.id)}
+                      className={`flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-right transition-all border-2 ${
+                        bulkSelectedContacts.includes(contact.id)
+                          ? 'bg-purple-600 text-white border-purple-600 shadow-sm'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-purple-300 hover:bg-purple-50'
+                      }`}
+                    >
+                      <span className={`w-5 h-5 rounded flex items-center justify-center text-xs flex-shrink-0 ${
+                        bulkSelectedContacts.includes(contact.id)
+                          ? 'bg-white text-purple-600'
+                          : 'bg-gray-100 text-gray-400'
+                      }`}>
+                        {bulkSelectedContacts.includes(contact.id) ? '✓' : ''}
+                      </span>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold truncate">{contact.full_name}</div>
+                        <div className={`text-xs truncate ${
+                          bulkSelectedContacts.includes(contact.id) ? 'text-purple-200' : 'text-gray-500'
+                        }`}>
+                          {contact.departments?.name}
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+                {bulkSelectedContacts.length > 0 && (
+                  <p className="text-xs text-purple-600 mt-1 font-semibold">
+                    נבחרו {bulkSelectedContacts.length} כוננים
+                  </p>
+                )}
+              </div>
+
+              {/* Notes */}
+              <input
+                type="text"
+                placeholder="הערות (אופציונלי)"
+                value={bulkNotes}
+                onChange={(e) => setBulkNotes(e.target.value)}
+                className="w-full px-3 py-2 border-2 border-gray-200 rounded-lg mb-4 focus:border-purple-400 focus:outline-none"
+              />
+
+              {/* Summary + Save */}
+              {(bulkSelectedContacts.length > 0 && bulkSelectedDays.length > 0) && (
+                <div className="p-3 bg-purple-100 border border-purple-300 rounded-lg mb-4">
+                  <p className="text-sm font-bold text-purple-900">
+                    סה&quot;כ: {bulkSelectedContacts.length * bulkSelectedDays.length} כוננויות חדשות
+                  </p>
+                  <p className="text-xs text-purple-700 mt-1">
+                    {bulkSelectedContacts.length} כוננים × {bulkSelectedDays.length} ימים
+                    {' | '}
+                    {String(bulkStartHour).padStart(2, '0')}:00-{String(bulkEndHour).padStart(2, '0')}:00
+                    {bulkStartHour === bulkEndHour && ' (24 שעות)'}
+                  </p>
+                </div>
+              )}
+
+              <div className="flex gap-2">
                 <button
-                  onClick={handleSaveRoster}
-                  className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded"
+                  onClick={handleBulkSave}
+                  disabled={savingBulk || bulkSelectedContacts.length === 0 || bulkSelectedDays.length === 0}
+                  className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white px-6 py-2.5 rounded-lg font-bold text-sm transition-all shadow-sm"
                 >
-                  שמור
+                  {savingBulk ? 'שומר...' : 'שמור כוננויות'}
                 </button>
                 <button
-                  onClick={() => {
-                    setShowRosterForm(false);
-                    setEditingItem(null);
-                  }}
-                  className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded"
+                  onClick={() => setShowRosterForm(false)}
+                  className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2.5 rounded-lg font-semibold text-sm transition-colors"
                 >
                   ביטול
                 </button>
@@ -598,7 +731,7 @@ export default function OnCallManagerNew() {
 
           {/* Department Filter */}
           <div className="mb-4 flex items-center gap-3">
-            <label className="font-semibold text-gray-700">🏢 סינון לפי מכלול:</label>
+            <label className="font-semibold text-gray-700">סינון לפי מכלול:</label>
             <select
               value={filterDepartment}
               onChange={(e) => setFilterDepartment(e.target.value)}
@@ -619,78 +752,111 @@ export default function OnCallManagerNew() {
             )}
           </div>
 
-          {/* Weekly Table */}
-          <div className="overflow-x-auto">
+          {/* ===== WEEKLY TABLE WITH INLINE DELETE ===== */}
+          <div className="overflow-x-auto rounded-lg border border-gray-200">
             <table className="w-full border-collapse text-sm">
               <thead>
                 <tr className="bg-gray-100">
-                  <th className="border p-2">איש קשר</th>
+                  <th className="border-b border-r border-gray-200 p-3 text-right font-bold text-gray-700 min-w-[140px]">איש קשר</th>
                   {DAYS.map((day, i) => (
-                    <th key={i} className="border p-2">{day}</th>
+                    <th key={i} className="border-b border-r border-gray-200 p-2 font-bold text-gray-700 text-center">{day}</th>
                   ))}
-                  <th className="border p-2">פעולות</th>
                 </tr>
               </thead>
               <tbody>
                 {contacts
                   .filter(contact => filterDepartment === 'all' || contact.department_id === filterDepartment)
-                  .map(contact => (
-                  <tr key={contact.id}>
-                    <td className="border p-2 font-semibold">
-                      {contact.full_name}
+                  .map((contact, rowIdx) => (
+                  <tr key={contact.id} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    <td className="border-b border-r border-gray-200 p-2">
+                      <div className="font-bold text-gray-900">{contact.full_name}</div>
                       <div className="text-xs text-gray-500">{contact.departments?.name}</div>
+                      {contact.phone && <div className="text-xs text-gray-400" dir="ltr">{contact.phone}</div>}
                     </td>
-                    {DAYS.map((_, dayIndex) => {
+                    {DAYS.map((dayName, dayIndex) => {
                       const duties = dutyRoster.filter(
                         d => d.contact_id === contact.id && d.day_of_week === dayIndex
                       );
                       return (
-                        <td key={dayIndex} className="border p-1">
+                        <td key={dayIndex} className="border-b border-r border-gray-200 p-1.5 align-top">
                           {duties.map(duty => {
                             let displayText = '';
-                            let bgColor = 'bg-blue-100';
+                            let bgColor = 'bg-blue-100 text-blue-800 border-blue-200';
                             
                             if (duty.start_hour === duty.end_hour) {
-                              // 24-hour shift
                               displayText = '24 שעות';
-                              bgColor = 'bg-green-200';
+                              bgColor = 'bg-green-100 text-green-800 border-green-200';
                             } else if (duty.end_hour === 0) {
-                              // Overnight shift ending at midnight
-                              displayText = `${String(duty.start_hour).padStart(2, '0')}:00-חצות`;
-                              bgColor = 'bg-purple-200';
+                              displayText = `${String(duty.start_hour).padStart(2, '0')}:00-00:00`;
+                              bgColor = 'bg-purple-100 text-purple-800 border-purple-200';
                             } else {
-                              // Normal shift
                               displayText = `${String(duty.start_hour).padStart(2, '0')}:00-${String(duty.end_hour).padStart(2, '0')}:00`;
                             }
                             
+                            const isConfirming = deleteConfirm === duty.id;
+                            
                             return (
-                              <div key={duty.id} className={`text-xs ${bgColor} px-1 py-0.5 rounded mb-1 font-medium`}>
-                                {displayText}
-                                {duty.notes && <div className="text-xs opacity-75">{duty.notes}</div>}
+                              <div key={duty.id} className="relative group mb-1">
+                                {isConfirming ? (
+                                  /* Delete confirmation inline */
+                                  <div className="text-xs bg-red-50 border-2 border-red-300 rounded-lg p-2 animate-pulse">
+                                    <p className="font-bold text-red-800 mb-1.5">
+                                      למחוק כוננות?
+                                    </p>
+                                    <p className="text-red-600 mb-2">
+                                      {contact.full_name} | {dayName} | {displayText}
+                                    </p>
+                                    <div className="flex gap-1">
+                                      <button
+                                        onClick={() => handleDeleteRoster(duty.id)}
+                                        className="flex-1 bg-red-600 hover:bg-red-700 text-white px-2 py-1 rounded text-xs font-bold"
+                                      >
+                                        מחק
+                                      </button>
+                                      <button
+                                        onClick={() => setDeleteConfirm(null)}
+                                        className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-2 py-1 rounded text-xs font-bold"
+                                      >
+                                        ביטול
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  /* Normal duty badge with hover X */
+                                  <div className={`text-xs ${bgColor} border px-2 py-1 rounded-lg font-medium flex items-center justify-between gap-1`}>
+                                    <span>{displayText}</span>
+                                    <button
+                                      onClick={() => setDeleteConfirm(duty.id)}
+                                      className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-xs leading-none hover:bg-red-600 transition-all flex-shrink-0"
+                                      title={`מחק כוננות: ${contact.full_name} | ${dayName} | ${displayText}`}
+                                    >
+                                      ×
+                                    </button>
+                                  </div>
+                                )}
+                                {duty.notes && !isConfirming && (
+                                  <div className="text-xs text-gray-500 mt-0.5 px-1">{duty.notes}</div>
+                                )}
                               </div>
                             );
                           })}
+                          {duties.length === 0 && (
+                            <div className="text-center text-gray-300 text-xs py-1">-</div>
+                          )}
                         </td>
                       );
                     })}
-                    <td className="border p-2">
-                      {dutyRoster
-                        .filter(d => d.contact_id === contact.id)
-                        .map(duty => (
-                          <button
-                            key={duty.id}
-                            onClick={() => handleDeleteRoster(duty.id)}
-                            className="text-red-600 hover:text-red-800 text-xs block"
-                          >
-                            מחק
-                          </button>
-                        ))}
-                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {contacts.filter(c => filterDepartment === 'all' || c.department_id === filterDepartment).length === 0 && (
+            <div className="text-center py-8 text-gray-400">
+              <p className="font-semibold">אין אנשי קשר להצגה</p>
+            </div>
+          )}
         </div>
       )}
     </div>
