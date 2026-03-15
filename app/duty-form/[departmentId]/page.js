@@ -6,15 +6,16 @@ const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 
 const DAYS_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
 
 const SHIFT_PRESETS = [
-  { label: '24 שעות', start: 8, end: 8, icon: '🔄' },
-  { label: 'בוקר', start: 8, end: 16, icon: '🌅' },
-  { label: 'ערב', start: 16, end: 0, icon: '🌆' },
-  { label: 'לילה', start: 0, end: 8, icon: '🌙' },
+  { label: '24h', start: 8, end: 8, icon: '🔄', desc: '24 שעות' },
+  { label: 'בוקר', start: 8, end: 16, icon: '🌅', desc: '08-16' },
+  { label: 'ערב', start: 16, end: 0, icon: '🌆', desc: '16-00' },
+  { label: 'לילה', start: 0, end: 8, icon: '🌙', desc: '00-08' },
 ];
 
-function formatHours(start, end) {
-  if (start === end) return '24 שעות';
-  return `${String(start).padStart(2, '0')}:00-${String(end).padStart(2, '0')}:00`;
+function makeDaysMap() {
+  const days = {};
+  for (let i = 0; i < 7; i++) days[i] = { active: false, start: 8, end: 8 };
+  return days;
 }
 
 export default function DutyFormPage({ params }) {
@@ -23,22 +24,21 @@ export default function DutyFormPage({ params }) {
   const [contacts, setContacts] = useState([]);
   const [existingDuties, setExistingDuties] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState('');
   const [managerName, setManagerName] = useState('');
   const [showSchedule, setShowSchedule] = useState(true);
   const [showAddContact, setShowAddContact] = useState(false);
+  const [deletingDuty, setDeletingDuty] = useState(null);
 
   // New contact form
   const [newContactName, setNewContactName] = useState('');
   const [newContactPhone, setNewContactPhone] = useState('');
   const [newContactRole, setNewContactRole] = useState('');
 
-  // Each contact entry: { contactId, enabled, dutyType, selectedDays, presetIndex, customStart, customEnd, isNew, newData }
+  // Per-contact: { contactId, enabled, dutyType, days: {0..6: {active, start, end}}, saving, saved }
   const [contactEntries, setContactEntries] = useState([]);
 
-  // New contacts pending submission
+  // New contacts pending
   const [pendingNewContacts, setPendingNewContacts] = useState([]);
 
   useEffect(() => {
@@ -49,29 +49,21 @@ export default function DutyFormPage({ params }) {
     try {
       const res = await fetch(`/api/duty-form?departmentId=${departmentId}`);
       const data = await res.json();
-
-      if (!data.success) {
-        setError('מכלול לא נמצא');
-        setLoading(false);
-        return;
-      }
+      if (!data.success) { setError('מכלול לא נמצא'); setLoading(false); return; }
 
       const dept = data.data.department;
       setDepartment(dept);
       setContacts(dept.contacts || []);
       setExistingDuties(data.data.existingDuties || []);
 
-      // All contacts start OFF
       const entries = (dept.contacts || []).map(contact => ({
         contactId: contact.id,
         enabled: false,
         dutyType: 'oncall',
-        selectedDays: [],
-        presetIndex: 0,
-        customStart: 8,
-        customEnd: 8,
+        days: makeDaysMap(),
+        saving: false,
+        saved: false,
       }));
-
       setContactEntries(entries);
     } catch (err) {
       setError('שגיאה בטעינת הנתונים');
@@ -79,67 +71,200 @@ export default function DutyFormPage({ params }) {
     setLoading(false);
   };
 
+  // ── Delete a single existing duty ──
+  const handleDeleteDuty = async (dutyId) => {
+    setDeletingDuty(dutyId);
+    try {
+      const res = await fetch(`/api/duty-roster?id=${dutyId}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        setExistingDuties(prev => prev.filter(d => d.id !== dutyId));
+      }
+    } catch (err) {
+      // silent fail
+    }
+    setDeletingDuty(null);
+  };
+
+  // ── Entry updaters ──
   const updateEntry = (contactId, updates) => {
     setContactEntries(prev =>
-      prev.map(entry =>
-        entry.contactId === contactId ? { ...entry, ...updates } : entry
-      )
+      prev.map(e => e.contactId === contactId ? { ...e, ...updates, saved: false } : e)
     );
   };
 
-  const toggleDay = (contactId, dayIndex) => {
+  const updateEntryDay = (contactId, dayIdx, dayUpdates) => {
     setContactEntries(prev =>
-      prev.map(entry => {
-        if (entry.contactId !== contactId) return entry;
-        const days = entry.selectedDays.includes(dayIndex)
-          ? entry.selectedDays.filter(d => d !== dayIndex)
-          : [...entry.selectedDays, dayIndex];
-        return { ...entry, selectedDays: days };
+      prev.map(e => {
+        if (e.contactId !== contactId) return e;
+        return {
+          ...e,
+          saved: false,
+          days: { ...e.days, [dayIdx]: { ...e.days[dayIdx], ...dayUpdates } }
+        };
       })
     );
   };
 
-  const selectPreset = (contactId, presetIndex) => {
-    const preset = SHIFT_PRESETS[presetIndex];
-    updateEntry(contactId, {
-      presetIndex,
-      customStart: preset.start,
-      customEnd: preset.end,
-    });
-  };
-
-  // Update pending new contact entry
-  const updateNewContact = (tempId, updates) => {
-    setPendingNewContacts(prev =>
-      prev.map(nc => nc.tempId === tempId ? { ...nc, ...updates } : nc)
+  const toggleEntryDay = (contactId, dayIdx) => {
+    setContactEntries(prev =>
+      prev.map(e => {
+        if (e.contactId !== contactId) return e;
+        return {
+          ...e,
+          saved: false,
+          days: { ...e.days, [dayIdx]: { ...e.days[dayIdx], active: !e.days[dayIdx].active } }
+        };
+      })
     );
   };
 
-  const toggleNewContactDay = (tempId, dayIndex) => {
+  const applyPresetToAll = (contactId, presetIdx) => {
+    const preset = SHIFT_PRESETS[presetIdx];
+    setContactEntries(prev =>
+      prev.map(e => {
+        if (e.contactId !== contactId) return e;
+        const newDays = { ...e.days };
+        for (let i = 0; i < 7; i++) {
+          if (newDays[i].active) {
+            newDays[i] = { ...newDays[i], start: preset.start, end: preset.end };
+          }
+        }
+        return { ...e, days: newDays, saved: false };
+      })
+    );
+  };
+
+  const setDaysQuick = (contactId, dayIndexes) => {
+    setContactEntries(prev =>
+      prev.map(e => {
+        if (e.contactId !== contactId) return e;
+        const newDays = { ...e.days };
+        for (let i = 0; i < 7; i++) {
+          newDays[i] = { ...newDays[i], active: dayIndexes.includes(i) };
+        }
+        return { ...e, days: newDays, saved: false };
+      })
+    );
+  };
+
+  // ── Save single existing contact ──
+  const handleSaveContact = async (contactId) => {
+    const entry = contactEntries.find(e => e.contactId === contactId);
+    if (!entry) return;
+
+    const activeDays = Object.entries(entry.days)
+      .filter(([, d]) => d.active)
+      .map(([dayIdx, d]) => ({
+        day_of_week: parseInt(dayIdx),
+        start_hour: d.start,
+        end_hour: d.end,
+      }));
+
+    if (activeDays.length === 0) {
+      setError('יש לבחור לפחות יום אחד');
+      return;
+    }
+
+    updateEntry(contactId, { saving: true });
+    setError('');
+
+    try {
+      const res = await fetch('/api/duty-form', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          departmentId,
+          entries: [{
+            contact_id: contactId,
+            dutyType: entry.dutyType,
+            days: activeDays,
+          }],
+          submittedBy: managerName || 'מנהל מכלול',
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        // Refresh duties from server
+        const refreshRes = await fetch(`/api/duty-form?departmentId=${departmentId}`);
+        const refreshData = await refreshRes.json();
+        if (refreshData.success) {
+          setExistingDuties(refreshData.data.existingDuties || []);
+        }
+        setContactEntries(prev =>
+          prev.map(e => e.contactId === contactId ? { ...e, saving: false, saved: true } : e)
+        );
+      } else {
+        setError(data.error || 'שגיאה בשמירה');
+        updateEntry(contactId, { saving: false });
+      }
+    } catch (err) {
+      setError('שגיאה בשליחת הטופס');
+      updateEntry(contactId, { saving: false });
+    }
+  };
+
+  // ── New contact helpers ──
+  const updateNewContact = (tempId, updates) => {
+    setPendingNewContacts(prev =>
+      prev.map(nc => nc.tempId === tempId ? { ...nc, ...updates, saved: false } : nc)
+    );
+  };
+
+  const updateNewContactDay = (tempId, dayIdx, dayUpdates) => {
     setPendingNewContacts(prev =>
       prev.map(nc => {
         if (nc.tempId !== tempId) return nc;
-        const days = nc.selectedDays.includes(dayIndex)
-          ? nc.selectedDays.filter(d => d !== dayIndex)
-          : [...nc.selectedDays, dayIndex];
-        return { ...nc, selectedDays: days };
+        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { ...nc.days[dayIdx], ...dayUpdates } } };
+      })
+    );
+  };
+
+  const toggleNewContactDay = (tempId, dayIdx) => {
+    setPendingNewContacts(prev =>
+      prev.map(nc => {
+        if (nc.tempId !== tempId) return nc;
+        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { ...nc.days[dayIdx], active: !nc.days[dayIdx].active } } };
+      })
+    );
+  };
+
+  const applyPresetToAllNew = (tempId, presetIdx) => {
+    const preset = SHIFT_PRESETS[presetIdx];
+    setPendingNewContacts(prev =>
+      prev.map(nc => {
+        if (nc.tempId !== tempId) return nc;
+        const newDays = { ...nc.days };
+        for (let i = 0; i < 7; i++) {
+          if (newDays[i].active) newDays[i] = { ...newDays[i], start: preset.start, end: preset.end };
+        }
+        return { ...nc, days: newDays, saved: false };
+      })
+    );
+  };
+
+  const setDaysQuickNew = (tempId, dayIndexes) => {
+    setPendingNewContacts(prev =>
+      prev.map(nc => {
+        if (nc.tempId !== tempId) return nc;
+        const newDays = { ...nc.days };
+        for (let i = 0; i < 7; i++) newDays[i] = { ...newDays[i], active: dayIndexes.includes(i) };
+        return { ...nc, days: newDays, saved: false };
       })
     );
   };
 
   const addNewContact = () => {
     if (!newContactName.trim()) return;
-    const tempId = `new_${Date.now()}`;
     setPendingNewContacts(prev => [...prev, {
-      tempId,
+      tempId: `new_${Date.now()}`,
       full_name: newContactName.trim(),
       phone: newContactPhone.trim(),
       role: newContactRole.trim(),
       dutyType: 'oncall',
-      selectedDays: [],
-      presetIndex: 0,
-      customStart: 8,
-      customEnd: 8,
+      days: makeDaysMap(),
+      saving: false,
+      saved: false,
     }]);
     setNewContactName('');
     setNewContactPhone('');
@@ -147,77 +272,231 @@ export default function DutyFormPage({ params }) {
     setShowAddContact(false);
   };
 
-  const removeNewContact = (tempId) => {
-    setPendingNewContacts(prev => prev.filter(nc => nc.tempId !== tempId));
-  };
+  const handleSaveNewContact = async (tempId) => {
+    const nc = pendingNewContacts.find(n => n.tempId === tempId);
+    if (!nc) return;
 
-  // Get existing duties for a specific contact and day
-  const getDutiesForContactDay = (contactId, dayIndex) => {
-    return existingDuties.filter(
-      d => d.contact_id === contactId && d.day_of_week === dayIndex
-    );
-  };
+    const activeDays = Object.entries(nc.days)
+      .filter(([, d]) => d.active)
+      .map(([dayIdx, d]) => ({
+        day_of_week: parseInt(dayIdx),
+        start_hour: d.start,
+        end_hour: d.end,
+      }));
 
-  const handleSubmit = async () => {
-    const activeEntries = contactEntries.filter(e => e.enabled && e.selectedDays.length > 0);
-    const activeNewContacts = pendingNewContacts.filter(nc => nc.selectedDays.length > 0);
-
-    if (activeEntries.length === 0 && activeNewContacts.length === 0) {
-      setError('יש לסמן לפחות איש קשר אחד עם ימים');
+    if (activeDays.length === 0) {
+      setError('יש לבחור לפחות יום אחד');
       return;
     }
 
-    setSubmitting(true);
+    updateNewContact(tempId, { saving: true });
     setError('');
 
     try {
-      const entries = activeEntries.map(entry => ({
-        contact_id: entry.contactId,
-        dutyType: entry.dutyType,
-        days: entry.selectedDays.map(day => ({
-          day_of_week: day,
-          start_hour: entry.customStart,
-          end_hour: entry.customEnd,
-        })),
-      }));
-
-      const newContacts = activeNewContacts.map(nc => ({
-        full_name: nc.full_name,
-        phone: nc.phone,
-        role: nc.role,
-        dutyType: nc.dutyType,
-        days: nc.selectedDays.map(day => ({
-          day_of_week: day,
-          start_hour: nc.customStart,
-          end_hour: nc.customEnd,
-        })),
-      }));
-
       const res = await fetch('/api/duty-form', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           departmentId,
-          entries: entries.length > 0 ? entries : undefined,
-          newContacts: newContacts.length > 0 ? newContacts : undefined,
+          newContacts: [{
+            full_name: nc.full_name,
+            phone: nc.phone,
+            role: nc.role,
+            dutyType: nc.dutyType,
+            days: activeDays,
+          }],
           submittedBy: managerName || 'מנהל מכלול',
         }),
       });
-
       const data = await res.json();
-
       if (data.success) {
-        setSubmitted(true);
+        // Refresh everything
+        const refreshRes = await fetch(`/api/duty-form?departmentId=${departmentId}`);
+        const refreshData = await refreshRes.json();
+        if (refreshData.success) {
+          const dept = refreshData.data.department;
+          setContacts(dept.contacts || []);
+          setExistingDuties(refreshData.data.existingDuties || []);
+          // Add any new contacts to entries
+          const existingIds = contactEntries.map(e => e.contactId);
+          const newEntries = (dept.contacts || [])
+            .filter(c => !existingIds.includes(c.id))
+            .map(c => ({ contactId: c.id, enabled: false, dutyType: 'oncall', days: makeDaysMap(), saving: false, saved: false }));
+          if (newEntries.length > 0) {
+            setContactEntries(prev => [...prev, ...newEntries]);
+          }
+        }
+        setPendingNewContacts(prev => prev.filter(n => n.tempId !== tempId));
       } else {
         setError(data.error || 'שגיאה בשמירה');
+        updateNewContact(tempId, { saving: false });
       }
     } catch (err) {
       setError('שגיאה בשליחת הטופס');
+      updateNewContact(tempId, { saving: false });
     }
-    setSubmitting(false);
   };
 
-  // ====== LOADING STATE ======
+  // ── Render per-day editor ──
+  const renderDayEditor = (entry, { onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick }) => {
+    const activeDayCount = Object.values(entry.days).filter(d => d.active).length;
+    return (
+      <div className="space-y-2">
+        {/* Quick select */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="text-[10px] text-gray-500 font-semibold">בחירה מהירה:</span>
+          <button onClick={() => onSetDaysQuick([0,1,2,3,4])} className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold">א׳-ה׳</button>
+          <button onClick={() => onSetDaysQuick([0,1,2,3,4,5,6])} className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold">כל השבוע</button>
+          <button onClick={() => onSetDaysQuick([5,6])} className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold">סופ&quot;ש</button>
+          <button onClick={() => onSetDaysQuick([])} className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-semibold">נקה</button>
+        </div>
+
+        {/* Apply preset to active days */}
+        {activeDayCount > 0 && (
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-[10px] text-gray-500 font-semibold">החל שעות לכל הימים:</span>
+            {SHIFT_PRESETS.map((p, idx) => (
+              <button
+                key={idx}
+                onClick={() => onApplyPreset(idx)}
+                className="text-[10px] px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 font-semibold"
+              >
+                {p.icon} {p.desc}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Day rows */}
+        <div className="space-y-1">
+          {DAYS.map((dayName, i) => {
+            const day = entry.days[i];
+            return (
+              <div key={i} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${
+                day.active ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-transparent'
+              }`}>
+                {/* Toggle */}
+                <button
+                  onClick={() => onToggleDay(i)}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${
+                    day.active
+                      ? 'bg-purple-600 text-white'
+                      : 'bg-gray-200 text-gray-400'
+                  }`}
+                >
+                  {DAYS_SHORT[i]}
+                </button>
+                <span className={`text-xs font-semibold min-w-[40px] ${day.active ? 'text-gray-800' : 'text-gray-400'}`}>
+                  {dayName}
+                </span>
+                {day.active ? (
+                  <div className="flex items-center gap-1 flex-1">
+                    <select
+                      value={day.start}
+                      onChange={(e) => onUpdateDay(i, { start: parseInt(e.target.value) })}
+                      className="w-[70px] text-xs py-1 px-1 border border-gray-200 rounded bg-white font-bold text-center"
+                    >
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                      ))}
+                    </select>
+                    <span className="text-gray-400 text-xs">→</span>
+                    <select
+                      value={day.end}
+                      onChange={(e) => onUpdateDay(i, { end: parseInt(e.target.value) })}
+                      className="w-[70px] text-xs py-1 px-1 border border-gray-200 rounded bg-white font-bold text-center"
+                    >
+                      {Array.from({ length: 24 }, (_, h) => (
+                        <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                      ))}
+                    </select>
+                    {day.start === day.end && (
+                      <span className="text-[9px] text-purple-600 font-bold">24h</span>
+                    )}
+                  </div>
+                ) : (
+                  <span className="text-[10px] text-gray-400 flex-1">לא פעיל</span>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // ── Render full contact edit card ──
+  const renderContactCard = (entry, { onUpdate, onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick, onSave, isNew, onRemove }) => {
+    const activeDayCount = Object.values(entry.days).filter(d => d.active).length;
+    return (
+      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+        {/* Duty Type */}
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1.5">סוג:</label>
+          <div className="grid grid-cols-2 gap-2">
+            <button
+              onClick={() => onUpdate({ dutyType: 'oncall' })}
+              className={`py-2 px-2 rounded-xl text-center transition-all border-2 ${
+                entry.dutyType === 'oncall' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-200'
+              }`}
+            >
+              <span className="text-base">📞</span>
+              <span className="text-sm font-bold mr-1">כונן</span>
+            </button>
+            <button
+              onClick={() => onUpdate({ dutyType: 'sleep' })}
+              className={`py-2 px-2 rounded-xl text-center transition-all border-2 ${
+                entry.dutyType === 'sleep' ? 'bg-orange-500 text-white border-orange-500' : 'bg-white text-gray-700 border-gray-200'
+              }`}
+            >
+              <span className="text-base">🏢</span>
+              <span className="text-sm font-bold mr-1">לן בעירייה</span>
+            </button>
+          </div>
+        </div>
+
+        {/* Per-day editor */}
+        <div>
+          <label className="block text-xs font-bold text-gray-600 mb-1.5">ימים ושעות:</label>
+          {renderDayEditor(entry, { onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick })}
+        </div>
+
+        {/* Save button */}
+        <button
+          onClick={onSave}
+          disabled={entry.saving || activeDayCount === 0}
+          className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
+            entry.saved
+              ? 'bg-green-100 text-green-700 border-2 border-green-300'
+              : entry.saving
+                ? 'bg-gray-200 text-gray-500'
+                : activeDayCount === 0
+                  ? 'bg-gray-100 text-gray-400'
+                  : 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm active:scale-[0.98]'
+          }`}
+        >
+          {entry.saved ? '✅ נשמר בהצלחה' : entry.saving ? (
+            <span className="flex items-center justify-center gap-2">
+              <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 inline-block"></span>
+              שומר...
+            </span>
+          ) : activeDayCount === 0 ? 'בחר ימים כדי לשמור' : `שמור ${activeDayCount} ימים`}
+        </button>
+
+        {/* Remove new contact */}
+        {isNew && onRemove && (
+          <button
+            onClick={onRemove}
+            className="w-full py-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
+          >
+            הסר איש קשר
+          </button>
+        )}
+      </div>
+    );
+  };
+
+  // ====== LOADING / ERROR ======
   if (loading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
@@ -229,7 +508,6 @@ export default function DutyFormPage({ params }) {
     );
   }
 
-  // ====== ERROR STATE ======
   if (error && !department) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4" dir="rtl">
@@ -242,172 +520,9 @@ export default function DutyFormPage({ params }) {
     );
   }
 
-  // ====== SUCCESS STATE ======
-  if (submitted) {
-    return (
-      <div className="min-h-screen bg-gradient-to-b from-green-50 to-white flex items-center justify-center p-4" dir="rtl">
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center max-w-sm w-full">
-          <div className="text-6xl mb-4">✅</div>
-          <h1 className="text-2xl font-bold text-green-800 mb-2">נשמר בהצלחה!</h1>
-          <p className="text-gray-600 mb-6">
-            הכוננויות של <strong>{department.name}</strong> עודכנו במערכת
-          </p>
-          <button
-            onClick={() => {
-              setSubmitted(false);
-              setPendingNewContacts([]);
-              fetchDepartmentData();
-            }}
-            className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-xl transition-colors"
-          >
-            חזור לטופס
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ====== Shared contact edit card renderer ======
-  const renderEditCard = (entry, contact, { onUpdate, onToggleDay, onSelectPreset, isNew, onRemove }) => {
-    return (
-      <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
-        {/* Duty Type */}
-        <div>
-          <label className="block text-xs font-bold text-gray-600 mb-1.5">סוג:</label>
-          <div className="grid grid-cols-2 gap-2">
-            <button
-              onClick={() => onUpdate({ dutyType: 'oncall' })}
-              className={`py-2 px-2 rounded-xl text-center transition-all border-2 ${
-                entry.dutyType === 'oncall'
-                  ? 'bg-blue-600 text-white border-blue-600'
-                  : 'bg-white text-gray-700 border-gray-200'
-              }`}
-            >
-              <span className="text-base">📞</span>
-              <span className="text-sm font-bold mr-1">כונן</span>
-            </button>
-            <button
-              onClick={() => onUpdate({ dutyType: 'sleep' })}
-              className={`py-2 px-2 rounded-xl text-center transition-all border-2 ${
-                entry.dutyType === 'sleep'
-                  ? 'bg-orange-500 text-white border-orange-500'
-                  : 'bg-white text-gray-700 border-gray-200'
-              }`}
-            >
-              <span className="text-base">🏢</span>
-              <span className="text-sm font-bold mr-1">לן בעירייה</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Shift Presets */}
-        <div>
-          <label className="block text-xs font-bold text-gray-600 mb-1.5">משמרת:</label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {SHIFT_PRESETS.map((preset, idx) => (
-              <button
-                key={idx}
-                onClick={() => onSelectPreset(idx)}
-                className={`py-1.5 px-1 rounded-lg text-center transition-all border-2 ${
-                  entry.presetIndex === idx
-                    ? 'bg-purple-600 text-white border-purple-600'
-                    : 'bg-white text-gray-700 border-gray-200'
-                }`}
-              >
-                <div className="text-sm">{preset.icon}</div>
-                <div className="text-[10px] font-bold leading-tight">{preset.label}</div>
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Custom Hours */}
-        <div className="flex items-center gap-2 bg-gray-50 p-2 rounded-xl">
-          <div className="flex-1 text-center">
-            <label className="block text-[10px] text-gray-500 mb-0.5">מ-</label>
-            <select
-              value={entry.customStart}
-              onChange={(e) => onUpdate({ customStart: parseInt(e.target.value), presetIndex: -1 })}
-              className="w-full px-1 py-1.5 border border-gray-200 rounded-lg text-center font-bold text-sm bg-white"
-            >
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
-              ))}
-            </select>
-          </div>
-          <span className="text-xl text-gray-400 pt-3">←</span>
-          <div className="flex-1 text-center">
-            <label className="block text-[10px] text-gray-500 mb-0.5">עד-</label>
-            <select
-              value={entry.customEnd}
-              onChange={(e) => onUpdate({ customEnd: parseInt(e.target.value), presetIndex: -1 })}
-              className="w-full px-1 py-1.5 border border-gray-200 rounded-lg text-center font-bold text-sm bg-white"
-            >
-              {Array.from({ length: 24 }, (_, i) => (
-                <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        {/* Days */}
-        <div>
-          <label className="block text-xs font-bold text-gray-600 mb-1.5">ימים:</label>
-          <div className="grid grid-cols-7 gap-1">
-            {DAYS.map((day, i) => (
-              <button
-                key={i}
-                onClick={() => onToggleDay(i)}
-                className={`py-2 rounded-lg text-xs font-bold transition-all ${
-                  entry.selectedDays.includes(i)
-                    ? 'bg-purple-600 text-white'
-                    : 'bg-gray-100 text-gray-500'
-                }`}
-              >
-                {day.slice(0, 2)}׳
-              </button>
-            ))}
-          </div>
-          <div className="flex gap-2 mt-1.5">
-            <button
-              onClick={() => onUpdate({ selectedDays: [0,1,2,3,4] })}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold"
-            >
-              א׳-ה׳
-            </button>
-            <button
-              onClick={() => onUpdate({ selectedDays: [0,1,2,3,4,5,6] })}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold"
-            >
-              כל השבוע
-            </button>
-            <button
-              onClick={() => onUpdate({ selectedDays: [5,6] })}
-              className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 font-semibold"
-            >
-              סופ&quot;ש
-            </button>
-          </div>
-        </div>
-
-        {/* Remove new contact button */}
-        {isNew && onRemove && (
-          <button
-            onClick={onRemove}
-            className="w-full mt-1 py-1.5 text-xs font-bold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors"
-          >
-            הסר איש קשר
-          </button>
-        )}
-      </div>
-    );
-  };
-
   // ====== MAIN FORM ======
-  const activeCount = contactEntries.filter(e => e.enabled && e.selectedDays.length > 0).length + pendingNewContacts.filter(nc => nc.selectedDays.length > 0).length;
-
   return (
-    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white pb-24" dir="rtl">
+    <div className="min-h-screen bg-gradient-to-b from-purple-50 to-white pb-8" dir="rtl">
       {/* Header */}
       <div className="bg-purple-600 text-white px-4 py-4 shadow-lg">
         <div className="max-w-lg mx-auto">
@@ -419,7 +534,7 @@ export default function DutyFormPage({ params }) {
 
       <div className="max-w-lg mx-auto px-4 py-4">
 
-        {/* ═══════ SECTION 1: Current Schedule Overview ═══════ */}
+        {/* ═══════ SECTION 1: Current Schedule (with delete) ═══════ */}
         <div className="mb-5">
           <button
             onClick={() => setShowSchedule(!showSchedule)}
@@ -443,7 +558,7 @@ export default function DutyFormPage({ params }) {
                 <div className="text-center py-6 text-gray-400">
                   <p className="text-2xl mb-2">📭</p>
                   <p className="text-sm font-semibold">אין כוננויות מוגדרות</p>
-                  <p className="text-xs text-gray-400 mt-1">הוסף כוננויות חדשות למטה</p>
+                  <p className="text-xs mt-1">הוסף כוננויות חדשות למטה</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -452,7 +567,7 @@ export default function DutyFormPage({ params }) {
                       <tr className="bg-blue-50">
                         <th className="p-2 text-right border-b border-blue-100 font-bold text-gray-700 sticky right-0 bg-blue-50 min-w-[80px]">שם</th>
                         {DAYS_SHORT.map((d, i) => (
-                          <th key={i} className="p-1.5 text-center border-b border-blue-100 font-bold text-gray-600 min-w-[36px]">{d}</th>
+                          <th key={i} className="p-1.5 text-center border-b border-blue-100 font-bold text-gray-600 min-w-[44px]">{d}</th>
                         ))}
                       </tr>
                     </thead>
@@ -466,25 +581,28 @@ export default function DutyFormPage({ params }) {
                               {contact.full_name}
                             </td>
                             {DAYS_SHORT.map((_, dayIdx) => {
-                              const duties = getDutiesForContactDay(contact.id, dayIdx);
+                              const duties = existingDuties.filter(d => d.contact_id === contact.id && d.day_of_week === dayIdx);
                               if (duties.length === 0) {
                                 return <td key={dayIdx} className="p-1 text-center text-gray-200">-</td>;
                               }
                               const duty = duties[0];
                               const isSleep = duty.notes?.includes('[לן]');
+                              const isDeleting = deletingDuty === duty.id;
                               return (
                                 <td key={dayIdx} className="p-0.5 text-center">
-                                  <div className={`text-[9px] font-bold px-0.5 py-1 rounded ${
-                                    isSleep
-                                      ? 'bg-orange-100 text-orange-700'
-                                      : 'bg-green-100 text-green-700'
-                                  }`}>
-                                    {isSleep ? '🏢' : '📞'}
-                                    <br />
-                                    {duty.start_hour === duty.end_hour
-                                      ? '24h'
-                                      : `${duty.start_hour}-${duty.end_hour}`
-                                    }
+                                  <div className={`relative text-[9px] font-bold px-0.5 py-1 rounded group ${
+                                    isSleep ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
+                                  } ${isDeleting ? 'opacity-50' : ''}`}>
+                                    {isSleep ? '🏢' : '📞'}<br />
+                                    {duty.start_hour === duty.end_hour ? '24h' : `${duty.start_hour}-${duty.end_hour}`}
+                                    <button
+                                      onClick={() => handleDeleteDuty(duty.id)}
+                                      disabled={isDeleting}
+                                      className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity shadow"
+                                      style={{ touchAction: 'manipulation' }}
+                                    >
+                                      ✕
+                                    </button>
                                   </div>
                                 </td>
                               );
@@ -498,7 +616,7 @@ export default function DutyFormPage({ params }) {
               )}
               <div className="px-3 py-2 bg-blue-50 border-t border-blue-100">
                 <p className="text-[10px] text-blue-600 font-semibold text-center">
-                  📞 כונן &nbsp;|&nbsp; 🏢 לן בעירייה &nbsp;|&nbsp; הפעל איש קשר למטה כדי לעדכן את המשמרות שלו
+                  לחץ על ✕ כדי למחוק משמרת &nbsp;|&nbsp; 📞 כונן &nbsp;|&nbsp; 🏢 לן
                 </p>
               </div>
             </div>
@@ -521,8 +639,8 @@ export default function DutyFormPage({ params }) {
         <div className="mb-4">
           <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
             <span>👥</span>
-            עדכון אנשי קשר קיימים
-            <span className="text-xs text-gray-500 font-normal">(הפעל כדי לעדכן)</span>
+            עדכון אנשי קשר
+            <span className="text-xs text-gray-500 font-normal">(הפעל → ערוך → שמור)</span>
           </h2>
 
           <div className="space-y-3">
@@ -530,7 +648,6 @@ export default function DutyFormPage({ params }) {
               const entry = contactEntries.find(e => e.contactId === contact.id);
               if (!entry) return null;
 
-              // Existing duties for this contact (for badge)
               const contactDuties = existingDuties.filter(d => d.contact_id === contact.id);
               const hasDuties = contactDuties.length > 0;
 
@@ -538,39 +655,36 @@ export default function DutyFormPage({ params }) {
                 <div
                   key={contact.id}
                   className={`bg-white rounded-2xl shadow-sm border-2 transition-all ${
-                    entry.enabled
-                      ? 'border-purple-400 shadow-md'
-                      : 'border-gray-200'
+                    entry.saved ? 'border-green-400' :
+                    entry.enabled ? 'border-purple-400 shadow-md' : 'border-gray-200'
                   }`}
                 >
-                  {/* Contact Header */}
+                  {/* Header */}
                   <button
                     onClick={() => updateEntry(contact.id, { enabled: !entry.enabled })}
                     className="w-full flex items-center justify-between p-3"
                   >
                     <div className="flex items-center gap-2.5">
                       <div className={`w-9 h-9 rounded-full flex items-center justify-center text-base font-bold ${
-                        entry.enabled
-                          ? 'bg-purple-600 text-white'
-                          : 'bg-gray-200 text-gray-500'
+                        entry.saved ? 'bg-green-600 text-white' :
+                        entry.enabled ? 'bg-purple-600 text-white' : 'bg-gray-200 text-gray-500'
                       }`}>
-                        {contact.full_name.charAt(0)}
+                        {entry.saved ? '✓' : contact.full_name.charAt(0)}
                       </div>
                       <div className="text-right">
                         <p className="font-bold text-gray-900 text-sm">{contact.full_name}</p>
                         <div className="flex items-center gap-1.5 mt-0.5">
-                          {contact.role && (
-                            <span className="text-[10px] text-gray-500">{contact.role}</span>
-                          )}
+                          {contact.role && <span className="text-[10px] text-gray-500">{contact.role}</span>}
                           {hasDuties && (
                             <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">
                               {contactDuties.length} משמרות
                             </span>
                           )}
                           {!hasDuties && (
-                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">
-                              ללא משמרות
-                            </span>
+                            <span className="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">ללא</span>
+                          )}
+                          {entry.saved && (
+                            <span className="text-[10px] bg-green-100 text-green-700 px-1.5 py-0.5 rounded-full font-semibold">נשמר ✅</span>
                           )}
                         </div>
                       </div>
@@ -578,29 +692,30 @@ export default function DutyFormPage({ params }) {
                     <div className={`w-11 h-6 rounded-full transition-colors relative ${
                       entry.enabled ? 'bg-purple-600' : 'bg-gray-300'
                     }`}>
-                      <div className={`w-4.5 h-4.5 bg-white rounded-full absolute top-[3px] transition-all shadow ${
-                        entry.enabled ? 'right-[3px]' : 'left-[3px]'
-                      }`} style={{ width: '18px', height: '18px' }}></div>
+                      <div className="bg-white rounded-full absolute top-[3px] transition-all shadow"
+                        style={{ width: '18px', height: '18px', [entry.enabled ? 'right' : 'left']: '3px' }}></div>
                     </div>
                   </button>
 
-                  {/* Warning for existing duties */}
-                  {entry.enabled && hasDuties && (
+                  {/* Warning */}
+                  {entry.enabled && hasDuties && !entry.saved && (
                     <div className="mx-4 mb-2 px-3 py-1.5 bg-yellow-50 border border-yellow-200 rounded-lg">
                       <p className="text-[10px] text-yellow-800 font-semibold">
-                        ⚠️ יש {contactDuties.length} משמרות קיימות — שמירה תחליף אותן
+                        ⚠️ שמירה תחליף {contactDuties.length} משמרות קיימות
                       </p>
                     </div>
                   )}
 
                   {/* Edit form */}
-                  {entry.enabled && renderEditCard(
+                  {entry.enabled && renderContactCard(
                     entry,
-                    contact,
                     {
                       onUpdate: (updates) => updateEntry(contact.id, updates),
-                      onToggleDay: (dayIdx) => toggleDay(contact.id, dayIdx),
-                      onSelectPreset: (idx) => selectPreset(contact.id, idx),
+                      onToggleDay: (dayIdx) => toggleEntryDay(contact.id, dayIdx),
+                      onUpdateDay: (dayIdx, upd) => updateEntryDay(contact.id, dayIdx, upd),
+                      onApplyPreset: (idx) => applyPresetToAll(contact.id, idx),
+                      onSetDaysQuick: (days) => setDaysQuick(contact.id, days),
+                      onSave: () => handleSaveContact(contact.id),
                       isNew: false,
                     }
                   )}
@@ -617,7 +732,6 @@ export default function DutyFormPage({ params }) {
             הוספת איש קשר חדש
           </h2>
 
-          {/* Pending new contacts */}
           {pendingNewContacts.map(nc => (
             <div key={nc.tempId} className="bg-white rounded-2xl shadow-sm border-2 border-green-400 mb-3">
               <div className="p-3 flex items-center gap-2.5">
@@ -632,71 +746,46 @@ export default function DutyFormPage({ params }) {
                   </div>
                 </div>
               </div>
-              {renderEditCard(
+              {renderContactCard(
                 nc,
-                { full_name: nc.full_name },
                 {
                   onUpdate: (updates) => updateNewContact(nc.tempId, updates),
                   onToggleDay: (dayIdx) => toggleNewContactDay(nc.tempId, dayIdx),
-                  onSelectPreset: (idx) => {
-                    const preset = SHIFT_PRESETS[idx];
-                    updateNewContact(nc.tempId, { presetIndex: idx, customStart: preset.start, customEnd: preset.end });
-                  },
+                  onUpdateDay: (dayIdx, upd) => updateNewContactDay(nc.tempId, dayIdx, upd),
+                  onApplyPreset: (idx) => applyPresetToAllNew(nc.tempId, idx),
+                  onSetDaysQuick: (days) => setDaysQuickNew(nc.tempId, days),
+                  onSave: () => handleSaveNewContact(nc.tempId),
                   isNew: true,
-                  onRemove: () => removeNewContact(nc.tempId),
+                  onRemove: () => setPendingNewContacts(prev => prev.filter(n => n.tempId !== nc.tempId)),
                 }
               )}
             </div>
           ))}
 
-          {/* Add new contact form */}
           {showAddContact ? (
             <div className="bg-white rounded-2xl shadow-sm border-2 border-dashed border-green-300 p-4">
               <div className="space-y-3">
-                <input
-                  type="text"
-                  value={newContactName}
-                  onChange={(e) => setNewContactName(e.target.value)}
-                  placeholder="שם מלא *"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none"
-                />
-                <input
-                  type="tel"
-                  value={newContactPhone}
-                  onChange={(e) => setNewContactPhone(e.target.value)}
-                  placeholder="טלפון"
-                  dir="ltr"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none text-right"
-                />
-                <input
-                  type="text"
-                  value={newContactRole}
-                  onChange={(e) => setNewContactRole(e.target.value)}
-                  placeholder="תפקיד (אופציונלי)"
-                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none"
-                />
+                <input type="text" value={newContactName} onChange={(e) => setNewContactName(e.target.value)} placeholder="שם מלא *"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" />
+                <input type="tel" value={newContactPhone} onChange={(e) => setNewContactPhone(e.target.value)} placeholder="טלפון" dir="ltr"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none text-right" />
+                <input type="text" value={newContactRole} onChange={(e) => setNewContactRole(e.target.value)} placeholder="תפקיד (אופציונלי)"
+                  className="w-full px-3 py-2 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" />
                 <div className="flex gap-2">
-                  <button
-                    onClick={addNewContact}
-                    disabled={!newContactName.trim()}
-                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-bold py-2 rounded-xl text-sm transition-colors"
-                  >
+                  <button onClick={addNewContact} disabled={!newContactName.trim()}
+                    className="flex-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-300 text-white font-bold py-2 rounded-xl text-sm transition-colors">
                     הוסף
                   </button>
-                  <button
-                    onClick={() => { setShowAddContact(false); setNewContactName(''); setNewContactPhone(''); setNewContactRole(''); }}
-                    className="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl text-sm transition-colors"
-                  >
+                  <button onClick={() => { setShowAddContact(false); setNewContactName(''); setNewContactPhone(''); setNewContactRole(''); }}
+                    className="px-4 bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 rounded-xl text-sm transition-colors">
                     ביטול
                   </button>
                 </div>
               </div>
             </div>
           ) : (
-            <button
-              onClick={() => setShowAddContact(true)}
-              className="w-full py-3 border-2 border-dashed border-green-300 rounded-2xl text-green-700 font-bold text-sm hover:bg-green-50 transition-colors"
-            >
+            <button onClick={() => setShowAddContact(true)}
+              className="w-full py-3 border-2 border-dashed border-green-300 rounded-2xl text-green-700 font-bold text-sm hover:bg-green-50 transition-colors">
               + הוסף איש קשר חדש למכלול
             </button>
           )}
@@ -709,45 +798,9 @@ export default function DutyFormPage({ params }) {
           </div>
         )}
 
-        {/* Summary */}
-        {activeCount > 0 && (
-          <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-xl text-center">
-            <p className="text-sm text-purple-700 font-semibold">
-              {contactEntries.filter(e => e.enabled && e.selectedDays.length > 0 && e.dutyType === 'oncall').length +
-               pendingNewContacts.filter(nc => nc.selectedDays.length > 0 && nc.dutyType === 'oncall').length} כוננים |{' '}
-              {contactEntries.filter(e => e.enabled && e.selectedDays.length > 0 && e.dutyType === 'sleep').length +
-               pendingNewContacts.filter(nc => nc.selectedDays.length > 0 && nc.dutyType === 'sleep').length} לנים |{' '}
-              {contactEntries
-                .filter(e => e.enabled)
-                .reduce((sum, e) => sum + e.selectedDays.length, 0) +
-               pendingNewContacts
-                .reduce((sum, nc) => sum + nc.selectedDays.length, 0)
-              } משמרות סה&quot;כ
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Sticky Submit */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-gray-200 shadow-lg px-4 py-3" dir="rtl">
-        <div className="max-w-lg mx-auto">
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || activeCount === 0}
-            className="w-full bg-purple-600 hover:bg-purple-700 disabled:bg-gray-300 text-white font-bold py-3.5 px-6 rounded-2xl text-base shadow-md transition-all active:scale-[0.98]"
-          >
-            {submitting ? (
-              <span className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                שומר...
-              </span>
-            ) : activeCount === 0 ? (
-              'הפעל אנשי קשר כדי לשמור'
-            ) : (
-              `שמור ${activeCount} עדכונים`
-            )}
-          </button>
-        </div>
+        <p className="text-center text-xs text-gray-400 mt-4 mb-4">
+          מקלטון - מערכת ניהול כוננויות
+        </p>
       </div>
     </div>
   );
