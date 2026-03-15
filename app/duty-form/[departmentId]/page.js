@@ -25,7 +25,6 @@ export default function DutyFormPage({ params }) {
   const [existingDuties, setExistingDuties] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [managerName, setManagerName] = useState('');
   const [showSchedule, setShowSchedule] = useState(true);
   const [showAddContact, setShowAddContact] = useState(false);
   const [deletingDuty, setDeletingDuty] = useState(null);
@@ -197,7 +196,7 @@ export default function DutyFormPage({ params }) {
             dutyType: entry.dutyType,
             days: activeDays,
           }],
-          submittedBy: managerName || 'מנהל מכלול',
+          submittedBy: 'מנהל מכלול',
         }),
       });
       const data = await res.json();
@@ -322,7 +321,7 @@ export default function DutyFormPage({ params }) {
             dutyType: nc.dutyType,
             days: activeDays,
           }],
-          submittedBy: managerName || 'מנהל מכלול',
+          submittedBy: 'מנהל מכלול',
         }),
       });
       const data = await res.json();
@@ -654,19 +653,7 @@ export default function DutyFormPage({ params }) {
           )}
         </div>
 
-        {/* ═══════ SECTION 2: Manager Name ═══════ */}
-        <div className="mb-5">
-          <label className="block text-sm font-bold text-gray-700 mb-1.5">שם המעדכן</label>
-          <input
-            type="text"
-            value={managerName}
-            onChange={(e) => setManagerName(e.target.value)}
-            placeholder="הכנס את שמך"
-            className="w-full px-4 py-2.5 border-2 border-gray-200 rounded-xl text-base focus:border-purple-500 focus:outline-none"
-          />
-        </div>
-
-        {/* ═══════ SECTION 3: Existing contacts ═══════ */}
+        {/* ═══════ SECTION 2: Existing contacts ═══════ */}
         <div className="mb-4">
           <h2 className="text-sm font-bold text-gray-800 mb-3 flex items-center gap-2">
             <span>👥</span>
