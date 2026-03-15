@@ -704,10 +704,9 @@ export default function DutyFormPage({ params }) {
                                       else if (isOvernight) label = `${sh}:00-${eh}:00+`;
                                       else label = `${sh}:00-${eh}:00`;
                                       return (
-                                        <div key={duty.id} className={`relative text-[9px] font-bold px-0.5 py-1 rounded group ${
+                                        <div key={duty.id} className={`relative text-[9px] font-bold px-0.5 py-0.5 rounded group ${
                                           isSleep ? 'bg-orange-100 text-orange-700' : isOvernight ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'
                                         } ${isDeleting ? 'opacity-50' : ''}`}>
-                                          {isSleep ? '🏢' : isOvernight ? '🌙' : '📞'}<br />
                                           {label}
                                           <button
                                             onClick={() => handleDeleteDuty(duty.id)}
