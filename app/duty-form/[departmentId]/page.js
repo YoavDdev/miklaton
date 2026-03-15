@@ -418,7 +418,7 @@ export default function DutyFormPage({ params }) {
                         <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
                       ))}
                     </select>
-                    <span className="text-gray-400 text-xs">→</span>
+                    <span className="text-gray-400 text-xs">←</span>
                     <select
                       value={day.end}
                       onChange={(e) => onUpdateDay(i, { end: parseInt(e.target.value) })}
