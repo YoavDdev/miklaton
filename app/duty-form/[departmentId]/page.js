@@ -485,9 +485,10 @@ export default function DutyFormPage({ params }) {
                             onChange={(e) => onUpdateDayShift(i, si, { end: parseInt(e.target.value) })}
                             className="w-[70px] text-xs py-1 px-1 border border-gray-200 rounded bg-white font-bold text-center"
                           >
-                            {Array.from({ length: 24 }, (_, h) => (
+                            {Array.from({ length: 23 }, (_, i) => i + 1).map(h => (
                               <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
                             ))}
+                            <option value={0}>חצות</option>
                           </select>
                           {shift.start === shift.end && (
                             <span className="text-[9px] text-purple-600 font-bold">24h</span>
@@ -688,24 +689,37 @@ export default function DutyFormPage({ params }) {
                               if (duties.length === 0) {
                                 return <td key={dayIdx} className="p-1 text-center text-gray-200">-</td>;
                               }
-                              const duty = duties[0];
-                              const isSleep = duty.notes?.includes('[לן]');
-                              const isDeleting = deletingDuty === duty.id;
                               return (
                                 <td key={dayIdx} className="p-0.5 text-center">
-                                  <div className={`relative text-[9px] font-bold px-0.5 py-1 rounded group ${
-                                    isSleep ? 'bg-orange-100 text-orange-700' : 'bg-green-100 text-green-700'
-                                  } ${isDeleting ? 'opacity-50' : ''}`}>
-                                    {isSleep ? '🏢' : '📞'}<br />
-                                    {duty.start_hour === duty.end_hour ? '24h' : `${duty.start_hour}-${duty.end_hour}`}
-                                    <button
-                                      onClick={() => handleDeleteDuty(duty.id)}
-                                      disabled={isDeleting}
-                                      className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity shadow"
-                                      style={{ touchAction: 'manipulation' }}
-                                    >
-                                      ✕
-                                    </button>
+                                  <div className="space-y-0.5">
+                                    {duties.map(duty => {
+                                      const isSleep = duty.notes?.includes('[לן]');
+                                      const isDeleting = deletingDuty === duty.id;
+                                      const sh = String(duty.start_hour).padStart(2, '0');
+                                      const eh = String(duty.end_hour).padStart(2, '0');
+                                      const isOvernight = duty.end_hour < duty.start_hour && duty.end_hour !== 0;
+                                      let label;
+                                      if (duty.start_hour === duty.end_hour) label = '24 שעות';
+                                      else if (duty.end_hour === 0) label = `${sh}:00-חצות`;
+                                      else if (isOvernight) label = `${sh}:00-${eh}:00+`;
+                                      else label = `${sh}:00-${eh}:00`;
+                                      return (
+                                        <div key={duty.id} className={`relative text-[9px] font-bold px-0.5 py-1 rounded group ${
+                                          isSleep ? 'bg-orange-100 text-orange-700' : isOvernight ? 'bg-indigo-100 text-indigo-700' : 'bg-green-100 text-green-700'
+                                        } ${isDeleting ? 'opacity-50' : ''}`}>
+                                          {isSleep ? '🏢' : isOvernight ? '🌙' : '📞'}<br />
+                                          {label}
+                                          <button
+                                            onClick={() => handleDeleteDuty(duty.id)}
+                                            disabled={isDeleting}
+                                            className="absolute -top-1 -left-1 w-4 h-4 bg-red-500 text-white rounded-full text-[8px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 active:opacity-100 transition-opacity shadow"
+                                            style={{ touchAction: 'manipulation' }}
+                                          >
+                                            ✕
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 </td>
                               );
