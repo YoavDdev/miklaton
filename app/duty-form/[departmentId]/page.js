@@ -56,14 +56,31 @@ export default function DutyFormPage({ params }) {
       setContacts(dept.contacts || []);
       setExistingDuties(data.data.existingDuties || []);
 
-      const entries = (dept.contacts || []).map(contact => ({
-        contactId: contact.id,
-        enabled: false,
-        dutyType: 'oncall',
-        days: makeDaysMap(),
-        saving: false,
-        saved: false,
-      }));
+      const duties = data.data.existingDuties || [];
+      const entries = (dept.contacts || []).map(contact => {
+        const contactDuties = duties.filter(d => d.contact_id === contact.id);
+        const days = makeDaysMap();
+        let dutyType = 'oncall';
+
+        // Pre-fill from existing duties
+        for (const duty of contactDuties) {
+          days[duty.day_of_week] = {
+            active: true,
+            start: duty.start_hour,
+            end: duty.end_hour,
+          };
+          if (duty.notes?.includes('[לן]')) dutyType = 'sleep';
+        }
+
+        return {
+          contactId: contact.id,
+          enabled: false,
+          dutyType,
+          days,
+          saving: false,
+          saved: false,
+        };
+      });
       setContactEntries(entries);
     } catch (err) {
       setError('שגיאה בטעינת הנתונים');
