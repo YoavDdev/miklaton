@@ -389,25 +389,32 @@ export default function DutyFormPage({ params }) {
           {DAYS.map((dayName, i) => {
             const day = entry.days[i];
             return (
-              <div key={i} className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${
-                day.active ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-transparent'
-              }`}>
-                {/* Toggle */}
-                <button
-                  onClick={() => onToggleDay(i)}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all ${
+              <div
+                key={i}
+                onClick={() => { if (!day.active) onToggleDay(i); }}
+                className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${
+                  day.active ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-transparent cursor-pointer hover:bg-gray-100 active:bg-gray-200'
+                }`}
+              >
+                {/* Day badge */}
+                <div
+                  onClick={(e) => { e.stopPropagation(); onToggleDay(i); }}
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all cursor-pointer ${
                     day.active
                       ? 'bg-purple-600 text-white'
                       : 'bg-gray-200 text-gray-400'
                   }`}
                 >
                   {DAYS_SHORT[i]}
-                </button>
-                <span className={`text-xs font-semibold min-w-[40px] ${day.active ? 'text-gray-800' : 'text-gray-400'}`}>
+                </div>
+                <span
+                  onClick={(e) => { e.stopPropagation(); if (!day.active) onToggleDay(i); }}
+                  className={`text-xs font-semibold min-w-[40px] ${day.active ? 'text-gray-800' : 'text-gray-400 cursor-pointer'}`}
+                >
                   {dayName}
                 </span>
                 {day.active ? (
-                  <div className="flex items-center gap-1 flex-1">
+                  <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
                     <select
                       value={day.start}
                       onChange={(e) => onUpdateDay(i, { start: parseInt(e.target.value) })}
@@ -430,9 +437,16 @@ export default function DutyFormPage({ params }) {
                     {day.start === day.end && (
                       <span className="text-[9px] text-purple-600 font-bold">24h</span>
                     )}
+                    {/* Delete this day */}
+                    <button
+                      onClick={(e) => { e.stopPropagation(); onToggleDay(i); }}
+                      className="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-600 text-xs font-bold hover:bg-red-200 active:bg-red-300 transition-colors mr-auto flex-shrink-0"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ) : (
-                  <span className="text-[10px] text-gray-400 flex-1">לא פעיל</span>
+                  <span className="text-[10px] text-gray-400 flex-1">לחץ להוספה</span>
                 )}
               </div>
             );
