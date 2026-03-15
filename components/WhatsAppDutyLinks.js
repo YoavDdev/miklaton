@@ -42,11 +42,9 @@ export default function WhatsAppDutyLinks() {
 
   const getWhatsAppMessage = (dept) => {
     const formUrl = getFormUrl(dept.id);
-    const managerContact = dept.contacts?.find(c => 
-      c.role?.includes('מנהל') || c.role?.includes('ראש')
-    ) || dept.contacts?.[0];
+    const managerName = dept.manager_name;
 
-    const message = `שלום${managerContact ? ` ${managerContact.full_name}` : ''},
+    const message = `שלום${managerName ? ` ${managerName}` : ''},
 
 אני צריך עדכון כוננויות ל*${dept.name}* לשבוע הקרוב.
 
@@ -106,7 +104,7 @@ ${formUrl}
   }
 
   const sentCount = Object.keys(sentStatus).length;
-  const totalDepts = departments.filter(d => d.contacts?.length > 0).length;
+  const totalDepts = departments.length;
 
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -147,14 +145,9 @@ ${formUrl}
       {/* Department Cards */}
       <div className="space-y-3">
         {departments
-          .filter(dept => dept.contacts && dept.contacts.length > 0)
           .map(dept => {
-            const managerContact = dept.contacts?.find(c =>
-              c.role?.includes('מנהל') || c.role?.includes('ראש')
-            ) || dept.contacts?.[0];
-            
-            const hasPhone = managerContact?.phone && managerContact.phone !== 'אין טלפון';
-            const waLink = hasPhone ? getWhatsAppLink(dept, managerContact.phone) : null;
+            const hasPhone = !!dept.manager_phone;
+            const waLink = hasPhone ? getWhatsAppLink(dept, dept.manager_phone) : null;
             const isSent = sentStatus[dept.id];
 
             return (
@@ -176,13 +169,16 @@ ${formUrl}
                         </span>
                       )}
                     </div>
-                    {managerContact && (
+                    {dept.manager_name && (
                       <p className="text-sm text-gray-600 mt-1">
-                        {managerContact.full_name}
-                        {managerContact.phone && managerContact.phone !== 'אין טלפון' && (
-                          <span className="text-gray-400 mr-2" dir="ltr"> {managerContact.phone}</span>
+                        👤 {dept.manager_name}
+                        {dept.manager_phone && (
+                          <span className="text-gray-400 mr-2" dir="ltr"> {dept.manager_phone}</span>
                         )}
                       </p>
+                    )}
+                    {!dept.manager_name && (
+                      <p className="text-sm text-yellow-600 mt-1">⚠️ לא הוגדר מנהל מכלול</p>
                     )}
                     <p className="text-xs text-gray-400 mt-1">
                       {dept.contacts.length} אנשי קשר במכלול

@@ -31,11 +31,11 @@ export async function GET() {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, display_order } = body;
+    const { name, display_order, manager_name, manager_phone } = body;
 
     const { data, error } = await supabase
       .from('departments')
-      .insert({ name, display_order })
+      .insert({ name, display_order, manager_name, manager_phone })
       .select()
       .single();
 
@@ -53,11 +53,15 @@ export async function POST(request) {
 export async function PATCH(request) {
   try {
     const body = await request.json();
-    const { id, name, display_order, active } = body;
+    const { id, name, display_order, active, manager_name, manager_phone } = body;
+
+    const updateData = { name, display_order, active };
+    if (manager_name !== undefined) updateData.manager_name = manager_name;
+    if (manager_phone !== undefined) updateData.manager_phone = manager_phone;
 
     const { data, error } = await supabase
       .from('departments')
-      .update({ name, display_order, active })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();

@@ -37,7 +37,7 @@ export default function OnCallManagerNew() {
   const [filterDepartment, setFilterDepartment] = useState('all');
   const [selectedPreset, setSelectedPreset] = useState(null);
   
-  const [deptForm, setDeptForm] = useState({ name: '', display_order: 0 });
+  const [deptForm, setDeptForm] = useState({ name: '', display_order: 0, manager_name: '', manager_phone: '' });
   const [contactForm, setContactForm] = useState({ 
     department_id: '', 
     full_name: '', 
@@ -129,7 +129,7 @@ export default function OnCallManagerNew() {
     if (res.ok) {
       setShowDeptForm(false);
       setEditingItem(null);
-      setDeptForm({ name: '', display_order: 0 });
+      setDeptForm({ name: '', display_order: 0, manager_name: '', manager_phone: '' });
       fetchDepartments();
     }
   };
@@ -410,7 +410,7 @@ export default function OnCallManagerNew() {
             onClick={() => {
               setShowDeptForm(true);
               setEditingItem(null);
-              setDeptForm({ name: '', display_order: departments.length + 1 });
+              setDeptForm({ name: '', display_order: departments.length + 1, manager_name: '', manager_phone: '' });
             }}
             className="mb-4 bg-green-600 hover:bg-green-700 text-white font-semibold px-4 py-2 rounded-lg"
           >
@@ -427,6 +427,23 @@ export default function OnCallManagerNew() {
                 onChange={(e) => setDeptForm({ ...deptForm, name: e.target.value })}
                 className="w-full px-3 py-2 border rounded mb-3"
               />
+              <div className="grid grid-cols-2 gap-2 mb-3">
+                <input
+                  type="text"
+                  placeholder="שם מנהל מכלול"
+                  value={deptForm.manager_name}
+                  onChange={(e) => setDeptForm({ ...deptForm, manager_name: e.target.value })}
+                  className="px-3 py-2 border rounded"
+                />
+                <input
+                  type="tel"
+                  placeholder="טלפון מנהל"
+                  value={deptForm.manager_phone}
+                  onChange={(e) => setDeptForm({ ...deptForm, manager_phone: e.target.value })}
+                  className="px-3 py-2 border rounded"
+                  dir="ltr"
+                />
+              </div>
               <div className="flex gap-2">
                 <button
                   onClick={handleSaveDept}
@@ -452,6 +469,12 @@ export default function OnCallManagerNew() {
               <div key={dept.id} className="flex items-center justify-between p-3 bg-gray-50 rounded border">
                 <div>
                   <p className="font-bold">{dept.name}</p>
+                  {dept.manager_name && (
+                    <p className="text-sm text-purple-700 font-semibold">
+                      👤 {dept.manager_name}
+                      {dept.manager_phone && <span className="text-gray-500 mr-1" dir="ltr"> {dept.manager_phone}</span>}
+                    </p>
+                  )}
                   <p className="text-sm text-gray-600">
                     {dept.contacts?.length || 0} אנשי קשר
                   </p>
@@ -460,7 +483,7 @@ export default function OnCallManagerNew() {
                   <button
                     onClick={() => {
                       setEditingItem(dept);
-                      setDeptForm({ name: dept.name, display_order: dept.display_order });
+                      setDeptForm({ name: dept.name, display_order: dept.display_order, manager_name: dept.manager_name || '', manager_phone: dept.manager_phone || '' });
                       setShowDeptForm(true);
                     }}
                     className="text-blue-600 hover:text-blue-800 text-sm"

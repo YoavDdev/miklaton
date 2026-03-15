@@ -177,11 +177,6 @@ export default function DutyFormPage({ params }) {
         end_hour: d.end,
       }));
 
-    if (activeDays.length === 0) {
-      setError('יש לבחור לפחות יום אחד');
-      return;
-    }
-
     updateEntry(contactId, { saving: true });
     setError('');
 
@@ -456,8 +451,9 @@ export default function DutyFormPage({ params }) {
   };
 
   // ── Render full contact edit card ──
-  const renderContactCard = (entry, { onUpdate, onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick, onSave, isNew, onRemove }) => {
+  const renderContactCard = (entry, { onUpdate, onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick, onSave, isNew, onRemove, hasExistingDuties }) => {
     const activeDayCount = Object.values(entry.days).filter(d => d.active).length;
+    const canSave = activeDayCount > 0 || hasExistingDuties;
     return (
       <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
         {/* Duty Type */}
@@ -494,15 +490,17 @@ export default function DutyFormPage({ params }) {
         {/* Save button */}
         <button
           onClick={onSave}
-          disabled={entry.saving || activeDayCount === 0}
+          disabled={entry.saving || !canSave}
           className={`w-full py-2.5 rounded-xl font-bold text-sm transition-all ${
             entry.saved
               ? 'bg-green-100 text-green-700 border-2 border-green-300'
               : entry.saving
                 ? 'bg-gray-200 text-gray-500'
-                : activeDayCount === 0
+                : !canSave
                   ? 'bg-gray-100 text-gray-400'
-                  : 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm active:scale-[0.98]'
+                  : activeDayCount === 0
+                    ? 'bg-red-500 hover:bg-red-600 text-white shadow-sm active:scale-[0.98]'
+                    : 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm active:scale-[0.98]'
           }`}
         >
           {entry.saved ? '✅ נשמר בהצלחה' : entry.saving ? (
@@ -510,7 +508,7 @@ export default function DutyFormPage({ params }) {
               <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 inline-block"></span>
               שומר...
             </span>
-          ) : activeDayCount === 0 ? 'בחר ימים כדי לשמור' : `שמור ${activeDayCount} ימים`}
+          ) : !canSave ? 'בחר ימים כדי לשמור' : activeDayCount === 0 ? '🗑️ מחק את כל המשמרות' : `שמור ${activeDayCount} ימים`}
         </button>
 
         {/* Remove new contact */}
@@ -735,6 +733,7 @@ export default function DutyFormPage({ params }) {
                       onSetDaysQuick: (days) => setDaysQuick(contact.id, days),
                       onSave: () => handleSaveContact(contact.id),
                       isNew: false,
+                      hasExistingDuties: hasDuties,
                     }
                   )}
                 </div>
