@@ -19,7 +19,9 @@ export async function GET(request) {
       const dayOfWeek = israelTime.getDay(); // 0=Sunday
       const currentHour = israelTime.getHours();
 
-      // Get all duties for current day
+      const prevDay = (dayOfWeek + 6) % 7;
+
+      // Get duties for today AND yesterday (for overnight shifts)
       const { data: allDuties, error } = await supabase
         .from('duty_roster')
         .select(`
@@ -27,30 +29,31 @@ export async function GET(request) {
           contacts (*),
           departments (name)
         `)
-        .eq('day_of_week', dayOfWeek)
+        .in('day_of_week', [dayOfWeek, prevDay])
         .eq('active', true);
 
       if (error) throw error;
 
-      // Filter in JavaScript to handle special cases:
-      // 1. 24-hour shift: start_hour === end_hour (e.g., 8-8 means all day)
-      // 2. Overnight shift: end_hour === 0 means midnight (e.g., 16-0 means 16:00-00:00)
-      // 3. Normal shift: start_hour < end_hour
+      // Filter to find who is currently on-call:
+      // 1. Today's duties: 24h, normal, or overnight (active from start to midnight)
+      // 2. Yesterday's overnight duties spilling into today (active from midnight to end)
       const currentDuties = allDuties.filter(duty => {
         const { start_hour, end_hour } = duty;
         
-        // 24-hour shift (e.g., 8-8)
-        if (start_hour === end_hour) {
-          return true;
+        if (duty.day_of_week === dayOfWeek) {
+          // Today's duties
+          if (start_hour === end_hour) return true; // 24h
+          if (end_hour < start_hour && end_hour !== 0) return currentHour >= start_hour; // overnight start
+          if (end_hour === 0) return currentHour >= start_hour; // until midnight
+          return currentHour >= start_hour && currentHour < end_hour; // normal
         }
         
-        // Overnight shift ending at midnight (e.g., 16-0)
-        if (end_hour === 0) {
-          return currentHour >= start_hour || currentHour === 0;
+        if (duty.day_of_week === prevDay) {
+          // Yesterday's overnight shift spilling into today
+          if (end_hour < start_hour && end_hour !== 0) return currentHour < end_hour;
         }
         
-        // Normal shift
-        return currentHour >= start_hour && currentHour <= end_hour;
+        return false;
       });
 
       return NextResponse.json({ success: true, data: currentDuties });

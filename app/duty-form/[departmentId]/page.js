@@ -431,6 +431,9 @@ export default function DutyFormPage({ params }) {
                     {day.start === day.end && (
                       <span className="text-[9px] text-purple-600 font-bold">24h</span>
                     )}
+                    {day.end < day.start && day.start !== day.end && (
+                      <span className="text-[9px] text-indigo-600 font-bold">🌙 ליום הבא</span>
+                    )}
                     {/* Delete this day */}
                     <button
                       onClick={(e) => { e.stopPropagation(); onToggleDay(i); }}

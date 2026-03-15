@@ -143,31 +143,51 @@ export default function WeeklyDutyRoster() {
 
   const getDutiesForDayAndHour = (contactId, dayOfWeek, hour) => {
     return dutyRoster.filter(d => {
-      if (d.contact_id !== contactId || d.day_of_week !== dayOfWeek) {
-        return false;
-      }
+      if (d.contact_id !== contactId) return false;
       
       const { start_hour, end_hour } = d;
       
-      // 24-hour shift (e.g., 8-8)
-      if (start_hour === end_hour) {
-        return true;
+      // Same-day duty
+      if (d.day_of_week === dayOfWeek) {
+        // 24-hour shift (e.g., 8-8)
+        if (start_hour === end_hour) return true;
+        
+        // Overnight shift (e.g., 23-08): on the start day, active from start to midnight
+        if (end_hour < start_hour && end_hour !== 0) {
+          return hour >= start_hour;
+        }
+        
+        // Overnight ending at midnight (e.g., 16-0)
+        if (end_hour === 0) {
+          return hour >= start_hour;
+        }
+        
+        // Normal shift
+        return hour >= start_hour && hour < end_hour;
       }
       
-      // Overnight shift ending at midnight (e.g., 16-0)
-      if (end_hour === 0) {
-        return hour >= start_hour || hour === 0;
+      // Previous day's overnight duty spilling into this day
+      const prevDay = (dayOfWeek + 6) % 7;
+      if (d.day_of_week === prevDay && end_hour < start_hour && end_hour !== 0) {
+        return hour < end_hour;
       }
       
-      // Normal shift
-      return hour >= start_hour && hour <= end_hour;
+      return false;
     });
   };
 
   const getDutiesForDay = (contactId, dayOfWeek) => {
-    return dutyRoster.filter(
+    // Same-day duties
+    const sameDayDuties = dutyRoster.filter(
       d => d.contact_id === contactId && d.day_of_week === dayOfWeek
     );
+    // Previous day's overnight duties that spill into this day
+    const prevDay = (dayOfWeek + 6) % 7;
+    const overnightFromPrev = dutyRoster.filter(d => {
+      if (d.contact_id !== contactId || d.day_of_week !== prevDay) return false;
+      return d.end_hour < d.start_hour && d.end_hour !== 0;
+    });
+    return [...sameDayDuties, ...overnightFromPrev];
   };
 
   const isCurrentSlot = (dayOfWeek, hour) => {
@@ -291,12 +311,22 @@ export default function WeeklyDutyRoster() {
                                 ? 'bg-orange-100 text-orange-800 border border-orange-300'
                                 : 'bg-blue-100 text-blue-800';
                               
-                              if (duty.start_hour === duty.end_hour) {
+                              const isOvernightFromPrev = duty.day_of_week !== dayIndex;
+
+                              if (isOvernightFromPrev) {
+                                // This is a spill-over from previous day
+                                displayText = `🌙 00:00-${String(duty.end_hour).padStart(2, '0')}:00`;
+                                baseColor = isSleep ? 'bg-orange-100 text-orange-800 border border-orange-300' : 'bg-indigo-100 text-indigo-800';
+                              } else if (duty.start_hour === duty.end_hour) {
                                 // 24-hour shift
                                 displayText = '24 שעות';
                                 if (!isSleep) baseColor = 'bg-green-200 text-green-900';
+                              } else if (duty.end_hour < duty.start_hour && duty.end_hour !== 0) {
+                                // Overnight shift crossing midnight
+                                displayText = `🌙 ${String(duty.start_hour).padStart(2, '0')}:00-${String(duty.end_hour).padStart(2, '0')}:00+`;
+                                if (!isSleep) baseColor = 'bg-indigo-200 text-indigo-900';
                               } else if (duty.end_hour === 0) {
-                                // Overnight shift ending at midnight
+                                // Shift ending at midnight
                                 displayText = `${String(duty.start_hour).padStart(2, '0')}:00-חצות`;
                                 if (!isSleep) baseColor = 'bg-purple-200 text-purple-900';
                               } else {
