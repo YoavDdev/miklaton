@@ -227,8 +227,10 @@ export default function WeeklyDutyRoster() {
             {contacts.map(contact => {
               const duties = getDutiesForDayAndHour(contact.id, currentDay, currentHour);
               if (duties.length === 0) return null;
+              const isSleep = duties.some(d => d.notes?.includes('[לן]'));
               return (
-                <div key={contact.id} className="text-sm">
+                <div key={contact.id} className={`text-sm flex items-center gap-1 ${isSleep ? 'text-orange-800' : ''}`}>
+                  {isSleep && <span className="bg-orange-200 text-orange-800 text-xs px-1.5 py-0.5 rounded font-bold">🏢 לן</span>}
                   <span className="font-semibold">{contact.full_name}</span>
                   <span className="text-gray-600"> - {contact.phone}</span>
                   <span className="text-gray-500"> ({contact.departments?.name})</span>
@@ -281,36 +283,50 @@ export default function WeeklyDutyRoster() {
                           >
                             {duties.map(duty => {
                               const isActive = getDutiesForDayAndHour(contact.id, dayIndex, currentHour).length > 0;
+                              const isSleep = duty.notes?.includes('[לן]');
                               
                               // Determine display text and color
                               let displayText = '';
-                              let baseColor = 'bg-blue-100 text-blue-800';
+                              let baseColor = isSleep
+                                ? 'bg-orange-100 text-orange-800 border border-orange-300'
+                                : 'bg-blue-100 text-blue-800';
                               
                               if (duty.start_hour === duty.end_hour) {
                                 // 24-hour shift
                                 displayText = '24 שעות';
-                                baseColor = 'bg-green-200 text-green-900';
+                                if (!isSleep) baseColor = 'bg-green-200 text-green-900';
                               } else if (duty.end_hour === 0) {
                                 // Overnight shift ending at midnight
                                 displayText = `${String(duty.start_hour).padStart(2, '0')}:00-חצות`;
-                                baseColor = 'bg-purple-200 text-purple-900';
+                                if (!isSleep) baseColor = 'bg-purple-200 text-purple-900';
                               } else {
                                 // Normal shift
                                 displayText = `${String(duty.start_hour).padStart(2, '0')}:00-${String(duty.end_hour).padStart(2, '0')}:00`;
                               }
+
+                              // Clean notes for display (remove type tags)
+                              const cleanNotes = duty.notes
+                                ?.replace(/\[לן\]/g, '')
+                                .replace(/\[כונן\]/g, '')
+                                .replace(/^\s*\|\s*/, '')
+                                .trim();
                               
                               return (
                                 <div 
                                   key={duty.id} 
                                   className={`text-xs px-1 py-0.5 rounded mb-1 font-medium ${
                                     isActive && isToday
-                                      ? 'bg-green-500 text-white font-bold print:bg-gray-800 print:text-white'
+                                      ? isSleep
+                                        ? 'bg-orange-500 text-white font-bold print:bg-gray-800 print:text-white'
+                                        : 'bg-green-500 text-white font-bold print:bg-gray-800 print:text-white'
                                       : `${baseColor} print:bg-gray-300 print:text-black`
                                   }`}
                                 >
+                                  {isSleep && <span>🏢 </span>}
                                   {displayText}
-                                  {duty.notes && (
-                                    <div className="text-xs opacity-75">{duty.notes}</div>
+                                  {isSleep && <span className="text-xs font-bold"> לן</span>}
+                                  {cleanNotes && (
+                                    <div className="text-xs opacity-75">{cleanNotes}</div>
                                   )}
                                 </div>
                               );

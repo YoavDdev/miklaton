@@ -61,6 +61,7 @@ export default function OnCallManagerNew() {
   const [bulkStartHour, setBulkStartHour] = useState(8);
   const [bulkEndHour, setBulkEndHour] = useState(8);
   const [bulkNotes, setBulkNotes] = useState('');
+  const [bulkDutyType, setBulkDutyType] = useState('oncall');
   const [savingBulk, setSavingBulk] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
@@ -212,7 +213,7 @@ export default function OnCallManagerNew() {
                 day_of_week: day,
                 start_hour: bulkStartHour,
                 end_hour: bulkEndHour,
-                notes: bulkNotes
+                notes: `${bulkDutyType === 'sleep' ? '[לן]' : '[כונן]'}${bulkNotes ? ' | ' + bulkNotes : ''}`
               })
             })
           );
@@ -222,6 +223,7 @@ export default function OnCallManagerNew() {
       setBulkSelectedDays([]);
       setBulkSelectedContacts([]);
       setBulkNotes('');
+      setBulkDutyType('oncall');
       setShowRosterForm(false);
       fetchDutyRoster();
     } catch (error) {
@@ -492,6 +494,7 @@ export default function OnCallManagerNew() {
               setBulkStartHour(8);
               setBulkEndHour(8);
               setBulkNotes('');
+              setBulkDutyType('oncall');
             }}
             className={`mb-4 font-semibold px-6 py-3 rounded-lg text-lg transition-all ${
               showRosterForm 
@@ -506,6 +509,45 @@ export default function OnCallManagerNew() {
           {showRosterForm && (
             <div className="mb-6 p-5 bg-gradient-to-b from-purple-50 to-white rounded-xl border-2 border-purple-300 shadow-sm">
               <h3 className="text-lg font-bold text-purple-800 mb-4">הוספת כוננויות</h3>
+
+              {/* Step 0: Duty Type */}
+              <div className="mb-5">
+                <label className="block text-sm font-bold text-gray-800 mb-2">
+                  סוג תורנות:
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBulkDutyType('oncall')}
+                    className={`px-3 py-3 rounded-lg text-sm font-medium transition-all border-2 flex items-center justify-center gap-2 ${
+                      bulkDutyType === 'oncall'
+                        ? 'bg-blue-600 text-white border-blue-600 shadow-md'
+                        : 'bg-white text-gray-700 hover:bg-blue-50 border-gray-200 hover:border-blue-300'
+                    }`}
+                  >
+                    <span className="text-lg">📞</span>
+                    <div>
+                      <div className="font-bold">כונן</div>
+                      <div className="text-xs opacity-75">זמין טלפונית</div>
+                    </div>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBulkDutyType('sleep')}
+                    className={`px-3 py-3 rounded-lg text-sm font-medium transition-all border-2 flex items-center justify-center gap-2 ${
+                      bulkDutyType === 'sleep'
+                        ? 'bg-orange-500 text-white border-orange-500 shadow-md'
+                        : 'bg-white text-gray-700 hover:bg-orange-50 border-gray-200 hover:border-orange-300'
+                    }`}
+                  >
+                    <span className="text-lg">🏢</span>
+                    <div>
+                      <div className="font-bold">לן בעירייה</div>
+                      <div className="text-xs opacity-75">נוכח פיזית</div>
+                    </div>
+                  </button>
+                </div>
+              </div>
 
               {/* Step 1: Select Shift Type */}
               <div className="mb-5">
@@ -700,10 +742,11 @@ export default function OnCallManagerNew() {
               {(bulkSelectedContacts.length > 0 && bulkSelectedDays.length > 0) && (
                 <div className="p-3 bg-purple-100 border border-purple-300 rounded-lg mb-4">
                   <p className="text-sm font-bold text-purple-900">
-                    סה&quot;כ: {bulkSelectedContacts.length * bulkSelectedDays.length} כוננויות חדשות
+                    סה&quot;כ: {bulkSelectedContacts.length * bulkSelectedDays.length} {bulkDutyType === 'sleep' ? 'לינות' : 'כוננויות'} חדשות
+                    {bulkDutyType === 'sleep' && ' 🏢'}
                   </p>
                   <p className="text-xs text-purple-700 mt-1">
-                    {bulkSelectedContacts.length} כוננים × {bulkSelectedDays.length} ימים
+                    {bulkSelectedContacts.length} {bulkDutyType === 'sleep' ? 'לנים' : 'כוננים'} × {bulkSelectedDays.length} ימים
                     {' | '}
                     {String(bulkStartHour).padStart(2, '0')}:00-{String(bulkEndHour).padStart(2, '0')}:00
                     {bulkStartHour === bulkEndHour && ' (24 שעות)'}
@@ -780,15 +823,18 @@ export default function OnCallManagerNew() {
                       return (
                         <td key={dayIndex} className="border-b border-r border-gray-200 p-1.5 align-top">
                           {duties.map(duty => {
+                            const isSleep = duty.notes?.includes('[לן]');
                             let displayText = '';
-                            let bgColor = 'bg-blue-100 text-blue-800 border-blue-200';
+                            let bgColor = isSleep
+                              ? 'bg-orange-100 text-orange-800 border-orange-300'
+                              : 'bg-blue-100 text-blue-800 border-blue-200';
                             
                             if (duty.start_hour === duty.end_hour) {
                               displayText = '24 שעות';
-                              bgColor = 'bg-green-100 text-green-800 border-green-200';
+                              if (!isSleep) bgColor = 'bg-green-100 text-green-800 border-green-200';
                             } else if (duty.end_hour === 0) {
                               displayText = `${String(duty.start_hour).padStart(2, '0')}:00-00:00`;
-                              bgColor = 'bg-purple-100 text-purple-800 border-purple-200';
+                              if (!isSleep) bgColor = 'bg-purple-100 text-purple-800 border-purple-200';
                             } else {
                               displayText = `${String(duty.start_hour).padStart(2, '0')}:00-${String(duty.end_hour).padStart(2, '0')}:00`;
                             }
@@ -824,7 +870,7 @@ export default function OnCallManagerNew() {
                                 ) : (
                                   /* Normal duty badge with hover X */
                                   <div className={`text-xs ${bgColor} border px-2 py-1 rounded-lg font-medium flex items-center justify-between gap-1`}>
-                                    <span>{displayText}</span>
+                                    <span>{isSleep ? '🏢 ' : ''}{displayText}{isSleep ? ' לן' : ''}</span>
                                     <button
                                       onClick={() => setDeleteConfirm(duty.id)}
                                       className="opacity-0 group-hover:opacity-100 w-4 h-4 flex items-center justify-center rounded-full bg-red-500 text-white text-xs leading-none hover:bg-red-600 transition-all flex-shrink-0"
@@ -834,9 +880,16 @@ export default function OnCallManagerNew() {
                                     </button>
                                   </div>
                                 )}
-                                {duty.notes && !isConfirming && (
-                                  <div className="text-xs text-gray-500 mt-0.5 px-1">{duty.notes}</div>
-                                )}
+                                {duty.notes && !isConfirming && (() => {
+                                  const cleanNotes = duty.notes
+                                    ?.replace(/\[לן\]/g, '')
+                                    .replace(/\[כונן\]/g, '')
+                                    .replace(/^\s*\|\s*/, '')
+                                    .trim();
+                                  return cleanNotes ? (
+                                    <div className="text-xs text-gray-500 mt-0.5 px-1">{cleanNotes}</div>
+                                  ) : null;
+                                })()}
                               </div>
                             );
                           })}

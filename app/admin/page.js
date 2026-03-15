@@ -6,6 +6,7 @@ import sheltersData from '@/data/shelters.json';
 import alertFlowsData from '@/data/alertFlows.json';
 import GeneralNotifications from '@/components/GeneralNotifications';
 import OnCallManagerNew from '@/components/OnCallManagerNew';
+import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
 
 const ZONE_LABELS = { A: 'מזרח וצפון', B: 'מרכז', C: 'מערב' };
 const ZONE_COLORS = {
@@ -256,6 +257,16 @@ export default function AdminPage() {
               נהלי תפעול
             </button>
             <button
+              onClick={() => setActiveTab('whatsapp')}
+              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
+                activeTab === 'whatsapp'
+                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
+                  : 'text-gray-600 hover:bg-gray-50'
+              }`}
+            >
+              📱 WhatsApp כוננויות
+            </button>
+            <button
               onClick={() => setActiveTab('inspection')}
               className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors relative ${
                 activeTab === 'inspection'
@@ -453,6 +464,10 @@ export default function AdminPage() {
 
         {activeTab === 'notifications' && (
           <GeneralNotifications />
+        )}
+
+        {activeTab === 'whatsapp' && (
+          <WhatsAppDutyLinks />
         )}
 
         {activeTab === 'flows' && (
