@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, use } from 'react';
+import { useState, useEffect } from 'react';
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -12,7 +12,7 @@ const SHIFT_PRESETS = [
 ];
 
 export default function DutyFormPage({ params }) {
-  const { departmentId } = use(params);
+  const { departmentId } = params;
   const [department, setDepartment] = useState(null);
   const [contacts, setContacts] = useState([]);
   const [existingDuties, setExistingDuties] = useState([]);
