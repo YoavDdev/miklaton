@@ -378,6 +378,12 @@ export default function DutyFormPage({ params }) {
           </div>
         )}
 
+        {/* Help text */}
+        <div className="text-[10px] text-gray-400 bg-gray-50 rounded-lg px-2 py-1.5 leading-relaxed">
+          💡 בצד ימין <strong>שעת התחלה</strong>, בצד שמאל <strong>שעת סיום</strong>.
+          שעות זהות = 24 שעות. שעת סיום מוקדמת מהתחלה (למשל 23:00←08:00) = משמרת לילה שנמשכת ליום הבא.
+        </div>
+
         {/* Day rows */}
         <div className="space-y-1">
           {DAYS.map((dayName, i) => {
