@@ -14,7 +14,7 @@ const SHIFT_PRESETS = [
 
 function makeDaysMap() {
   const days = {};
-  for (let i = 0; i < 7; i++) days[i] = { active: false, start: 8, end: 8 };
+  for (let i = 0; i < 7; i++) days[i] = { active: false, shifts: [{ start: 8, end: 8 }] };
   return days;
 }
 
@@ -61,14 +61,15 @@ export default function DutyFormPage({ params }) {
         const days = makeDaysMap();
         let dutyType = 'oncall';
 
-        // Pre-fill from existing duties
+        // Pre-fill from existing duties, grouping by day
+        const dutiesByDay = {};
         for (const duty of contactDuties) {
-          days[duty.day_of_week] = {
-            active: true,
-            start: duty.start_hour,
-            end: duty.end_hour,
-          };
+          if (!dutiesByDay[duty.day_of_week]) dutiesByDay[duty.day_of_week] = [];
+          dutiesByDay[duty.day_of_week].push({ start: duty.start_hour, end: duty.end_hour });
           if (duty.notes?.includes('[לן]')) dutyType = 'sleep';
+        }
+        for (const [dayIdx, shifts] of Object.entries(dutiesByDay)) {
+          days[dayIdx] = { active: true, shifts };
         }
 
         return {
@@ -109,15 +110,39 @@ export default function DutyFormPage({ params }) {
     );
   };
 
-  const updateEntryDay = (contactId, dayIdx, dayUpdates) => {
+  const updateEntryDayShift = (contactId, dayIdx, shiftIdx, shiftUpdates) => {
     setContactEntries(prev =>
       prev.map(e => {
         if (e.contactId !== contactId) return e;
+        const newShifts = [...e.days[dayIdx].shifts];
+        newShifts[shiftIdx] = { ...newShifts[shiftIdx], ...shiftUpdates };
         return {
-          ...e,
-          saved: false,
-          days: { ...e.days, [dayIdx]: { ...e.days[dayIdx], ...dayUpdates } }
+          ...e, saved: false,
+          days: { ...e.days, [dayIdx]: { ...e.days[dayIdx], shifts: newShifts } }
         };
+      })
+    );
+  };
+
+  const addShiftToDay = (contactId, dayIdx) => {
+    setContactEntries(prev =>
+      prev.map(e => {
+        if (e.contactId !== contactId) return e;
+        const newShifts = [...e.days[dayIdx].shifts, { start: 8, end: 8 }];
+        return { ...e, saved: false, days: { ...e.days, [dayIdx]: { ...e.days[dayIdx], shifts: newShifts } } };
+      })
+    );
+  };
+
+  const removeShiftFromDay = (contactId, dayIdx, shiftIdx) => {
+    setContactEntries(prev =>
+      prev.map(e => {
+        if (e.contactId !== contactId) return e;
+        const newShifts = e.days[dayIdx].shifts.filter((_, i) => i !== shiftIdx);
+        if (newShifts.length === 0) {
+          return { ...e, saved: false, days: { ...e.days, [dayIdx]: { active: false, shifts: [{ start: 8, end: 8 }] } } };
+        }
+        return { ...e, saved: false, days: { ...e.days, [dayIdx]: { ...e.days[dayIdx], shifts: newShifts } } };
       })
     );
   };
@@ -126,10 +151,10 @@ export default function DutyFormPage({ params }) {
     setContactEntries(prev =>
       prev.map(e => {
         if (e.contactId !== contactId) return e;
+        const wasActive = e.days[dayIdx].active;
         return {
-          ...e,
-          saved: false,
-          days: { ...e.days, [dayIdx]: { ...e.days[dayIdx], active: !e.days[dayIdx].active } }
+          ...e, saved: false,
+          days: { ...e.days, [dayIdx]: { active: !wasActive, shifts: wasActive ? [{ start: 8, end: 8 }] : e.days[dayIdx].shifts } }
         };
       })
     );
@@ -143,7 +168,7 @@ export default function DutyFormPage({ params }) {
         const newDays = { ...e.days };
         for (let i = 0; i < 7; i++) {
           if (newDays[i].active) {
-            newDays[i] = { ...newDays[i], start: preset.start, end: preset.end };
+            newDays[i] = { ...newDays[i], shifts: newDays[i].shifts.map(() => ({ start: preset.start, end: preset.end })) };
           }
         }
         return { ...e, days: newDays, saved: false };
@@ -169,13 +194,13 @@ export default function DutyFormPage({ params }) {
     const entry = contactEntries.find(e => e.contactId === contactId);
     if (!entry) return;
 
-    const activeDays = Object.entries(entry.days)
-      .filter(([, d]) => d.active)
-      .map(([dayIdx, d]) => ({
-        day_of_week: parseInt(dayIdx),
-        start_hour: d.start,
-        end_hour: d.end,
-      }));
+    const activeDays = [];
+    Object.entries(entry.days).forEach(([dayIdx, d]) => {
+      if (!d.active) return;
+      d.shifts.forEach(shift => {
+        activeDays.push({ day_of_week: parseInt(dayIdx), start_hour: shift.start, end_hour: shift.end });
+      });
+    });
 
     updateEntry(contactId, { saving: true });
     setError('');
@@ -222,11 +247,36 @@ export default function DutyFormPage({ params }) {
     );
   };
 
-  const updateNewContactDay = (tempId, dayIdx, dayUpdates) => {
+  const updateNewContactDayShift = (tempId, dayIdx, shiftIdx, shiftUpdates) => {
     setPendingNewContacts(prev =>
       prev.map(nc => {
         if (nc.tempId !== tempId) return nc;
-        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { ...nc.days[dayIdx], ...dayUpdates } } };
+        const newShifts = [...nc.days[dayIdx].shifts];
+        newShifts[shiftIdx] = { ...newShifts[shiftIdx], ...shiftUpdates };
+        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { ...nc.days[dayIdx], shifts: newShifts } } };
+      })
+    );
+  };
+
+  const addShiftToDayNew = (tempId, dayIdx) => {
+    setPendingNewContacts(prev =>
+      prev.map(nc => {
+        if (nc.tempId !== tempId) return nc;
+        const newShifts = [...nc.days[dayIdx].shifts, { start: 8, end: 8 }];
+        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { ...nc.days[dayIdx], shifts: newShifts } } };
+      })
+    );
+  };
+
+  const removeShiftFromDayNew = (tempId, dayIdx, shiftIdx) => {
+    setPendingNewContacts(prev =>
+      prev.map(nc => {
+        if (nc.tempId !== tempId) return nc;
+        const newShifts = nc.days[dayIdx].shifts.filter((_, i) => i !== shiftIdx);
+        if (newShifts.length === 0) {
+          return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { active: false, shifts: [{ start: 8, end: 8 }] } } };
+        }
+        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { ...nc.days[dayIdx], shifts: newShifts } } };
       })
     );
   };
@@ -235,7 +285,8 @@ export default function DutyFormPage({ params }) {
     setPendingNewContacts(prev =>
       prev.map(nc => {
         if (nc.tempId !== tempId) return nc;
-        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { ...nc.days[dayIdx], active: !nc.days[dayIdx].active } } };
+        const wasActive = nc.days[dayIdx].active;
+        return { ...nc, saved: false, days: { ...nc.days, [dayIdx]: { active: !wasActive, shifts: wasActive ? [{ start: 8, end: 8 }] : nc.days[dayIdx].shifts } } };
       })
     );
   };
@@ -247,7 +298,7 @@ export default function DutyFormPage({ params }) {
         if (nc.tempId !== tempId) return nc;
         const newDays = { ...nc.days };
         for (let i = 0; i < 7; i++) {
-          if (newDays[i].active) newDays[i] = { ...newDays[i], start: preset.start, end: preset.end };
+          if (newDays[i].active) newDays[i] = { ...newDays[i], shifts: newDays[i].shifts.map(() => ({ start: preset.start, end: preset.end })) };
         }
         return { ...nc, days: newDays, saved: false };
       })
@@ -287,13 +338,13 @@ export default function DutyFormPage({ params }) {
     const nc = pendingNewContacts.find(n => n.tempId === tempId);
     if (!nc) return;
 
-    const activeDays = Object.entries(nc.days)
-      .filter(([, d]) => d.active)
-      .map(([dayIdx, d]) => ({
-        day_of_week: parseInt(dayIdx),
-        start_hour: d.start,
-        end_hour: d.end,
-      }));
+    const activeDays = [];
+    Object.entries(nc.days).forEach(([dayIdx, d]) => {
+      if (!d.active) return;
+      d.shifts.forEach(shift => {
+        activeDays.push({ day_of_week: parseInt(dayIdx), start_hour: shift.start, end_hour: shift.end });
+      });
+    });
 
     if (activeDays.length === 0) {
       setError('יש לבחור לפחות יום אחד');
@@ -349,8 +400,9 @@ export default function DutyFormPage({ params }) {
   };
 
   // ── Render per-day editor ──
-  const renderDayEditor = (entry, { onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick }) => {
+  const renderDayEditor = (entry, { onToggleDay, onUpdateDayShift, onAddShift, onRemoveShift, onApplyPreset, onSetDaysQuick }) => {
     const activeDayCount = Object.values(entry.days).filter(d => d.active).length;
+    const totalShifts = Object.values(entry.days).reduce((sum, d) => d.active ? sum + d.shifts.length : sum, 0);
     return (
       <div className="space-y-2">
         {/* Quick select */}
@@ -392,65 +444,78 @@ export default function DutyFormPage({ params }) {
               <div
                 key={i}
                 onClick={() => { if (!day.active) onToggleDay(i); }}
-                className={`flex items-center gap-2 rounded-lg px-2 py-1.5 transition-all ${
+                className={`rounded-lg px-2 py-1.5 transition-all ${
                   day.active ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50 border border-transparent cursor-pointer hover:bg-gray-100 active:bg-gray-200'
                 }`}
               >
-                {/* Day badge */}
-                <div
-                  onClick={(e) => { e.stopPropagation(); onToggleDay(i); }}
-                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all cursor-pointer ${
-                    day.active
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-gray-200 text-gray-400'
-                  }`}
-                >
-                  {DAYS_SHORT[i]}
-                </div>
-                <span
-                  onClick={(e) => { e.stopPropagation(); if (!day.active) onToggleDay(i); }}
-                  className={`text-xs font-semibold min-w-[40px] ${day.active ? 'text-gray-800' : 'text-gray-400 cursor-pointer'}`}
-                >
-                  {dayName}
-                </span>
-                {day.active ? (
-                  <div className="flex items-center gap-1 flex-1" onClick={(e) => e.stopPropagation()}>
-                    <select
-                      value={day.start}
-                      onChange={(e) => onUpdateDay(i, { start: parseInt(e.target.value) })}
-                      className="w-[70px] text-xs py-1 px-1 border border-gray-200 rounded bg-white font-bold text-center"
-                    >
-                      {Array.from({ length: 24 }, (_, h) => (
-                        <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-                      ))}
-                    </select>
-                    <span className="text-gray-400 text-xs">←</span>
-                    <select
-                      value={day.end}
-                      onChange={(e) => onUpdateDay(i, { end: parseInt(e.target.value) })}
-                      className="w-[70px] text-xs py-1 px-1 border border-gray-200 rounded bg-white font-bold text-center"
-                    >
-                      {Array.from({ length: 24 }, (_, h) => (
-                        <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-                      ))}
-                    </select>
-                    {day.start === day.end && (
-                      <span className="text-[9px] text-purple-600 font-bold">24h</span>
-                    )}
-                    {day.end < day.start && day.start !== day.end && (
-                      <span className="text-[9px] text-indigo-600 font-bold">🌙 ליום הבא</span>
-                    )}
-                    {/* Delete this day */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); onToggleDay(i); }}
-                      className="w-6 h-6 flex items-center justify-center rounded-full bg-red-100 text-red-600 text-xs font-bold hover:bg-red-200 active:bg-red-300 transition-colors mr-auto flex-shrink-0"
-                    >
-                      ✕
-                    </button>
+                <div className="flex items-center gap-2">
+                  {/* Day badge */}
+                  <div
+                    onClick={(e) => { e.stopPropagation(); onToggleDay(i); }}
+                    className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0 transition-all cursor-pointer ${
+                      day.active
+                        ? 'bg-purple-600 text-white'
+                        : 'bg-gray-200 text-gray-400'
+                    }`}
+                  >
+                    {DAYS_SHORT[i]}
                   </div>
-                ) : (
-                  <span className="text-[10px] text-gray-400 flex-1">לחץ להוספה</span>
-                )}
+                  <span
+                    onClick={(e) => { e.stopPropagation(); if (!day.active) onToggleDay(i); }}
+                    className={`text-xs font-semibold min-w-[40px] ${day.active ? 'text-gray-800' : 'text-gray-400 cursor-pointer'}`}
+                  >
+                    {dayName}
+                  </span>
+                  {day.active ? (
+                    <div className="flex-1 space-y-1" onClick={(e) => e.stopPropagation()}>
+                      {day.shifts.map((shift, si) => (
+                        <div key={si} className="flex items-center gap-1">
+                          <select
+                            value={shift.start}
+                            onChange={(e) => onUpdateDayShift(i, si, { start: parseInt(e.target.value) })}
+                            className="w-[70px] text-xs py-1 px-1 border border-gray-200 rounded bg-white font-bold text-center"
+                          >
+                            {Array.from({ length: 24 }, (_, h) => (
+                              <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                            ))}
+                          </select>
+                          <span className="text-gray-400 text-xs">←</span>
+                          <select
+                            value={shift.end}
+                            onChange={(e) => onUpdateDayShift(i, si, { end: parseInt(e.target.value) })}
+                            className="w-[70px] text-xs py-1 px-1 border border-gray-200 rounded bg-white font-bold text-center"
+                          >
+                            {Array.from({ length: 24 }, (_, h) => (
+                              <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
+                            ))}
+                          </select>
+                          {shift.start === shift.end && (
+                            <span className="text-[9px] text-purple-600 font-bold">24h</span>
+                          )}
+                          {shift.end < shift.start && shift.start !== shift.end && (
+                            <span className="text-[9px] text-indigo-600 font-bold">🌙</span>
+                          )}
+                          {/* Delete this shift */}
+                          <button
+                            onClick={() => onRemoveShift(i, si)}
+                            className="w-5 h-5 flex items-center justify-center rounded-full bg-red-100 text-red-600 text-[10px] font-bold hover:bg-red-200 active:bg-red-300 transition-colors mr-auto flex-shrink-0"
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                      {/* Add another shift */}
+                      <button
+                        onClick={() => onAddShift(i)}
+                        className="text-[10px] text-purple-600 font-semibold hover:text-purple-800 transition-colors"
+                      >
+                        + משמרת נוספת
+                      </button>
+                    </div>
+                  ) : (
+                    <span className="text-[10px] text-gray-400 flex-1">לחץ להוספה</span>
+                  )}
+                </div>
               </div>
             );
           })}
@@ -460,9 +525,10 @@ export default function DutyFormPage({ params }) {
   };
 
   // ── Render full contact edit card ──
-  const renderContactCard = (entry, { onUpdate, onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick, onSave, isNew, onRemove, hasExistingDuties }) => {
+  const renderContactCard = (entry, { onUpdate, onToggleDay, onUpdateDayShift, onAddShift, onRemoveShift, onApplyPreset, onSetDaysQuick, onSave, isNew, onRemove, hasExistingDuties }) => {
     const activeDayCount = Object.values(entry.days).filter(d => d.active).length;
-    const canSave = activeDayCount > 0 || hasExistingDuties;
+    const totalShifts = Object.values(entry.days).reduce((sum, d) => d.active ? sum + d.shifts.length : sum, 0);
+    const canSave = totalShifts > 0 || hasExistingDuties;
     return (
       <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
         {/* Duty Type */}
@@ -493,7 +559,7 @@ export default function DutyFormPage({ params }) {
         {/* Per-day editor */}
         <div>
           <label className="block text-xs font-bold text-gray-600 mb-1.5">ימים ושעות:</label>
-          {renderDayEditor(entry, { onToggleDay, onUpdateDay, onApplyPreset, onSetDaysQuick })}
+          {renderDayEditor(entry, { onToggleDay, onUpdateDayShift, onAddShift, onRemoveShift, onApplyPreset, onSetDaysQuick })}
         </div>
 
         {/* Save button */}
@@ -507,7 +573,7 @@ export default function DutyFormPage({ params }) {
                 ? 'bg-gray-200 text-gray-500'
                 : !canSave
                   ? 'bg-gray-100 text-gray-400'
-                  : activeDayCount === 0
+                  : totalShifts === 0
                     ? 'bg-red-500 hover:bg-red-600 text-white shadow-sm active:scale-[0.98]'
                     : 'bg-purple-600 hover:bg-purple-700 text-white shadow-sm active:scale-[0.98]'
           }`}
@@ -517,7 +583,7 @@ export default function DutyFormPage({ params }) {
               <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-500 inline-block"></span>
               שומר...
             </span>
-          ) : !canSave ? 'בחר ימים כדי לשמור' : activeDayCount === 0 ? '🗑️ מחק את כל המשמרות' : `שמור ${activeDayCount} ימים`}
+          ) : !canSave ? 'בחר ימים כדי לשמור' : totalShifts === 0 ? '🗑️ מחק את כל המשמרות' : `שמור ${totalShifts} משמרות`}
         </button>
 
         {/* Remove new contact */}
@@ -737,7 +803,9 @@ export default function DutyFormPage({ params }) {
                     {
                       onUpdate: (updates) => updateEntry(contact.id, updates),
                       onToggleDay: (dayIdx) => toggleEntryDay(contact.id, dayIdx),
-                      onUpdateDay: (dayIdx, upd) => updateEntryDay(contact.id, dayIdx, upd),
+                      onUpdateDayShift: (dayIdx, shiftIdx, upd) => updateEntryDayShift(contact.id, dayIdx, shiftIdx, upd),
+                      onAddShift: (dayIdx) => addShiftToDay(contact.id, dayIdx),
+                      onRemoveShift: (dayIdx, shiftIdx) => removeShiftFromDay(contact.id, dayIdx, shiftIdx),
                       onApplyPreset: (idx) => applyPresetToAll(contact.id, idx),
                       onSetDaysQuick: (days) => setDaysQuick(contact.id, days),
                       onSave: () => handleSaveContact(contact.id),
@@ -777,7 +845,9 @@ export default function DutyFormPage({ params }) {
                 {
                   onUpdate: (updates) => updateNewContact(nc.tempId, updates),
                   onToggleDay: (dayIdx) => toggleNewContactDay(nc.tempId, dayIdx),
-                  onUpdateDay: (dayIdx, upd) => updateNewContactDay(nc.tempId, dayIdx, upd),
+                  onUpdateDayShift: (dayIdx, shiftIdx, upd) => updateNewContactDayShift(nc.tempId, dayIdx, shiftIdx, upd),
+                  onAddShift: (dayIdx) => addShiftToDayNew(nc.tempId, dayIdx),
+                  onRemoveShift: (dayIdx, shiftIdx) => removeShiftFromDayNew(nc.tempId, dayIdx, shiftIdx),
                   onApplyPreset: (idx) => applyPresetToAllNew(nc.tempId, idx),
                   onSetDaysQuick: (days) => setDaysQuickNew(nc.tempId, days),
                   onSave: () => handleSaveNewContact(nc.tempId),
