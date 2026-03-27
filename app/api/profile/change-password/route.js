@@ -9,8 +9,10 @@ const supabase = createClient(
 
 // POST - שינוי סיסמה
 export async function POST(request) {
+  console.log('🔵 API /api/profile/change-password - התחלה');
   try {
     const token = request.cookies.get('auth-token')?.value;
+    console.log('🔑 Token exists:', !!token);
 
     if (!token) {
       return NextResponse.json(
@@ -20,6 +22,7 @@ export async function POST(request) {
     }
 
     const decoded = verifyToken(token);
+    console.log('👤 Decoded user:', decoded?.userId, decoded?.role);
     if (!decoded) {
       return NextResponse.json(
         { error: 'טוקן לא תקין' },
@@ -28,6 +31,7 @@ export async function POST(request) {
     }
 
     const { currentPassword, newPassword } = await request.json();
+    console.log('📝 Request data - currentPassword exists:', !!currentPassword, 'newPassword exists:', !!newPassword);
 
     // ולידציה
     if (!currentPassword || !newPassword) {
@@ -44,25 +48,13 @@ export async function POST(request) {
       );
     }
 
-    // שליפת המשתמש
-    const { data: profile, error: profileError } = await supabase
-      .from('user_profiles')
-      .select('email')
-      .eq('id', decoded.userId)
-      .single();
-
-    if (profileError || !profile) {
-      return NextResponse.json(
-        { error: 'משתמש לא נמצא' },
-        { status: 404 }
-      );
-    }
-
-    // שליפת המשתמש מ-auth.users
+    // שליפת המשתמש מ-auth.users (email נמצא רק שם)
     const { data: authData } = await supabase.auth.admin.listUsers();
     const authUser = authData.users.find(u => u.id === decoded.userId);
+    console.log('🔐 Auth user found:', !!authUser, 'email:', authUser?.email);
 
     if (!authUser) {
+      console.log('❌ משתמש לא נמצא ב-auth.users');
       return NextResponse.json(
         { error: 'משתמש לא נמצא במערכת האימות' },
         { status: 404 }
@@ -74,8 +66,10 @@ export async function POST(request) {
       email: authUser.email,
       password: currentPassword
     });
+    console.log('🔓 Password verification - error:', signInError?.message, 'success:', !!signInData.user);
 
     if (signInError || !signInData.user) {
+      console.log('❌ סיסמה נוכחית שגויה');
       return NextResponse.json(
         { error: 'סיסמה נוכחית שגויה' },
         { status: 401 }
@@ -83,13 +77,14 @@ export async function POST(request) {
     }
 
     // עדכון הסיסמה
+    console.log('🔄 מעדכן סיסמה עבור userId:', decoded.userId);
     const { error: updateError } = await supabase.auth.admin.updateUserById(
       decoded.userId,
       { password: newPassword }
     );
 
     if (updateError) {
-      console.error('Password update error:', updateError);
+      console.error('❌ Password update error:', updateError);
       return NextResponse.json(
         { error: 'שגיאה בעדכון סיסמה' },
         { status: 500 }
@@ -97,6 +92,7 @@ export async function POST(request) {
     }
 
     // עדכון שלא צריך לשנות סיסמה
+    console.log('✅ סיסמה עודכנה בהצלחה, מעדכן must_change_password');
     await supabase
       .from('user_profiles')
       .update({ 
@@ -105,12 +101,13 @@ export async function POST(request) {
       })
       .eq('id', decoded.userId);
 
+    console.log('🎉 הכל הצליח!');
     return NextResponse.json({
       message: 'סיסמה שונתה בהצלחה'
     });
 
   } catch (error) {
-    console.error('Change password API error:', error);
+    console.error('❌❌❌ Change password API error:', error);
     return NextResponse.json(
       { error: 'שגיאה בשרת', details: error.message },
       { status: 500 }
