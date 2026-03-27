@@ -390,12 +390,20 @@ export default function AdminUsersPage() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">ניהול משתמשים</h1>
             <p className="text-gray-600">אישור, עריכה ואיפוס סיסמאות</p>
           </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-lg transition-colors"
-          >
-            ➕ צור משתמש חדש
-          </button>
+          <div className="flex gap-3">
+            <button
+              onClick={() => router.push('/profile')}
+              className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium flex items-center gap-2 transition-colors"
+            >
+              👤 האיזור האישי
+            </button>
+            <button
+              onClick={() => setShowCreateModal(true)}
+              className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-lg transition-colors"
+            >
+              ➕ צור משתמש חדש
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
