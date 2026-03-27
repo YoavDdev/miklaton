@@ -6,34 +6,69 @@ export default function Home() {
   const router = useRouter();
 
   return (
-    <div className="min-h-screen bg-gray-900 flex flex-col items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-10">
-          <div className="text-6xl mb-4">🛡️</div>
-          <h1 className="text-3xl font-bold text-white">מקלטון</h1>
-          <p className="text-gray-400 mt-2 text-sm">מערכת ניהול אירועי חירום — יהוד-מונוסון</p>
-        </div>
+    <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-4 sm:p-6" dir="rtl">
+      <div className="w-full max-w-md sm:max-w-lg">
+        {/* Main Card */}
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl sm:rounded-3xl shadow-2xl border border-white/20 p-6 sm:p-10">
+          {/* Logo & Title */}
+          <div className="text-center mb-8 sm:mb-12">
+            <div className="mb-4 sm:mb-6 flex justify-center">
+              <img 
+                src="/images/yehud-logo.png" 
+                alt="לוגו עיריית יהוד-מונוסון" 
+                className="w-32 h-32 sm:w-40 sm:h-40 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-300"
+              />
+            </div>
+            <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3 sm:mb-4">מקלטון</h1>
+            <div className="h-1 w-24 sm:w-32 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full mb-4 sm:mb-6"></div>
+            <p className="text-blue-100 text-base sm:text-lg font-medium">מערכת ניהול אירועי חירום</p>
+            <p className="text-blue-200 text-sm sm:text-base mt-2">עיריית יהוד-מונוסון</p>
+          </div>
 
-        <div className="space-y-4">
+          {/* Welcome Message */}
+          <div className="bg-white/5 rounded-xl sm:rounded-2xl p-4 sm:p-6 mb-6 sm:mb-8 border border-white/10">
+            <h2 className="text-white text-lg sm:text-xl font-bold mb-3">ברוכים הבאים למערכת 👋</h2>
+            <p className="text-blue-100 text-sm sm:text-base leading-relaxed">
+              מערכת מקלטון מאפשרת ניהול יעיל ומקצועי של אירועי חירום, תקלות ופעילות שוטפת במוקד העירוני.
+              היכנסו למערכת כדי להתחיל לעבוד.
+            </p>
+          </div>
+
+          {/* Login Button */}
           <button
             onClick={() => router.push('/login')}
-            className="w-full py-4 bg-purple-600 hover:bg-purple-700 text-white font-bold text-lg rounded-xl transition-colors shadow-lg"
+            className="w-full py-4 sm:py-5 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-bold text-lg sm:text-xl rounded-xl sm:rounded-2xl transition-all duration-300 shadow-xl hover:shadow-2xl hover:scale-105 active:scale-95 flex items-center justify-center gap-3"
           >
+            <span className="text-2xl">🔐</span>
             כניסה למערכת
           </button>
 
-          <button
-            onClick={() => router.push('/inspection')}
-            className="w-full py-4 bg-white hover:bg-gray-100 text-gray-900 font-bold text-lg rounded-xl transition-colors shadow-lg flex items-center justify-center gap-3"
-          >
-            <span>🔍</span>
-            סיור פקח
-          </button>
+          {/* Features List */}
+          <div className="mt-8 sm:mt-10 space-y-3">
+            <div className="flex items-center gap-3 text-blue-100 text-sm sm:text-base">
+              <span className="text-xl sm:text-2xl">✅</span>
+              <span>ניהול כוננויות ומשמרות</span>
+            </div>
+            <div className="flex items-center gap-3 text-blue-100 text-sm sm:text-base">
+              <span className="text-xl sm:text-2xl">✅</span>
+              <span>תיאום אירועי חירום</span>
+            </div>
+            <div className="flex items-center gap-3 text-blue-100 text-sm sm:text-base">
+              <span className="text-xl sm:text-2xl">✅</span>
+              <span>מעקב אחר תקלות ופניות</span>
+            </div>
+          </div>
         </div>
 
-        <p className="text-center text-gray-600 text-xs mt-10">
-          מוקד עירוני יהוד-מונוסון
-        </p>
+        {/* Footer */}
+        <div className="text-center mt-6 sm:mt-8">
+          <p className="text-blue-200 text-xs sm:text-sm">
+            © {new Date().getFullYear()} מוקד עירוני יהוד-מונוסון
+          </p>
+          <p className="text-blue-300 text-[10px] sm:text-xs mt-2">
+            מערכת מאובטחת ומוצפנת
+          </p>
+        </div>
       </div>
     </div>
   );
