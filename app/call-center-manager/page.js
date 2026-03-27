@@ -166,11 +166,16 @@ export default function CallCenterManagerPage() {
     }
 
     try {
+      const taskData = {
+        ...newTask,
+        due_date: newTask.due_date || null
+      };
+      
       const res = await fetch('/api/operator/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(newTask)
+        body: JSON.stringify(taskData)
       });
 
       if (res.ok) {
