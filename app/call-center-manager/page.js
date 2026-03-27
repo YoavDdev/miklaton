@@ -11,14 +11,29 @@ export default function CallCenterManagerPage() {
   const [activeTab, setActiveTab] = useState('operators');
   const [operators, setOperators] = useState([]);
   const [tasks, setTasks] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [shifts, setShifts] = useState([]);
+  const [allUsers, setAllUsers] = useState([]);
   const [showMessageModal, setShowMessageModal] = useState(false);
+  const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showShiftModal, setShowShiftModal] = useState(false);
   const [messageText, setMessageText] = useState('');
+  const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
+  const [newShift, setNewShift] = useState({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
 
   useEffect(() => {
     checkAuth();
-    loadOperators();
-    loadTasks();
+    loadData();
+    const interval = setInterval(loadSessions, 10000); // רענון כל 10 שניות
+    return () => clearInterval(interval);
   }, []);
+
+  const loadData = () => {
+    loadSessions();
+    loadTasks();
+    loadShifts();
+    loadAllUsers();
+  };
 
   const checkAuth = async () => {
     try {
@@ -47,97 +62,169 @@ export default function CallCenterManagerPage() {
     }
   };
 
-  const loadOperators = async () => {
-    // כאן נטען מוקדנים אמיתיים מהטבלה
-    // לעכשיו נתונים דמה
-    setOperators([
-      {
-        id: 1,
-        username: 'operator001',
-        full_name: 'שרה כהן',
-        shift: 'בוקר',
-        status: 'פעיל',
-        tasksCompleted: 15,
-        tasksOpen: 3,
-        avgResponseTime: '2.5 דק',
-        lastActive: '5 דק'
-      },
-      {
-        id: 2,
-        username: 'operator002',
-        full_name: 'דוד לוי',
-        shift: 'צהריים',
-        status: 'פעיל',
-        tasksCompleted: 12,
-        tasksOpen: 5,
-        avgResponseTime: '3.1 דק',
-        lastActive: '2 דק'
-      },
-      {
-        id: 3,
-        username: 'operator003',
-        full_name: 'מיכל ברק',
-        shift: 'ערב',
-        status: 'לא פעיל',
-        tasksCompleted: 8,
-        tasksOpen: 1,
-        avgResponseTime: '2.8 דק',
-        lastActive: '45 דק'
-      },
-      {
-        id: 4,
-        username: 'operator004',
-        full_name: 'יוסי אברהם',
-        shift: 'לילה',
-        status: 'לא פעיל',
-        tasksCompleted: 0,
-        tasksOpen: 0,
-        avgResponseTime: '-',
-        lastActive: '8 שעות'
+  const loadSessions = async () => {
+    try {
+      const res = await fetch('/api/operator/sessions', {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setSessions(data.sessions || []);
+        
+        // המר סשנים למוקדנים עם סטטיסטיקות
+        const operatorsData = (data.sessions || []).map(session => {
+          const userTasks = tasks.filter(t => t.assigned_to === session.user_id);
+          const tasksOpen = userTasks.filter(t => t.status !== 'הושלם').length;
+          const tasksCompleted = userTasks.filter(t => t.status === 'הושלם').length;
+          
+          const lastActivity = new Date(session.last_activity);
+          const minutesAgo = Math.floor((Date.now() - lastActivity) / 60000);
+          const lastActiveText = minutesAgo < 1 ? 'עכשיו' : minutesAgo < 60 ? `${minutesAgo} דק'` : `${Math.floor(minutesAgo / 60)} שעות`;
+          
+          return {
+            id: session.user_id,
+            full_name: session.user?.full_name || 'לא ידוע',
+            role: session.user?.role || '',
+            status: 'פעיל',
+            tasksOpen,
+            tasksCompleted,
+            lastActive: lastActiveText
+          };
+        });
+        setOperators(operatorsData);
       }
-    ]);
+    } catch (error) {
+      console.error('Error loading sessions:', error);
+    }
+  };
+
+  const loadAllUsers = async () => {
+    try {
+      const res = await fetch('/api/admin/users', {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setAllUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error loading users:', error);
+    }
   };
 
   const loadTasks = async () => {
-    // כאן נטען משימות אמיתיות
-    setTasks([
-      {
-        id: 1,
-        title: 'בדיקת מקלט ברחוב הרצל 12',
-        assignedTo: 'שרה כהן',
-        priority: 'גבוה',
-        status: 'בטיפול',
-        createdAt: '10:30'
-      },
-      {
-        id: 2,
-        title: 'תיקון דלת מקלט ברחוב וייצמן 45',
-        assignedTo: 'דוד לוי',
-        priority: 'בינוני',
-        status: 'ממתין',
-        createdAt: '09:15'
-      },
-      {
-        id: 3,
-        title: 'פניה מתושב - מקלט לא נגיש',
-        assignedTo: 'מיכל ברק',
-        priority: 'דחוף',
-        status: 'הושלם',
-        createdAt: '08:00'
+    try {
+      const res = await fetch('/api/operator/tasks', {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setTasks(data.tasks || []);
       }
-    ]);
+    } catch (error) {
+      console.error('Error loading tasks:', error);
+    }
   };
 
-  const handleSendMessage = () => {
+  const loadShifts = async () => {
+    try {
+      const res = await fetch('/api/on-call-shifts', {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setShifts(data.shifts || []);
+      }
+    } catch (error) {
+      console.error('Error loading shifts:', error);
+    }
+  };
+
+  const handleSendMessage = async () => {
     if (!messageText.trim()) {
       toast.error('נא להזין הודעה');
       return;
     }
     
-    // כאן נשלח את ההודעה
-    toast.success('הודעה נשלחה לכל המוקדנים! 📢');
-    setShowMessageModal(false);
-    setMessageText('');
+    try {
+      const res = await fetch('/api/operator/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          message_text: messageText,
+          target_role: 'operator',
+          is_urgent: false
+        })
+      });
+
+      if (res.ok) {
+        toast.success('הודעה נשלחה לכל המוקדנים! 📢');
+        setShowMessageModal(false);
+        setMessageText('');
+      } else {
+        toast.error('שגיאה בשליחת הודעה');
+      }
+    } catch (error) {
+      console.error('Error sending message:', error);
+      toast.error('שגיאה בשליחת הודעה');
+    }
+  };
+
+  const handleCreateTask = async () => {
+    if (!newTask.title || !newTask.assigned_to) {
+      toast.error('נא למלא שם משימה ולבחור מוקדן');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/operator/tasks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(newTask)
+      });
+
+      if (res.ok) {
+        toast.success('משימה נוצרה בהצלחה! ✅');
+        setShowTaskModal(false);
+        setNewTask({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
+        loadTasks();
+      } else {
+        toast.error('שגיאה ביצירת משימה');
+      }
+    } catch (error) {
+      console.error('Error creating task:', error);
+      toast.error('שגיאה ביצירת משימה');
+    }
+  };
+
+  const handleCreateShift = async () => {
+    if (!newShift.user_id || !newShift.shift_date) {
+      toast.error('נא למלא כל השדות');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/on-call-shifts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(newShift)
+      });
+
+      if (res.ok) {
+        toast.success('משמרת נוצרה בהצלחה! �');
+        setShowShiftModal(false);
+        setNewShift({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
+        loadShifts();
+      } else {
+        toast.error('שגיאה ביצירת משמרת');
+      }
+    } catch (error) {
+      console.error('Error creating shift:', error);
+      toast.error('שגיאה ביצירת משמרת');
+    }
   };
 
   const handleLogout = async () => {
@@ -279,6 +366,16 @@ export default function CallCenterManagerPage() {
                 📋 משימות פתוחות
               </button>
               <button
+                onClick={() => setActiveTab('shifts')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'shifts'
+                    ? 'border-pink-600 text-pink-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                🕐 משמרות כוננים
+              </button>
+              <button
                 onClick={() => setActiveTab('reports')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'reports'
@@ -295,61 +392,58 @@ export default function CallCenterManagerPage() {
         {/* Tab Content - Operators */}
         {activeTab === 'operators' && (
           <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
-              <h2 className="text-xl font-bold text-gray-900">מוקדנים במשמרת</h2>
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">מוקדנים מחוברים כרגע</h2>
+              <span className="text-sm text-gray-500">{operators.length} מוקדנים פעילים</span>
             </div>
             
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם משתמש</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שם מלא</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">משמרת</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תפקיד</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">סטטוס</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">משימות פתוחות</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">הושלמו</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">זמן תגובה ממוצע</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">הושלמו היום</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעילות אחרונה</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {operators.map((operator) => (
-                    <tr key={operator.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap font-mono text-sm text-gray-900">
-                        {operator.username}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                        {operator.full_name}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                          {operator.shift}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm">
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                          operator.status === 'פעיל' 
-                            ? 'bg-green-100 text-green-800' 
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
-                          {operator.status === 'פעיל' ? '🟢 פעיל' : '⚪ לא פעיל'}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <span className="font-bold text-yellow-600">{operator.tasksOpen}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                        <span className="font-bold text-green-600">{operator.tasksCompleted}</span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {operator.avgResponseTime}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {operator.lastActive}
+                  {operators.length === 0 ? (
+                    <tr>
+                      <td colSpan="6" className="px-6 py-8 text-center text-gray-500">
+                        אין מוקדנים מחוברים כרגע
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    operators.map((operator) => (
+                      <tr key={operator.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
+                          {operator.full_name}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                            {operator.role === 'operator' ? 'מוקדן' : operator.role}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            🟢 פעיל
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                          <span className="font-bold text-yellow-600">{operator.tasksOpen}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
+                          <span className="font-bold text-green-600">{operator.tasksCompleted}</span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {operator.lastActive}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -359,8 +453,14 @@ export default function CallCenterManagerPage() {
         {/* Tab Content - Tasks */}
         {activeTab === 'tasks' && (
           <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-900">משימות פתוחות למוקדנים</h2>
+              <button
+                onClick={() => setShowTaskModal(true)}
+                className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium flex items-center gap-2"
+              >
+                ➕ משימה חדשה
+              </button>
             </div>
             
             <div className="overflow-x-auto">
@@ -375,14 +475,21 @@ export default function CallCenterManagerPage() {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {tasks.map((task) => (
-                    <tr key={task.id} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 text-sm text-gray-900">
-                        {task.title}
+                  {tasks.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                        אין משימות כרגע. לחץ על "משימה חדשה" כדי ליצור.
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                        {task.assignedTo}
-                      </td>
+                    </tr>
+                  ) : (
+                    tasks.map((task) => (
+                      <tr key={task.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 text-sm text-gray-900">
+                          {task.title}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {task.assigned_user?.full_name || 'לא משוייך'}
+                        </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm">
                         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
                           task.priority === 'דחוף' ? 'bg-red-100 text-red-800' :
@@ -401,11 +508,76 @@ export default function CallCenterManagerPage() {
                           {task.status}
                         </span>
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {task.createdAt}
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {new Date(task.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {/* Tab Content - Shifts */}
+        {activeTab === 'shifts' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+              <h2 className="text-xl font-bold text-gray-900">משמרות כוננים מכלול</h2>
+              <button
+                onClick={() => setShowShiftModal(true)}
+                className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium flex items-center gap-2"
+              >
+                ➕ משמרת חדשה
+              </button>
+            </div>
+            
+            <div className="overflow-x-auto">
+              <table className="min-w-full divide-y divide-gray-200">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תאריך</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">משתמש</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">סוג משמרת</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שעות</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">הערות</th>
+                  </tr>
+                </thead>
+                <tbody className="bg-white divide-y divide-gray-200">
+                  {shifts.length === 0 ? (
+                    <tr>
+                      <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
+                        אין משמרות מתוכננות. לחץ על "משמרת חדשה" כדי ליצור.
                       </td>
                     </tr>
-                  ))}
+                  ) : (
+                    shifts.map((shift) => (
+                      <tr key={shift.id} className="hover:bg-gray-50">
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {new Date(shift.shift_date).toLocaleDateString('he-IL')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                          {shift.user?.full_name || 'לא ידוע'}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                            shift.shift_type === 'יום' ? 'bg-yellow-100 text-yellow-800' :
+                            shift.shift_type === 'לילה' ? 'bg-indigo-100 text-indigo-800' :
+                            'bg-purple-100 text-purple-800'
+                          }`}>
+                            {shift.shift_type}
+                          </span>
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                          {shift.start_time} - {shift.end_time}
+                        </td>
+                        <td className="px-6 py-4 text-sm text-gray-600">
+                          {shift.notes || '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -465,6 +637,221 @@ export default function CallCenterManagerPage() {
           </div>
         )}
       </main>
+
+      {/* Task Modal */}
+      {showTaskModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-bold text-gray-900">יצירת משימה חדשה</h3>
+              <button
+                onClick={() => {
+                  setShowTaskModal(false);
+                  setNewTask({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">שם המשימה *</label>
+                <input
+                  type="text"
+                  value={newTask.title}
+                  onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  placeholder="למשל: בדיקת מקלט ברחוב הרצל"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">תיאור</label>
+                <textarea
+                  value={newTask.description}
+                  onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  placeholder="פרטים נוספים..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">הקצה למוקדן *</label>
+                <select
+                  value={newTask.assigned_to}
+                  onChange={(e) => setNewTask({...newTask, assigned_to: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                >
+                  <option value="">בחר מוקדן</option>
+                  {allUsers.filter(u => u.role === 'operator').map(user => (
+                    <option key={user.id} value={user.id}>{user.full_name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">עדיפות</label>
+                  <select
+                    value={newTask.priority}
+                    onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  >
+                    <option value="דחוף">דחוף</option>
+                    <option value="גבוה">גבוה</option>
+                    <option value="בינוני">בינוני</option>
+                    <option value="נמוך">נמוך</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">תאריך יעד</label>
+                  <input
+                    type="date"
+                    value={newTask.due_date}
+                    onChange={(e) => setNewTask({...newTask, due_date: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleCreateTask}
+                  className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium"
+                >
+                  ✅ צור משימה
+                </button>
+                <button
+                  onClick={() => {
+                    setShowTaskModal(false);
+                    setNewTask({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shift Modal */}
+      {showShiftModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-bold text-gray-900">יצירת משמרת כוננות</h3>
+              <button
+                onClick={() => {
+                  setShowShiftModal(false);
+                  setNewShift({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">משתמש *</label>
+                <select
+                  value={newShift.user_id}
+                  onChange={(e) => setNewShift({...newShift, user_id: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                >
+                  <option value="">בחר משתמש</option>
+                  {allUsers.map(user => (
+                    <option key={user.id} value={user.id}>{user.full_name} ({user.role})</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">תאריך *</label>
+                  <input
+                    type="date"
+                    value={newShift.shift_date}
+                    onChange={(e) => setNewShift({...newShift, shift_date: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">סוג משמרת</label>
+                  <select
+                    value={newShift.shift_type}
+                    onChange={(e) => setNewShift({...newShift, shift_type: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  >
+                    <option value="יום">יום</option>
+                    <option value="לילה">לילה</option>
+                    <option value="24 שעות">24 שעות</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">שעת התחלה</label>
+                  <input
+                    type="time"
+                    value={newShift.start_time}
+                    onChange={(e) => setNewShift({...newShift, start_time: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">שעת סיום</label>
+                  <input
+                    type="time"
+                    value={newShift.end_time}
+                    onChange={(e) => setNewShift({...newShift, end_time: e.target.value})}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">הערות</label>
+                <textarea
+                  value={newShift.notes}
+                  onChange={(e) => setNewShift({...newShift, notes: e.target.value})}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  placeholder="הערות נוספות..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleCreateShift}
+                  className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium"
+                >
+                  ✅ צור משמרת
+                </button>
+                <button
+                  onClick={() => {
+                    setShowShiftModal(false);
+                    setNewShift({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Message Modal */}
       {showMessageModal && (
