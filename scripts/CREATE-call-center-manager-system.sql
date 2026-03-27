@@ -35,23 +35,8 @@ CREATE INDEX IF NOT EXISTS idx_operator_sessions_user_id ON operator_sessions(us
 CREATE INDEX IF NOT EXISTS idx_operator_sessions_is_active ON operator_sessions(is_active);
 CREATE INDEX IF NOT EXISTS idx_operator_sessions_last_activity ON operator_sessions(last_activity DESC);
 
--- טבלת משמרות כוננים מכלול
-CREATE TABLE IF NOT EXISTS on_call_shifts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  shift_date DATE NOT NULL,
-  shift_type TEXT CHECK (shift_type IN ('יום', 'לילה', '24 שעות')) DEFAULT 'יום',
-  start_time TIME NOT NULL,
-  end_time TIME NOT NULL,
-  notes TEXT,
-  created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT now(),
-  updated_at TIMESTAMPTZ DEFAULT now()
-);
-
--- אינדקסים למשמרות כוננים
-CREATE INDEX IF NOT EXISTS idx_on_call_shifts_user_id ON on_call_shifts(user_id);
-CREATE INDEX IF NOT EXISTS idx_on_call_shifts_date ON on_call_shifts(shift_date);
+-- הערה: משמרות כוננים משתמשות בטבלה duty_roster הקיימת
+-- duty_roster מנוהלת ב-/admin ומנהלת המוקד יכולה לערוך אותה
 
 -- טבלת הודעות למוקדנים
 CREATE TABLE IF NOT EXISTS operator_messages (
@@ -83,16 +68,10 @@ CREATE TRIGGER update_operator_tasks_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
 
-DROP TRIGGER IF EXISTS update_on_call_shifts_updated_at ON on_call_shifts;
-CREATE TRIGGER update_on_call_shifts_updated_at
-  BEFORE UPDATE ON on_call_shifts
-  FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
 
 -- RLS Policies
 ALTER TABLE operator_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE operator_sessions ENABLE ROW LEVEL SECURITY;
-ALTER TABLE on_call_shifts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE operator_messages ENABLE ROW LEVEL SECURITY;
 
 -- משימות: מנהלת מוקד יכולה לראות ולערוך הכל, מוקדן רואה רק את שלו
@@ -147,22 +126,7 @@ CREATE POLICY "משתמש יכול לעדכן סשן משלו"
   ON operator_sessions FOR UPDATE
   USING (user_id = auth.uid());
 
--- משמרות כוננים: מנהלת מוקד ואדמין יכולים להוסיף ולערוך, כולם יכולים לראות
-DROP POLICY IF EXISTS "כולם רואים משמרות כוננים" ON on_call_shifts;
-CREATE POLICY "כולם רואים משמרות כוננים"
-  ON on_call_shifts FOR SELECT
-  USING (true);
-
-DROP POLICY IF EXISTS "מנהלת מוקד ואדמין יכולים לנהל משמרות" ON on_call_shifts;
-CREATE POLICY "מנהלת מוקד ואדמין יכולים לנהל משמרות"
-  ON on_call_shifts FOR ALL
-  USING (
-    EXISTS (
-      SELECT 1 FROM user_profiles
-      WHERE user_profiles.id = auth.uid()
-      AND user_profiles.role IN ('call_center_manager', 'admin')
-    )
-  );
+-- הערה: RLS policies עבור duty_roster כבר קיימים במערכת
 
 -- הודעות: מנהלת מוקד יכולה ליצור, כולם יכולים לראות
 DROP POLICY IF EXISTS "כולם רואים הודעות" ON operator_messages;
@@ -183,5 +147,4 @@ CREATE POLICY "מנהלת מוקד יכולה ליצור הודעות"
 
 COMMENT ON TABLE operator_tasks IS 'משימות למוקדנים - ניהול ע"י מנהלת מוקד';
 COMMENT ON TABLE operator_sessions IS 'סשנים פעילים של מוקדנים - למעקב מי מחובר';
-COMMENT ON TABLE on_call_shifts IS 'משמרות כוננים מכלול - ניהול משמרות';
 COMMENT ON TABLE operator_messages IS 'הודעות למוקדנים מהמנהלת';

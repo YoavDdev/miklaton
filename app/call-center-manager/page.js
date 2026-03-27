@@ -14,12 +14,14 @@ export default function CallCenterManagerPage() {
   const [sessions, setSessions] = useState([]);
   const [shifts, setShifts] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [departments, setDepartments] = useState([]);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [messageText, setMessageText] = useState('');
   const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
-  const [newShift, setNewShift] = useState({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
+  const [newShift, setNewShift] = useState({ contact_id: '', department_id: '', day_of_week: 0, start_hour: 8, end_hour: 16, notes: '' });
 
   useEffect(() => {
     checkAuth();
@@ -33,6 +35,8 @@ export default function CallCenterManagerPage() {
     loadTasks();
     loadShifts();
     loadAllUsers();
+    loadContacts();
+    loadDepartments();
   };
 
   const checkAuth = async () => {
@@ -109,6 +113,34 @@ export default function CallCenterManagerPage() {
       }
     } catch (error) {
       console.error('Error loading users:', error);
+    }
+  };
+
+  const loadContacts = async () => {
+    try {
+      const res = await fetch('/api/contacts', {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setContacts(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading contacts:', error);
+    }
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const res = await fetch('/api/departments', {
+        credentials: 'include'
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDepartments(data.data || []);
+      }
+    } catch (error) {
+      console.error('Error loading departments:', error);
     }
   };
 
@@ -200,8 +232,8 @@ export default function CallCenterManagerPage() {
   };
 
   const handleCreateShift = async () => {
-    if (!newShift.user_id || !newShift.shift_date) {
-      toast.error('נא למלא כל השדות');
+    if (!newShift.contact_id || !newShift.department_id) {
+      toast.error('נא לבחור איש קשר ומכלול');
       return;
     }
 
@@ -214,16 +246,16 @@ export default function CallCenterManagerPage() {
       });
 
       if (res.ok) {
-        toast.success('משמרת נוצרה בהצלחה! �');
+        toast.success('כוננות נוצרה בהצלחה! 🕐');
         setShowShiftModal(false);
-        setNewShift({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
+        setNewShift({ contact_id: '', department_id: '', day_of_week: 0, start_hour: 8, end_hour: 16, notes: '' });
         loadShifts();
       } else {
-        toast.error('שגיאה ביצירת משמרת');
+        toast.error('שגיאה ביצירת כוננות');
       }
     } catch (error) {
       console.error('Error creating shift:', error);
-      toast.error('שגיאה ביצירת משמרת');
+      toast.error('שגיאה ביצירת כוננות');
     }
   };
 
@@ -537,9 +569,9 @@ export default function CallCenterManagerPage() {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">תאריך</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">משתמש</th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">סוג משמרת</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">יום</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">איש קשר</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">מכלול</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">שעות</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">הערות</th>
                   </tr>
@@ -548,35 +580,35 @@ export default function CallCenterManagerPage() {
                   {shifts.length === 0 ? (
                     <tr>
                       <td colSpan="5" className="px-6 py-8 text-center text-gray-500">
-                        אין משמרות מתוכננות. לחץ על "משמרת חדשה" כדי ליצור.
+                        אין כוננויות מתוכננות. לחץ על "משמרת חדשה" כדי ליצור.
                       </td>
                     </tr>
                   ) : (
-                    shifts.map((shift) => (
-                      <tr key={shift.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          {new Date(shift.shift_date).toLocaleDateString('he-IL')}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                          {shift.user?.full_name || 'לא ידוע'}
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                            shift.shift_type === 'יום' ? 'bg-yellow-100 text-yellow-800' :
-                            shift.shift_type === 'לילה' ? 'bg-indigo-100 text-indigo-800' :
-                            'bg-purple-100 text-purple-800'
-                          }`}>
-                            {shift.shift_type}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                          {shift.start_time} - {shift.end_time}
-                        </td>
-                        <td className="px-6 py-4 text-sm text-gray-600">
-                          {shift.notes || '-'}
-                        </td>
-                      </tr>
-                    ))
+                    shifts.map((shift) => {
+                      const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+                      const is24Hours = shift.start_hour === shift.end_hour;
+                      return (
+                        <tr key={shift.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                            {dayNames[shift.day_of_week]}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            {shift.contact?.full_name || 'לא ידוע'}
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm">
+                            <span className="px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              {shift.department?.name || 'לא ידוע'}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                            {is24Hours ? '24 שעות' : `${String(shift.start_hour).padStart(2, '0')}:00 - ${String(shift.end_hour).padStart(2, '0')}:00`}
+                          </td>
+                          <td className="px-6 py-4 text-sm text-gray-600">
+                            {shift.notes || '-'}
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
@@ -746,11 +778,11 @@ export default function CallCenterManagerPage() {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
             <div className="flex justify-between items-start mb-4">
-              <h3 className="text-lg font-bold text-gray-900">יצירת משמרת כוננות</h3>
+              <h3 className="text-lg font-bold text-gray-900">יצירת כוננות</h3>
               <button
                 onClick={() => {
                   setShowShiftModal(false);
-                  setNewShift({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
+                  setNewShift({ contact_id: '', department_id: '', day_of_week: 0, start_hour: 8, end_hour: 16, notes: '' });
                 }}
                 className="text-gray-400 hover:text-gray-600"
               >
@@ -762,61 +794,75 @@ export default function CallCenterManagerPage() {
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">משתמש *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">איש קשר *</label>
                 <select
-                  value={newShift.user_id}
-                  onChange={(e) => setNewShift({...newShift, user_id: e.target.value})}
+                  value={newShift.contact_id}
+                  onChange={(e) => setNewShift({...newShift, contact_id: e.target.value})}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
                 >
-                  <option value="">בחר משתמש</option>
-                  {allUsers.map(user => (
-                    <option key={user.id} value={user.id}>{user.full_name} ({user.role})</option>
+                  <option value="">בחר איש קשר</option>
+                  {contacts.map(contact => (
+                    <option key={contact.id} value={contact.id}>{contact.full_name} - {contact.role}</option>
                   ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">מכלול *</label>
+                <select
+                  value={newShift.department_id}
+                  onChange={(e) => setNewShift({...newShift, department_id: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                >
+                  <option value="">בחר מכלול</option>
+                  {departments.map(dept => (
+                    <option key={dept.id} value={dept.id}>{dept.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">יום בשבוע *</label>
+                <select
+                  value={newShift.day_of_week}
+                  onChange={(e) => setNewShift({...newShift, day_of_week: parseInt(e.target.value)})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                >
+                  <option value="0">ראשון</option>
+                  <option value="1">שני</option>
+                  <option value="2">שלישי</option>
+                  <option value="3">רביעי</option>
+                  <option value="4">חמישי</option>
+                  <option value="5">שישי</option>
+                  <option value="6">שבת</option>
                 </select>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">תאריך *</label>
-                  <input
-                    type="date"
-                    value={newShift.shift_date}
-                    onChange={(e) => setNewShift({...newShift, shift_date: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">סוג משמרת</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">שעת התחלה</label>
                   <select
-                    value={newShift.shift_type}
-                    onChange={(e) => setNewShift({...newShift, shift_type: e.target.value})}
+                    value={newShift.start_hour}
+                    onChange={(e) => setNewShift({...newShift, start_hour: parseInt(e.target.value)})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
                   >
-                    <option value="יום">יום</option>
-                    <option value="לילה">לילה</option>
-                    <option value="24 שעות">24 שעות</option>
+                    {[...Array(24)].map((_, i) => (
+                      <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
+                    ))}
                   </select>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">שעת התחלה</label>
-                  <input
-                    type="time"
-                    value={newShift.start_time}
-                    onChange={(e) => setNewShift({...newShift, start_time: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
-                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">שעת סיום</label>
-                  <input
-                    type="time"
-                    value={newShift.end_time}
-                    onChange={(e) => setNewShift({...newShift, end_time: e.target.value})}
+                  <select
+                    value={newShift.end_hour}
+                    onChange={(e) => setNewShift({...newShift, end_hour: parseInt(e.target.value)})}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
-                  />
+                  >
+                    {[...Array(24)].map((_, i) => (
+                      <option key={i} value={i}>{String(i).padStart(2, '0')}:00</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">טיפ: עבור 24 שעות, בחר אותה שעה בהתחלה ובסיום</p>
                 </div>
               </div>
 
@@ -841,7 +887,7 @@ export default function CallCenterManagerPage() {
                 <button
                   onClick={() => {
                     setShowShiftModal(false);
-                    setNewShift({ user_id: '', shift_date: '', shift_type: 'יום', start_time: '08:00', end_time: '16:00', notes: '' });
+                    setNewShift({ contact_id: '', department_id: '', day_of_week: 0, start_hour: 8, end_hour: 16, notes: '' });
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium"
                 >
