@@ -54,7 +54,6 @@ export default function OperatorTasks() {
   };
 
   const pendingTasks = tasks.filter(t => t.status !== 'הושלם');
-  const completedTasks = tasks.filter(t => t.status === 'הושלם');
 
   if (loading) {
     return (
@@ -81,14 +80,13 @@ export default function OperatorTasks() {
       </div>
 
       <div className="p-6 space-y-4">
-        {tasks.length === 0 ? (
+        {pendingTasks.length === 0 ? (
           <div className="text-center py-8 text-gray-500">
-            <p className="text-lg">אין משימות כרגע 🎉</p>
+            <p className="text-lg">אין משימות פתוחות 🎉</p>
             <p className="text-sm mt-2">כל המשימות הושלמו!</p>
           </div>
         ) : (
-          <>
-            {/* Pending Tasks */}
+          <div className="space-y-3">
             {pendingTasks.length > 0 && (
               <div className="space-y-3">
                 <h3 className="font-bold text-gray-700 text-lg border-b pb-2">פעילות פתוחות</h3>
@@ -144,30 +142,7 @@ export default function OperatorTasks() {
                 ))}
               </div>
             )}
-
-            {/* Completed Tasks */}
-            {completedTasks.length > 0 && (
-              <div className="space-y-3 mt-6">
-                <h3 className="font-bold text-gray-700 text-lg border-b pb-2">הושלמו היום</h3>
-                {completedTasks.map((task) => (
-                  <div
-                    key={task.id}
-                    className="bg-green-50 border-r-4 border-green-500 p-4 rounded-lg shadow-sm opacity-75"
-                  >
-                    <div className="flex justify-between items-start">
-                      <h4 className="font-bold text-gray-900 line-through">{task.title}</h4>
-                      <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        ✅ הושלם
-                      </span>
-                    </div>
-                    <span className="text-xs text-gray-500 block mt-2">
-                      הושלם: {new Date(task.completed_at || task.updated_at).toLocaleString('he-IL')}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </>
+          </div>
         )}
       </div>
     </div>

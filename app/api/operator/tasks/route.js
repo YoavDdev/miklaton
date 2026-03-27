@@ -165,3 +165,42 @@ export async function PUT(request) {
     return NextResponse.json({ error: 'שגיאה בשרת' }, { status: 500 });
   }
 }
+
+// DELETE - מחיקת משימה (רק מנהלת מוקד)
+export async function DELETE(request) {
+  try {
+    const token = request.cookies.get('auth-token')?.value;
+    const decoded = verifyToken(token);
+
+    if (!decoded) {
+      return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
+    }
+
+    if (decoded.role !== 'call_center_manager' && decoded.role !== 'admin') {
+      return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get('id');
+
+    if (!id) {
+      return NextResponse.json({ error: 'חסר ID של משימה' }, { status: 400 });
+    }
+
+    const { error } = await supabase
+      .from('operator_tasks')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting task:', error);
+      return NextResponse.json({ error: 'שגיאה במחיקת משימה' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true, message: 'משימה נמחקה בהצלחה' });
+
+  } catch (error) {
+    console.error('Delete task error:', error);
+    return NextResponse.json({ error: 'שגיאה בשרת' }, { status: 500 });
+  }
+}

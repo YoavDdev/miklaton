@@ -228,6 +228,29 @@ export default function CallCenterManagerPage() {
     }
   };
 
+  const handleDeleteTask = async (taskId, taskTitle) => {
+    if (!confirm(`האם אתה בטוח שברצונך למחוק את המשימה "${taskTitle}"?`)) {
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/operator/tasks?id=${taskId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (res.ok) {
+        toast.success('משימה נמחקה בהצלחה! 🗑️');
+        loadTasks();
+      } else {
+        toast.error('שגיאה במחיקת משימה');
+      }
+    } catch (error) {
+      console.error('Error deleting task:', error);
+      toast.error('שגיאה במחיקת משימה');
+    }
+  };
+
 
   const handleLogout = async () => {
     try {
@@ -515,15 +538,23 @@ export default function CallCenterManagerPage() {
                           {new Date(task.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button
-                            onClick={() => {
-                              setEditingTask(task);
-                              setShowEditTaskModal(true);
-                            }}
-                            className="text-blue-600 hover:text-blue-800 font-medium"
-                          >
-                            ✏️ ערוך
-                          </button>
+                          <div className="flex gap-3">
+                            <button
+                              onClick={() => {
+                                setEditingTask(task);
+                                setShowEditTaskModal(true);
+                              }}
+                              className="text-blue-600 hover:text-blue-800 font-medium"
+                            >
+                              ✏️ ערוך
+                            </button>
+                            <button
+                              onClick={() => handleDeleteTask(task.id, task.title)}
+                              className="text-red-600 hover:text-red-800 font-medium"
+                            >
+                              🗑️ מחק
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))
