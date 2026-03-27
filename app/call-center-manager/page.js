@@ -26,6 +26,32 @@ export default function CallCenterManagerPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // עדכון operators כאשר sessions או tasks משתנים
+  useEffect(() => {
+    if (sessions.length > 0) {
+      const operatorsData = sessions.map(session => {
+        const userTasks = tasks.filter(t => t.assigned_to === session.user_id);
+        const tasksOpen = userTasks.filter(t => t.status !== 'הושלם').length;
+        const tasksCompleted = userTasks.filter(t => t.status === 'הושלם').length;
+        
+        const lastActivity = new Date(session.last_activity);
+        const minutesAgo = Math.floor((Date.now() - lastActivity) / 60000);
+        const lastActiveText = minutesAgo < 1 ? 'עכשיו' : minutesAgo < 60 ? `${minutesAgo} דק'` : `${Math.floor(minutesAgo / 60)} שעות`;
+        
+        return {
+          id: session.user_id,
+          full_name: session.user?.full_name || 'לא ידוע',
+          role: session.user?.role || '',
+          status: 'פעיל',
+          tasksOpen,
+          tasksCompleted,
+          lastActive: lastActiveText
+        };
+      });
+      setOperators(operatorsData);
+    }
+  }, [sessions, tasks]);
+
   const loadData = () => {
     loadSessions();
     loadTasks();
@@ -67,28 +93,6 @@ export default function CallCenterManagerPage() {
       if (res.ok) {
         const data = await res.json();
         setSessions(data.sessions || []);
-        
-        // המר סשנים למוקדנים עם סטטיסטיקות
-        const operatorsData = (data.sessions || []).map(session => {
-          const userTasks = tasks.filter(t => t.assigned_to === session.user_id);
-          const tasksOpen = userTasks.filter(t => t.status !== 'הושלם').length;
-          const tasksCompleted = userTasks.filter(t => t.status === 'הושלם').length;
-          
-          const lastActivity = new Date(session.last_activity);
-          const minutesAgo = Math.floor((Date.now() - lastActivity) / 60000);
-          const lastActiveText = minutesAgo < 1 ? 'עכשיו' : minutesAgo < 60 ? `${minutesAgo} דק'` : `${Math.floor(minutesAgo / 60)} שעות`;
-          
-          return {
-            id: session.user_id,
-            full_name: session.user?.full_name || 'לא ידוע',
-            role: session.user?.role || '',
-            status: 'פעיל',
-            tasksOpen,
-            tasksCompleted,
-            lastActive: lastActiveText
-          };
-        });
-        setOperators(operatorsData);
       }
     } catch (error) {
       console.error('Error loading sessions:', error);
