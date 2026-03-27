@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import EditShiftModal from './edit-shift-modal';
+import OnCallManagerNew from '@/components/OnCallManagerNew';
 
 export default function CallCenterManagerPage() {
   const router = useRouter();
@@ -13,19 +13,11 @@ export default function CallCenterManagerPage() {
   const [operators, setOperators] = useState([]);
   const [tasks, setTasks] = useState([]);
   const [sessions, setSessions] = useState([]);
-  const [shifts, setShifts] = useState([]);
   const [allUsers, setAllUsers] = useState([]);
-  const [contacts, setContacts] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
-  const [showShiftModal, setShowShiftModal] = useState(false);
-  const [showEditShiftModal, setShowEditShiftModal] = useState(false);
-  const [selectedShift, setSelectedShift] = useState(null);
   const [messageText, setMessageText] = useState('');
   const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
-  const [newShift, setNewShift] = useState({ contact_id: '', department_id: '', day_of_week: 0, start_hour: 8, end_hour: 16, notes: '' });
-  const [editShift, setEditShift] = useState({ contact_id: '', department_id: '', day_of_week: 0, start_hour: 8, end_hour: 16, notes: '' });
 
   useEffect(() => {
     checkAuth();
@@ -37,10 +29,7 @@ export default function CallCenterManagerPage() {
   const loadData = () => {
     loadSessions();
     loadTasks();
-    loadShifts();
     loadAllUsers();
-    loadContacts();
-    loadDepartments();
   };
 
   const checkAuth = async () => {
@@ -120,34 +109,6 @@ export default function CallCenterManagerPage() {
     }
   };
 
-  const loadContacts = async () => {
-    try {
-      const res = await fetch('/api/contacts', {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setContacts(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading contacts:', error);
-    }
-  };
-
-  const loadDepartments = async () => {
-    try {
-      const res = await fetch('/api/departments', {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setDepartments(data.data || []);
-      }
-    } catch (error) {
-      console.error('Error loading departments:', error);
-    }
-  };
-
   const loadTasks = async () => {
     try {
       const res = await fetch('/api/operator/tasks', {
@@ -162,19 +123,6 @@ export default function CallCenterManagerPage() {
     }
   };
 
-  const loadShifts = async () => {
-    try {
-      const res = await fetch('/api/on-call-shifts', {
-        credentials: 'include'
-      });
-      if (res.ok) {
-        const data = await res.json();
-        setShifts(data.shifts || []);
-      }
-    } catch (error) {
-      console.error('Error loading shifts:', error);
-    }
-  };
 
   const handleSendMessage = async () => {
     if (!messageText.trim()) {
@@ -235,97 +183,6 @@ export default function CallCenterManagerPage() {
     }
   };
 
-  const handleCreateShift = async () => {
-    if (!newShift.contact_id || !newShift.department_id) {
-      toast.error('נא לבחור איש קשר ומכלול');
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/on-call-shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(newShift)
-      });
-
-      if (res.ok) {
-        toast.success('כוננות נוצרה בהצלחה! 🕐');
-        setShowShiftModal(false);
-        setNewShift({ contact_id: '', department_id: '', day_of_week: 0, start_hour: 8, end_hour: 16, notes: '' });
-        loadShifts();
-      } else {
-        toast.error('שגיאה ביצירת כוננות');
-      }
-    } catch (error) {
-      console.error('Error creating shift:', error);
-      toast.error('שגיאה ביצירת כוננות');
-    }
-  };
-
-  const handleUpdateShift = async () => {
-    if (!editShift.contact_id || !editShift.department_id) {
-      toast.error('נא למלא כל השדות');
-      return;
-    }
-
-    try {
-      const res = await fetch('/api/on-call-shifts', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({ id: selectedShift.id, ...editShift })
-      });
-
-      if (res.ok) {
-        toast.success('כוננות עודכנה בהצלחה! ✅');
-        setShowEditShiftModal(false);
-        setSelectedShift(null);
-        loadShifts();
-      } else {
-        toast.error('שגיאה בעדכון כוננות');
-      }
-    } catch (error) {
-      console.error('Error updating shift:', error);
-      toast.error('שגיאה בעדכון כוננות');
-    }
-  };
-
-  const handleDeleteShift = async (shiftId) => {
-    if (!confirm('האם אתה בטוח שברצונך למחוק כוננות זו?')) return;
-
-    try {
-      const res = await fetch(`/api/on-call-shifts?id=${shiftId}`, {
-        method: 'DELETE',
-        credentials: 'include'
-      });
-
-      if (res.ok) {
-        toast.success('כוננות נמחקה! 🗑️');
-        setShowEditShiftModal(false);
-        setSelectedShift(null);
-        loadShifts();
-      } else {
-        toast.error('שגיאה במחיקת כוננות');
-      }
-    } catch (error) {
-      console.error('Error deleting shift:', error);
-      toast.error('שגיאה במחיקת כוננות');
-    }
-  };
-
-  const handleShiftClick = (shift) => {
-    setSelectedShift(shift);
-    setEditShift({
-      contact_id: shift.contact_id,
-      department_id: shift.department_id,
-      day_of_week: shift.day_of_week,
-      start_hour: shift.start_hour,
-      end_hour: shift.end_hour,
-      notes: shift.notes || ''
-    });
-    setShowEditShiftModal(true);
-  };
 
   const handleLogout = async () => {
     try {
@@ -622,76 +479,7 @@ export default function CallCenterManagerPage() {
 
         {/* Tab Content - Shifts */}
         {activeTab === 'shifts' && (
-          <div className="bg-white rounded-lg shadow">
-            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-              <h2 className="text-xl font-bold text-gray-900">לוח כוננויות שבועי</h2>
-              <button
-                onClick={() => setShowShiftModal(true)}
-                className="px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium flex items-center gap-2"
-              >
-                ➕ כוננות חדשה
-              </button>
-            </div>
-            
-            <div className="p-6">
-              {/* Weekly Calendar Grid */}
-              <div className="grid grid-cols-7 gap-2">
-                {['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'].map((dayName, dayIndex) => {
-                  const dayShifts = shifts.filter(s => s.day_of_week === dayIndex);
-                  return (
-                    <div key={dayIndex} className="border border-gray-200 rounded-lg min-h-[300px]">
-                      <div className={`p-3 font-bold text-center border-b ${
-                        dayIndex === 5 ? 'bg-blue-50 text-blue-900' : 
-                        dayIndex === 6 ? 'bg-purple-50 text-purple-900' : 
-                        'bg-gray-50 text-gray-900'
-                      }`}>
-                        {dayName}
-                      </div>
-                      <div className="p-2 space-y-2">
-                        {dayShifts.length === 0 ? (
-                          <div className="text-center text-gray-400 text-sm py-8">אין כוננויות</div>
-                        ) : (
-                          dayShifts.map((shift) => {
-                            const is24Hours = shift.start_hour === shift.end_hour;
-                            return (
-                              <div
-                                key={shift.id}
-                                onClick={() => handleShiftClick(shift)}
-                                className="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded p-2 cursor-pointer hover:shadow-md transition-shadow"
-                              >
-                                <div className="text-xs font-bold text-blue-900 mb-1">
-                                  {is24Hours ? '24 שעות' : `${String(shift.start_hour).padStart(2, '0')}:00-${String(shift.end_hour).padStart(2, '0')}:00`}
-                                </div>
-                                <div className="text-xs text-blue-800 font-medium">
-                                  {shift.contact?.full_name || 'לא ידוע'}
-                                </div>
-                                <div className="text-xs text-blue-600 mt-1">
-                                  {shift.department?.name || 'לא ידוע'}
-                                </div>
-                                {shift.notes && (
-                                  <div className="text-xs text-blue-500 mt-1 italic truncate">
-                                    {shift.notes}
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-              
-              {shifts.length === 0 && (
-                <div className="text-center py-12 text-gray-500">
-                  <div className="text-5xl mb-4">📅</div>
-                  <p className="text-lg font-medium">אין כוננויות מתוכננות</p>
-                  <p className="text-sm mt-2">לחץ על "כוננות חדשה" כדי ליצור</p>
-                </div>
-              )}
-            </div>
-          </div>
+          <OnCallManagerNew />
         )}
 
         {/* Tab Content - Reports */}
