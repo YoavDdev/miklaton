@@ -179,7 +179,9 @@ export default function CallCenterManagerPage() {
         setNewTask({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
         loadTasks();
       } else {
-        toast.error('שגיאה ביצירת משימה');
+        const errorData = await res.json();
+        console.error('Task creation error:', errorData);
+        toast.error(errorData.error || 'שגיאה ביצירת משימה');
       }
     } catch (error) {
       console.error('Error creating task:', error);
