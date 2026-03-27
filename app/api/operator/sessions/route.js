@@ -20,16 +20,9 @@ export async function GET(request) {
     // רק מוקדנים פעילים - סשן שהיה פעיל ב-15 דקות האחרונות
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
 
-    const { data, error } = await supabase
+    const { data: sessions, error } = await supabase
       .from('operator_sessions')
-      .select(`
-        *,
-        user:user_id(
-          id,
-          full_name,
-          role
-        )
-      `)
+      .select('*')
       .eq('is_active', true)
       .gte('last_activity', fifteenMinutesAgo)
       .order('last_activity', { ascending: false });
@@ -39,7 +32,24 @@ export async function GET(request) {
       return NextResponse.json({ error: 'שגיאה בטעינת סשנים' }, { status: 500 });
     }
 
-    return NextResponse.json({ sessions: data || [] });
+    // שלוף מידע משתמשים בנפרד
+    if (sessions && sessions.length > 0) {
+      const userIds = sessions.map(s => s.user_id);
+      const { data: users } = await supabase
+        .from('user_profiles')
+        .select('id, full_name, role')
+        .in('id', userIds);
+
+      // צרף מידע משתמש לכל סשן
+      const enrichedSessions = sessions.map(session => ({
+        ...session,
+        user: users?.find(u => u.id === session.user_id) || null
+      }));
+
+      return NextResponse.json({ sessions: enrichedSessions });
+    }
+
+    return NextResponse.json({ sessions: [] });
 
   } catch (error) {
     console.error('Sessions API error:', error);
