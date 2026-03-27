@@ -223,6 +223,12 @@ export default function AdminUsersPage() {
 
   const handleResetPassword = async (userId) => {
     try {
+      const user = users.find(u => u.id === userId);
+      if (!user) {
+        toast.error('משתמש לא נמצא');
+        return;
+      }
+
       const res = await fetch(`/api/admin/users/${userId}/reset-password`, {
         method: 'POST',
         credentials: 'include'
