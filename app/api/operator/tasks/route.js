@@ -23,11 +23,7 @@ export async function GET(request) {
 
     let query = supabase
       .from('operator_tasks')
-      .select(`
-        *,
-        assigned_user:assigned_to(id, full_name),
-        created_user:created_by(id, full_name)
-      `)
+      .select('*')
       .order('created_at', { ascending: false });
 
     // מנהלת מוקד רואה הכל, מוקדן רק את שלו
@@ -43,14 +39,35 @@ export async function GET(request) {
       query = query.eq('assigned_to', assignedTo);
     }
 
-    const { data, error } = await query;
+    const { data: tasks, error } = await query;
 
     if (error) {
       console.error('Error fetching tasks:', error);
       return NextResponse.json({ error: 'שגיאה בטעינת משימות' }, { status: 500 });
     }
 
-    return NextResponse.json({ tasks: data });
+    // שלוף מידע משתמשים בנפרד
+    if (tasks && tasks.length > 0) {
+      const userIds = [...new Set([...tasks.map(t => t.assigned_to), ...tasks.map(t => t.created_by)].filter(Boolean))];
+      
+      if (userIds.length > 0) {
+        const { data: users } = await supabase
+          .from('user_profiles')
+          .select('id, full_name')
+          .in('id', userIds);
+
+        // צרף מידע משתמשים למשימות
+        const enrichedTasks = tasks.map(task => ({
+          ...task,
+          assigned_user: users?.find(u => u.id === task.assigned_to) || null,
+          created_user: users?.find(u => u.id === task.created_by) || null
+        }));
+
+        return NextResponse.json({ tasks: enrichedTasks });
+      }
+    }
+
+    return NextResponse.json({ tasks: tasks || [] });
 
   } catch (error) {
     console.error('Tasks API error:', error);
