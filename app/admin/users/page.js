@@ -13,6 +13,7 @@ export default function AdminUsersPage() {
   const [tempPassword, setTempPassword] = useState('');
   const [newRole, setNewRole] = useState('');
   const [newDepartmentId, setNewDepartmentId] = useState('');
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
   
   // State for create user modal
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -237,6 +238,33 @@ export default function AdminUsersPage() {
       setSelectedUser({ ...user, ...data });
       setShowModal('password-reset');
       toast.success('סיסמה זמנית נוצרה! 🔐');
+    } catch (err) {
+      toast.error(err.message);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast.error('נא להקליד DELETE בדיוק כדי לאשר מחיקה');
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/admin/users/${selectedUser.id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (!res.ok) {
+        const data = await res.json();
+        throw new Error(data.error || 'שגיאה במחיקת משתמש');
+      }
+
+      toast.success('משתמש נמחק בהצלחה! 🗑️');
+      setShowModal(null);
+      setSelectedUser(null);
+      setDeleteConfirmText('');
+      fetchUsers();
     } catch (err) {
       toast.error(err.message);
     }
@@ -492,6 +520,16 @@ export default function AdminUsersPage() {
                               className="text-orange-600 hover:text-orange-900 font-medium"
                             >
                               השעה
+                            </button>
+                            <button
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setDeleteConfirmText('');
+                                setShowModal('delete-user');
+                              }}
+                              className="text-red-600 hover:text-red-900 font-medium"
+                            >
+                              מחיקה
                             </button>
                           </>
                         )}
@@ -895,6 +933,92 @@ export default function AdminUsersPage() {
                   className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium transition-colors"
                 >
                   ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Delete User Modal */}
+      {showModal === 'delete-user' && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-bold text-red-600">⚠️ אזהרה - מחיקת משתמש</h3>
+              <button
+                onClick={() => {
+                  setShowModal(null);
+                  setSelectedUser(null);
+                  setDeleteConfirmText('');
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                <p className="text-sm text-red-800 font-bold mb-2">
+                  🚨 פעולה בלתי הפיכה!
+                </p>
+                <p className="text-sm text-red-700 mb-2">
+                  אתה עומד למחוק את המשתמש:
+                </p>
+                <div className="bg-white rounded p-2 mb-2">
+                  <p className="text-sm font-bold text-gray-900">{selectedUser?.full_name}</p>
+                  <p className="text-xs text-gray-600">{selectedUser?.email}</p>
+                  <p className="text-xs text-gray-600">תפקיד: {selectedUser?.role}</p>
+                </div>
+                <p className="text-sm text-red-700">
+                  ⚠️ כל הנתונים של המשתמש יימחקו לצמיתות!
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-bold text-gray-900 mb-2">
+                  כדי לאשר, הקלד <span className="text-red-600 font-mono">DELETE</span> בדיוק:
+                </label>
+                <input
+                  type="text"
+                  value={deleteConfirmText}
+                  onChange={(e) => setDeleteConfirmText(e.target.value)}
+                  className="w-full px-3 py-2 border-2 border-red-300 rounded-md focus:ring-red-500 focus:border-red-500 font-mono"
+                  placeholder="הקלד DELETE"
+                  autoFocus
+                />
+                {deleteConfirmText && deleteConfirmText !== 'DELETE' && (
+                  <p className="text-xs text-red-600 mt-1">
+                    ❌ יש להקליד DELETE באותיות גדולות בדיוק
+                  </p>
+                )}
+                {deleteConfirmText === 'DELETE' && (
+                  <p className="text-xs text-green-600 mt-1">
+                    ✅ אישור נכון
+                  </p>
+                )}
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={() => {
+                    setShowModal(null);
+                    setSelectedUser(null);
+                    setDeleteConfirmText('');
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 font-medium"
+                >
+                  ביטול
+                </button>
+                <button
+                  onClick={handleDeleteUser}
+                  disabled={deleteConfirmText !== 'DELETE'}
+                  className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
+                >
+                  🗑️ מחק לצמיתות
                 </button>
               </div>
             </div>
