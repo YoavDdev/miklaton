@@ -107,6 +107,12 @@ export default function OperatorPage() {
               )}
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => router.push('/profile')}
+                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
+              >
+                👤 האיזור האישי
+              </button>
               <a
                 href="/on-call"
                 className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"

@@ -181,8 +181,14 @@ export default function CallCenterManagerPage() {
             </div>
             <div className="flex gap-3">
               <button
+                onClick={() => router.push('/profile')}
+                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md font-medium transition-colors flex items-center gap-2"
+              >
+                👤 האיזור האישי
+              </button>
+              <button
                 onClick={() => setShowMessageModal(true)}
-                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-md font-medium transition-colors flex items-center gap-2"
+                className="px-4 py-2 bg-purple-700 hover:bg-purple-800 rounded-md font-medium transition-colors flex items-center gap-2"
               >
                 📢 שלח הודעה
               </button>

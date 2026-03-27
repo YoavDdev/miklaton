@@ -703,6 +703,12 @@ export default function SectorManagerPage() {
             
             <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
               <button
+                onClick={() => router.push('/profile')}
+                className="flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 bg-green-500/80 hover:bg-green-600/80 rounded-lg font-medium transition-all active:scale-95 sm:hover:scale-105 backdrop-blur-sm text-sm sm:text-base"
+              >
+                👤 <span className="hidden sm:inline">האיזור האישי שלי</span>
+              </button>
+              <button
                 onClick={() => router.push('/dashboard')}
                 className="flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-all active:scale-95 sm:hover:scale-105 backdrop-blur-sm text-sm sm:text-base"
               >
