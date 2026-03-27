@@ -7,15 +7,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY // Service role for admin operations
 );
 
-// GET - רשימת כל המשתמשים (Admin בלבד)
+// GET - רשימת כל המשתמשים (Admin או מנהלת מוקד)
 export async function GET(request) {
   try {
     const token = request.cookies.get('auth-token')?.value;
     const decoded = verifyToken(token);
 
-    if (!decoded || decoded.role !== 'admin') {
+    if (!decoded || (decoded.role !== 'admin' && decoded.role !== 'call_center_manager')) {
       return NextResponse.json(
-        { error: 'אין הרשאה - נדרש Admin' },
+        { error: 'אין הרשאה - נדרש Admin או מנהלת מוקד' },
         { status: 403 }
       );
     }
