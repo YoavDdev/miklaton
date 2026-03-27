@@ -36,6 +36,44 @@ export default function OperatorPage() {
       } catch {}
     };
     checkAdminStatus();
+
+    // Heartbeat - עדכון סשן פעיל כל 10 שניות
+    const sendHeartbeat = async () => {
+      try {
+        await fetch('/api/operator/sessions', {
+          method: 'POST',
+          credentials: 'include'
+        });
+      } catch (error) {
+        console.error('Heartbeat error:', error);
+      }
+    };
+
+    // שלח heartbeat מיידי
+    sendHeartbeat();
+
+    // המשך לשלוח כל 10 שניות
+    const heartbeatInterval = setInterval(sendHeartbeat, 10000);
+
+    // Cleanup - סיום סשן כשעוזבים את הדף
+    const handleBeforeUnload = async () => {
+      try {
+        await fetch('/api/operator/sessions', {
+          method: 'DELETE',
+          credentials: 'include',
+          keepalive: true
+        });
+      } catch {}
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      clearInterval(heartbeatInterval);
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      // ניסיון לסיים סשן
+      handleBeforeUnload();
+    };
   }, []);
 
   useEffect(() => {
