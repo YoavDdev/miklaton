@@ -4,7 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
 export async function PUT(request) {
@@ -82,10 +82,11 @@ export async function PUT(request) {
       }
     }
 
-    // עדכון סיסמה ב-Supabase Auth
-    const { error: updateError } = await supabase.auth.updateUser({
-      password: newPassword
-    });
+    // עדכון סיסמה ב-Supabase Auth באמצעות admin API
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      decoded.userId,
+      { password: newPassword }
+    );
 
     if (updateError) {
       console.error('Password update error:', updateError);
@@ -94,6 +95,12 @@ export async function PUT(request) {
         { status: 500 }
       );
     }
+
+    // עדכון must_change_password ל-false ב-user_profiles
+    await supabase
+      .from('user_profiles')
+      .update({ must_change_password: false })
+      .eq('id', decoded.userId);
 
     // אם זה היה איפוס - לסמן שהאיפוס נוצל
     if (isPasswordReset) {
