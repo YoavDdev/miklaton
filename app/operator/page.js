@@ -9,6 +9,7 @@ import ShelterStatusManager from '@/components/ShelterStatusManager';
 import PrintableShelterList from '@/components/PrintableShelterList';
 import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
 import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
+import OperatorTasks from '@/components/OperatorTasks';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -178,6 +179,8 @@ export default function OperatorPage() {
 
       <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
         <ReadOnlyNotifications />
+        
+        <OperatorTasks />
         
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="space-y-6">

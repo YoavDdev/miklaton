@@ -16,6 +16,8 @@ export default function CallCenterManagerPage() {
   const [allUsers, setAllUsers] = useState([]);
   const [showMessageModal, setShowMessageModal] = useState(false);
   const [showTaskModal, setShowTaskModal] = useState(false);
+  const [showEditTaskModal, setShowEditTaskModal] = useState(false);
+  const [editingTask, setEditingTask] = useState(null);
   const [messageText, setMessageText] = useState('');
   const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
 
@@ -191,6 +193,38 @@ export default function CallCenterManagerPage() {
     } catch (error) {
       console.error('Error creating task:', error);
       toast.error('שגיאה ביצירת משימה');
+    }
+  };
+
+  const handleEditTask = async () => {
+    if (!editingTask.title) {
+      toast.error('נא למלא שם משימה');
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/operator/tasks', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          id: editingTask.id,
+          status: editingTask.status,
+          notes: editingTask.notes
+        })
+      });
+
+      if (res.ok) {
+        toast.success('משימה עודכנה בהצלחה! ✅');
+        setShowEditTaskModal(false);
+        setEditingTask(null);
+        loadTasks();
+      } else {
+        toast.error('שגיאה בעדכון משימה');
+      }
+    } catch (error) {
+      console.error('Error updating task:', error);
+      toast.error('שגיאה בעדכון משימה');
     }
   };
 
@@ -440,6 +474,7 @@ export default function CallCenterManagerPage() {
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">עדיפות</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">סטטוס</th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">נוצר בשעה</th>
+                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">פעולות</th>
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
@@ -478,6 +513,17 @@ export default function CallCenterManagerPage() {
                       </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
                           {new Date(task.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm">
+                          <button
+                            onClick={() => {
+                              setEditingTask(task);
+                              setShowEditTaskModal(true);
+                            }}
+                            className="text-blue-600 hover:text-blue-800 font-medium"
+                          >
+                            ✏️ ערוך
+                          </button>
                         </td>
                       </tr>
                     ))
@@ -603,29 +649,18 @@ export default function CallCenterManagerPage() {
                 </select>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">עדיפות</label>
-                  <select
-                    value={newTask.priority}
-                    onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
-                  >
-                    <option value="דחוף">דחוף</option>
-                    <option value="גבוה">גבוה</option>
-                    <option value="בינוני">בינוני</option>
-                    <option value="נמוך">נמוך</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">תאריך יעד</label>
-                  <input
-                    type="date"
-                    value={newTask.due_date}
-                    onChange={(e) => setNewTask({...newTask, due_date: e.target.value})}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">עדיפות</label>
+                <select
+                  value={newTask.priority}
+                  onChange={(e) => setNewTask({...newTask, priority: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                >
+                  <option value="דחוף">דחוף</option>
+                  <option value="גבוה">גבוה</option>
+                  <option value="בינוני">בינוני</option>
+                  <option value="נמוך">נמוך</option>
+                </select>
               </div>
 
               <div className="flex gap-3 pt-4">
@@ -639,6 +674,77 @@ export default function CallCenterManagerPage() {
                   onClick={() => {
                     setShowTaskModal(false);
                     setNewTask({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
+                  }}
+                  className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Task Modal */}
+      {showEditTaskModal && editingTask && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-lg w-full p-6">
+            <div className="flex justify-between items-start mb-4">
+              <h3 className="text-lg font-bold text-gray-900">עריכת משימה</h3>
+              <button
+                onClick={() => {
+                  setShowEditTaskModal(false);
+                  setEditingTask(null);
+                }}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-gray-50 p-3 rounded-md">
+                <p className="text-sm text-gray-600">משימה: <span className="font-bold text-gray-900">{editingTask.title}</span></p>
+                <p className="text-sm text-gray-600 mt-1">מוקצה ל: <span className="font-bold text-gray-900">{editingTask.assigned_user?.full_name}</span></p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">סטטוס</label>
+                <select
+                  value={editingTask.status}
+                  onChange={(e) => setEditingTask({...editingTask, status: e.target.value})}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                >
+                  <option value="ממתין">ממתין</option>
+                  <option value="בטיפול">בטיפול</option>
+                  <option value="הושלם">הושלם</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">הערות</label>
+                <textarea
+                  value={editingTask.notes || ''}
+                  onChange={(e) => setEditingTask({...editingTask, notes: e.target.value})}
+                  rows={3}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-pink-500 focus:border-pink-500"
+                  placeholder="הערות נוספות..."
+                />
+              </div>
+
+              <div className="flex gap-3 pt-4">
+                <button
+                  onClick={handleEditTask}
+                  className="flex-1 px-4 py-2 bg-pink-600 text-white rounded-md hover:bg-pink-700 font-medium"
+                >
+                  ✅ עדכן משימה
+                </button>
+                <button
+                  onClick={() => {
+                    setShowEditTaskModal(false);
+                    setEditingTask(null);
                   }}
                   className="flex-1 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 font-medium"
                 >
