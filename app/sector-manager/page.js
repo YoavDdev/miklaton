@@ -862,15 +862,15 @@ export default function SectorManagerPage() {
 
             {/* Weekly Table */}
             <div className="bg-white border-2 border-purple-100 rounded-lg sm:rounded-xl overflow-hidden shadow-sm">
-              <div className="overflow-x-auto -mx-3 sm:mx-0">
-                <table className="w-full text-[10px] sm:text-xs">
-                    <thead>
+              <div className="overflow-x-auto -mx-3 sm:mx-0 max-h-[600px] overflow-y-auto">
+                <table className="w-full text-[10px] sm:text-xs relative">
+                    <thead className="sticky top-0 z-20">
                       <tr className="bg-gradient-to-l from-purple-50 to-blue-50">
-                        <th className="p-1.5 sm:p-3 text-right border-b-2 border-purple-200 font-bold text-gray-800 sticky right-0 bg-gradient-to-l from-purple-50 to-blue-50 min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm">
+                        <th className="p-1.5 sm:p-3 text-right border-b-2 border-purple-200 font-bold text-gray-800 sticky right-0 bg-gradient-to-l from-purple-50 to-blue-50 min-w-[80px] sm:min-w-[120px] text-xs sm:text-sm z-30">
                           <span className="hidden sm:inline">👤 שם הכונן</span><span className="sm:hidden">👤</span>
                         </th>
                         {DAYS_SHORT.map((d, i) => (
-                          <th key={i} className="p-1 sm:p-2 text-center border-b-2 border-purple-200 font-bold text-gray-700 min-w-[70px] sm:min-w-[100px]">
+                          <th key={i} className="p-1 sm:p-2 text-center border-b-2 border-purple-200 font-bold text-gray-700 min-w-[70px] sm:min-w-[100px] bg-gradient-to-l from-purple-50 to-blue-50">
                             <div className="text-xs sm:text-sm">{d}</div>
                             <div className="text-[9px] sm:text-[10px] font-normal text-gray-500 mt-0.5 hidden sm:block">{DAYS[i]}</div>
                             <div className="text-[10px] sm:text-xs font-bold text-purple-600 mt-0.5 sm:mt-1">{formatDate(weekDates[i])}</div>
@@ -948,6 +948,24 @@ export default function SectorManagerPage() {
                                             <span className="block sm:inline">{label}</span>
                                             {isSleep && <span className="ml-0.5">🏢</span>}
                                             <button
+                                              onClick={() => {
+                                                setEditData({
+                                                  dutyId: duty.id,
+                                                  contactId: duty.contact_id,
+                                                  dayIndex: dayIdx,
+                                                  usePreset: false,
+                                                  shiftType: 0,
+                                                  startHour: duty.start_hour,
+                                                  endHour: duty.end_hour,
+                                                  notes: duty.notes || ''
+                                                });
+                                                setShowEditModal(true);
+                                              }}
+                                              className="absolute -top-1 -right-1 w-5 h-5 sm:w-4 sm:h-4 bg-blue-500 text-white rounded-full text-[10px] sm:text-[8px] leading-none flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-md active:bg-blue-600 sm:hover:bg-blue-600"
+                                            >
+                                              ✏️
+                                            </button>
+                                            <button
                                               onClick={() => handleDeleteDuty(duty.id)}
                                               className="absolute -top-1 -left-1 w-5 h-5 sm:w-4 sm:h-4 bg-red-500 text-white rounded-full text-[10px] sm:text-[8px] leading-none flex items-center justify-center opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity shadow-md active:bg-red-600 sm:hover:bg-red-600"
                                             >
@@ -988,7 +1006,7 @@ export default function SectorManagerPage() {
                 </div>
               <div className="px-4 py-3 bg-gradient-to-l from-purple-50 to-blue-50 border-t-2 border-purple-100">
                 <p className="text-[11px] text-purple-700 font-semibold text-center">
-                  💡 לחץ על + כדי להוסיף משמרת | לחץ על ✕ כדי למחוק | 🏢 = לן בעירייה
+                  💡 לחץ על + כדי להוסיף משמרת | ✏️ לערוך | ✕ למחוק | 🏢 = לן בעירייה
                 </p>
               </div>
             </div>
@@ -1523,9 +1541,16 @@ export default function SectorManagerPage() {
                           onChange={(e) => setEditData({...editData, endHour: parseInt(e.target.value)})}
                           className="w-full px-3 py-2 border-2 border-blue-200 rounded-lg font-bold text-center"
                         >
-                          {Array.from({ length: 24 }, (_, h) => (
-                            <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-                          ))}
+                          <option value={0}>חצות (00:00 ביום למחרת) 🌙</option>
+                          {Array.from({ length: 23 }, (_, h) => {
+                            const hour = h + 1;
+                            const isNextDay = editData.startHour > hour;
+                            return (
+                              <option key={hour} value={hour}>
+                                {String(hour).padStart(2, '0')}:00{isNextDay ? ' ביום למחרת 🌅' : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
                     </div>
@@ -1716,9 +1741,16 @@ export default function SectorManagerPage() {
                           onChange={(e) => setQuickAddData({...quickAddData, endHour: parseInt(e.target.value)})}
                           className="w-full px-3 py-2 border-2 border-purple-200 rounded-lg font-bold text-center"
                         >
-                          {Array.from({ length: 24 }, (_, h) => (
-                            <option key={h} value={h}>{String(h).padStart(2, '0')}:00</option>
-                          ))}
+                          <option value={0}>חצות (00:00 ביום למחרת) 🌙</option>
+                          {Array.from({ length: 23 }, (_, h) => {
+                            const hour = h + 1;
+                            const isNextDay = quickAddData.startHour > hour;
+                            return (
+                              <option key={hour} value={hour}>
+                                {String(hour).padStart(2, '0')}:00{isNextDay ? ' ביום למחרת 🌅' : ''}
+                              </option>
+                            );
+                          })}
                         </select>
                       </div>
                     </div>
