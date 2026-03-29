@@ -306,6 +306,7 @@ export default function SectorManagerPage() {
   };
 
   const loadContacts = async () => {
+    if (!activeDepartmentId && !user.department_id) return;
     const { data, error } = await supabase
       .from('contacts')
       .select('*')
@@ -393,7 +394,7 @@ export default function SectorManagerPage() {
     const { data, error } = await supabase
       .from('contacts')
       .insert([{
-        department_id: user.department_id,
+        department_id: activeDepartmentId || user.department_id,
         full_name: contactForm.full_name,
         phone: contactForm.phone,
         role: contactForm.role
@@ -436,7 +437,7 @@ export default function SectorManagerPage() {
     const { data, error } = await supabase
       .from('duty_roster')
       .insert([{
-        department_id: user.department_id,
+        department_id: activeDepartmentId || user.department_id,
         contact_id: quickAddData.contactId,
         day_of_week: quickAddData.dayIndex,
         start_hour: startHour,
