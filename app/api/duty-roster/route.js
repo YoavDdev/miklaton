@@ -22,7 +22,7 @@ export async function GET(request) {
       const prevDay = (dayOfWeek + 6) % 7;
 
       // Get duties for today AND yesterday (for overnight shifts)
-      const { data: allDuties, error } = await supabase
+      const { data: weekDuties, error } = await supabase
         .from('duty_roster')
         .select(`
           *,
@@ -30,9 +30,26 @@ export async function GET(request) {
           departments (name)
         `)
         .in('day_of_week', [dayOfWeek, prevDay])
-        .eq('active', true);
+        .eq('active', true)
+        .not('week_start_date', 'is', null);
 
       if (error) throw error;
+
+      // Also get permanent duties (week_start_date IS NULL) for today
+      const { data: permDuties, error: permError } = await supabase
+        .from('duty_roster')
+        .select(`
+          *,
+          contacts (*),
+          departments (name)
+        `)
+        .in('day_of_week', [dayOfWeek, prevDay])
+        .eq('active', true)
+        .is('week_start_date', null);
+
+      if (permError) throw permError;
+
+      const allDuties = [...(weekDuties || []), ...(permDuties || [])];
 
       // Filter to find who is currently on-call:
       // 1. Today's duties: 24h, normal, or overnight (active from start to midnight)
@@ -71,7 +88,37 @@ export async function GET(request) {
         .eq('active', true);
       
       if (weekStartDate) {
-        query = query.eq('week_start_date', weekStartDate);
+        // Get both week-specific AND permanent (week_start_date IS NULL) duties
+        const { data: weekData, error: weekError } = await supabase
+          .from('duty_roster')
+          .select(`
+            *,
+            contacts (*),
+            departments (name)
+          `)
+          .eq('active', true)
+          .eq('week_start_date', weekStartDate)
+          .order('day_of_week')
+          .order('start_hour');
+
+        if (weekError) throw weekError;
+
+        const { data: permanentData, error: permError } = await supabase
+          .from('duty_roster')
+          .select(`
+            *,
+            contacts (*),
+            departments (name)
+          `)
+          .eq('active', true)
+          .is('week_start_date', null)
+          .order('day_of_week')
+          .order('start_hour');
+
+        if (permError) throw permError;
+
+        const combined = [...(permanentData || []), ...(weekData || [])];
+        return NextResponse.json({ success: true, data: combined });
       }
       
       query = query.order('day_of_week').order('start_hour');

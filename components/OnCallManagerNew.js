@@ -947,12 +947,16 @@ export default function OnCallManagerNew() {
                         <td key={dayIndex} className="border-b border-r border-gray-200 p-1.5 align-top">
                           {duties.map(duty => {
                             const isSleep = duty.notes?.includes('[לן]');
+                            const isPermanent = duty.notes?.includes('[קבוע]');
                             let displayText = '';
                             let bgColor = isSleep
                               ? 'bg-orange-100 text-orange-800 border-orange-300'
                               : 'bg-blue-100 text-blue-800 border-blue-200';
                             
-                            if (duty.start_hour === duty.end_hour) {
+                            if (isPermanent) {
+                              displayText = '🔒 קבוע 24/7';
+                              bgColor = 'bg-amber-100 text-amber-800 border-amber-300';
+                            } else if (duty.start_hour === duty.end_hour) {
                               displayText = '24 שעות';
                               if (!isSleep) bgColor = 'bg-green-100 text-green-800 border-green-200';
                             } else if (duty.end_hour === 0) {
@@ -1007,6 +1011,7 @@ export default function OnCallManagerNew() {
                                   const cleanNotes = duty.notes
                                     ?.replace(/\[לן\]/g, '')
                                     .replace(/\[כונן\]/g, '')
+                                    .replace(/\[קבוע\]/g, '')
                                     .replace(/^\s*\|\s*/, '')
                                     .trim();
                                   return cleanNotes ? (

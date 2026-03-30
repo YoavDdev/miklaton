@@ -401,8 +401,12 @@ export default function WeeklyDutyRoster() {
                                 : 'bg-blue-100 text-blue-800';
                               
                               const isOvernightFromPrev = duty.day_of_week !== dayIndex;
+                              const isPermanent = duty.notes?.includes('[קבוע]');
 
-                              if (isOvernightFromPrev) {
+                              if (isPermanent) {
+                                displayText = '🔒 קבוע 24/7';
+                                baseColor = 'bg-amber-200 text-amber-900 border border-amber-400';
+                              } else if (isOvernightFromPrev) {
                                 // This is a spill-over from previous day
                                 displayText = `🌙 00:00-${String(duty.end_hour).padStart(2, '0')}:00`;
                                 baseColor = isSleep ? 'bg-orange-100 text-orange-800 border border-orange-300' : 'bg-indigo-100 text-indigo-800';
@@ -427,6 +431,7 @@ export default function WeeklyDutyRoster() {
                               const cleanNotes = duty.notes
                                 ?.replace(/\[לן\]/g, '')
                                 .replace(/\[כונן\]/g, '')
+                                .replace(/\[קבוע\]/g, '')
                                 .replace(/^\s*\|\s*/, '')
                                 .trim();
                               

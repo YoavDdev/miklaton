@@ -91,6 +91,11 @@ export default function SectorManagerPage() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
   
+  // Permanent duty
+  const [showPermanentModal, setShowPermanentModal] = useState(false);
+  const [permanentContactId, setPermanentContactId] = useState('');
+  const [permanentDuties, setPermanentDuties] = useState([]);
+  
   // Filters
   const [filterDay, setFilterDay] = useState('all');
   const [filterShift, setFilterShift] = useState('all');
@@ -331,7 +336,8 @@ export default function SectorManagerPage() {
     const currentHour = targetDate.getHours();
     const weekStartStr = formatDateForDB(getWeekStart(targetDate));
 
-    const { data, error } = await supabase
+    // Week-specific duties
+    const { data: weekData, error: weekError } = await supabase
       .from('duty_roster')
       .select(`
         *,
@@ -340,49 +346,135 @@ export default function SectorManagerPage() {
       `)
       .eq('week_start_date', weekStartStr)
       .eq('day_of_week', currentDay);
+
+    // Permanent duties (week_start_date IS NULL)
+    const { data: permData, error: permError } = await supabase
+      .from('duty_roster')
+      .select(`
+        *,
+        contact:contacts(full_name, phone, role),
+        department:departments(name)
+      `)
+      .is('week_start_date', null)
+      .eq('day_of_week', currentDay);
     
-    if (data) {
-      // Filter by current hour
-      const filtered = data.filter(duty => {
-        const startHour = duty.start_hour;
-        const endHour = duty.end_hour;
-        
-        // Handle overnight shifts (e.g., 20:00 to 08:00)
-        if (endHour <= startHour) {
-          return currentHour >= startHour || currentHour < endHour;
-        }
-        // Normal shifts (e.g., 08:00 to 16:00)
-        return currentHour >= startHour && currentHour < endHour;
-      });
+    const allData = [...(weekData || []), ...(permData || [])];
+    
+    // Filter by current hour
+    const filtered = allData.filter(duty => {
+      const startHour = duty.start_hour;
+      const endHour = duty.end_hour;
       
-      setCurrentOnCall(filtered);
-    }
+      // Handle 24h / permanent shifts (start === end)
+      if (startHour === endHour) return true;
+      
+      // Handle overnight shifts (e.g., 20:00 to 08:00)
+      if (endHour <= startHour) {
+        return currentHour >= startHour || currentHour < endHour;
+      }
+      // Normal shifts (e.g., 08:00 to 16:00)
+      return currentHour >= startHour && currentHour < endHour;
+    });
+    
+    setCurrentOnCall(filtered);
   };
 
   const loadDutyRoster = async () => {
     // Format week_start_date for DB query (YYYY-MM-DD) in local timezone
     const weekStartStr = formatDateForDB(currentWeekStart);
+    const deptId = activeDepartmentId || user.department_id;
     
-    console.log('🔍 Loading duties for week:', weekStartStr);
-    console.log('📋 Department ID:', activeDepartmentId || user.department_id);
-    console.log('📅 Current week start object:', currentWeekStart);
-    
-    const { data, error } = await supabase
+    // Load week-specific duties
+    const { data: weekData, error: weekError } = await supabase
       .from('duty_roster')
       .select(`
         *,
         contact:contacts(full_name, phone, role)
       `)
-      .eq('department_id', activeDepartmentId || user.department_id)
+      .eq('department_id', deptId)
       .eq('week_start_date', weekStartStr)
       .order('day_of_week')
       .order('start_hour');
     
-    console.log('✅ Query result - data:', data);
-    console.log('❌ Query result - error:', error);
-    console.log('📊 Total duties found:', data?.length || 0);
+    // Load permanent duties (week_start_date IS NULL)
+    const { data: permData, error: permError } = await supabase
+      .from('duty_roster')
+      .select(`
+        *,
+        contact:contacts(full_name, phone, role)
+      `)
+      .eq('department_id', deptId)
+      .is('week_start_date', null)
+      .order('day_of_week')
+      .order('start_hour');
     
-    if (data) setDutyRoster(data);
+    const combined = [...(permData || []), ...(weekData || [])];
+    if (permData) setPermanentDuties(permData);
+    setDutyRoster(combined);
+  };
+
+  const handleAddPermanentDuty = async (contactId) => {
+    if (!contactId) {
+      toast.error('נא לבחור איש קשר');
+      return;
+    }
+
+    // Check if already permanent
+    const existing = permanentDuties.find(d => d.contact_id === contactId);
+    if (existing) {
+      toast.error('איש קשר זה כבר מוגדר ככונן קבוע');
+      return;
+    }
+
+    // Create 7 permanent entries (one per day) with 24h shifts
+    const deptId = activeDepartmentId || user.department_id;
+    const entries = Array.from({ length: 7 }, (_, dayIndex) => ({
+      department_id: deptId,
+      contact_id: contactId,
+      day_of_week: dayIndex,
+      start_hour: 0,
+      end_hour: 0,
+      notes: '[קבוע]',
+      week_start_date: null
+    }));
+
+    const { error } = await supabase
+      .from('duty_roster')
+      .insert(entries);
+
+    if (error) {
+      toast.error('שגיאה ביצירת כוננות קבועה');
+      console.error(error);
+    } else {
+      toast.success('✅ כונן קבוע 24/7 נוסף בהצלחה!');
+      setShowPermanentModal(false);
+      setPermanentContactId('');
+      loadDutyRoster();
+    }
+  };
+
+  const handleRemovePermanentDuty = async (contactId) => {
+    if (!confirm('האם להסיר את הכוננות הקבועה של איש קשר זה?')) return;
+    
+    const deptId = activeDepartmentId || user.department_id;
+    const { error } = await supabase
+      .from('duty_roster')
+      .delete()
+      .eq('contact_id', contactId)
+      .eq('department_id', deptId)
+      .is('week_start_date', null);
+
+    if (error) {
+      toast.error('שגיאה בהסרת כוננות קבועה');
+      console.error(error);
+    } else {
+      toast.success('כוננות קבועה הוסרה ✅');
+      loadDutyRoster();
+    }
+  };
+
+  const isPermanentContact = (contactId) => {
+    return permanentDuties.some(d => d.contact_id === contactId);
   };
 
   const handleAddContact = async () => {
@@ -922,7 +1014,12 @@ export default function SectorManagerPage() {
                                         const isOvernight = duty.end_hour < duty.start_hour && duty.end_hour !== 0;
                                         let label, bgClass, textClass;
                                         
-                                        if (duty.start_hour === duty.end_hour) {
+                                        const isPerm = duty.notes?.includes('[קבוע]');
+                                        if (isPerm) {
+                                          label = '🔒 קבוע';
+                                          bgClass = 'bg-amber-100';
+                                          textClass = 'text-amber-800';
+                                        } else if (duty.start_hour === duty.end_hour) {
                                           label = '24h';
                                           bgClass = 'bg-blue-100';
                                           textClass = 'text-blue-800';
@@ -1020,12 +1117,20 @@ export default function SectorManagerPage() {
             <div className="p-3 sm:p-6 border-b border-gray-200">
               <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
                 <h2 className="text-lg sm:text-xl font-bold text-gray-900">אנשי קשר במכלול</h2>
-                <button
-                  onClick={() => setShowAddContactModal(true)}
-                  className="w-full sm:w-auto px-4 py-2.5 sm:py-2 bg-green-600 active:bg-green-700 sm:hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 text-sm sm:text-base"
-                >
-                  ➕ הוסף איש קשר
-                </button>
+                <div className="flex gap-2 w-full sm:w-auto">
+                  <button
+                    onClick={() => setShowPermanentModal(true)}
+                    className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-amber-500 active:bg-amber-600 sm:hover:bg-amber-600 text-white rounded-lg font-medium flex items-center justify-center gap-2 text-sm sm:text-base"
+                  >
+                    🔒 כונן קבוע 24/7
+                  </button>
+                  <button
+                    onClick={() => setShowAddContactModal(true)}
+                    className="flex-1 sm:flex-none px-4 py-2.5 sm:py-2 bg-green-600 active:bg-green-700 sm:hover:bg-green-700 text-white rounded-lg font-medium flex items-center justify-center gap-2 text-sm sm:text-base"
+                  >
+                    ➕ הוסף איש קשר
+                  </button>
+                </div>
               </div>
             </div>
             
@@ -1033,7 +1138,11 @@ export default function SectorManagerPage() {
               {contacts.length > 0 ? (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
                   {contacts.map((contact) => (
-                    <div key={contact.id} className="border-2 border-gray-200 rounded-lg p-3 sm:p-4 active:border-green-500 sm:hover:border-green-500 transition-colors">
+                    <div key={contact.id} className={`border-2 rounded-lg p-3 sm:p-4 transition-colors ${
+                      isPermanentContact(contact.id)
+                        ? 'border-amber-400 bg-amber-50'
+                        : 'border-gray-200 active:border-green-500 sm:hover:border-green-500'
+                    }`}>
                       <div className="flex items-start justify-between mb-2 sm:mb-3">
                         <div className="text-3xl sm:text-4xl">👤</div>
                         <button
@@ -1054,6 +1163,25 @@ export default function SectorManagerPage() {
                       >
                         📞 {contact.phone}
                       </a>
+                      
+                      {isPermanentContact(contact.id) ? (
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-xs font-bold bg-amber-200 text-amber-800 px-2 py-1 rounded-full">🔒 כונן קבוע 24/7</span>
+                          <button
+                            onClick={() => handleRemovePermanentDuty(contact.id)}
+                            className="text-xs text-red-500 active:text-red-700 sm:hover:text-red-700 font-medium underline"
+                          >
+                            הסר קבוע
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleAddPermanentDuty(contact.id)}
+                          className="mt-3 w-full text-xs py-1.5 bg-amber-100 active:bg-amber-200 sm:hover:bg-amber-200 text-amber-700 rounded-lg font-semibold transition-colors"
+                        >
+                          🔒 הגדר ככונן קבוע 24/7
+                        </button>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -1587,6 +1715,98 @@ export default function SectorManagerPage() {
                     setShowEditModal(false);
                     setEditData({ dutyId: null, contactId: '', dayIndex: 0, usePreset: false, shiftType: 0, startHour: 8, endHour: 16, notes: '' });
                   }}
+                  className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold transition-all"
+                >
+                  ביטול
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Permanent Duty Modal */}
+      {showPermanentModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-gradient-to-br from-amber-50 to-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 border-amber-300">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-xl font-bold text-amber-900">🔒 כונן קבוע 24/7</h3>
+                <p className="text-sm text-amber-700 mt-1">כונן שפעיל כל יום, כל השנה, עד להודעה חדשה</p>
+              </div>
+              <button
+                onClick={() => { setShowPermanentModal(false); setPermanentContactId(''); }}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-2">👤 בחר איש קשר</label>
+                <select
+                  value={permanentContactId}
+                  onChange={(e) => setPermanentContactId(e.target.value)}
+                  className="w-full px-4 py-3 border-2 border-amber-200 rounded-xl focus:ring-2 focus:ring-amber-500 focus:border-amber-500 font-medium"
+                >
+                  <option value="">בחר מהרשימה...</option>
+                  {contacts.filter(c => !isPermanentContact(c.id)).map((contact) => (
+                    <option key={contact.id} value={contact.id}>
+                      {contact.full_name} {contact.role && `• ${contact.role}`}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="p-3 bg-amber-100 border border-amber-300 rounded-lg text-sm text-amber-800">
+                <p className="font-bold mb-1">📌 מה זה אומר?</p>
+                <ul className="space-y-1 text-xs">
+                  <li>• איש הקשר יופיע ככונן <strong>בכל שבוע</strong></li>
+                  <li>• <strong>24 שעות ביממה, 7 ימים בשבוע</strong></li>
+                  <li>• עד שתסיר את הכוננות הקבועה ידנית</li>
+                </ul>
+              </div>
+
+              {/* Already permanent contacts */}
+              {permanentDuties.length > 0 && (
+                <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                  <p className="text-xs font-bold text-gray-700 mb-2">כוננים קבועים נוכחיים:</p>
+                  <div className="space-y-1">
+                    {[...new Set(permanentDuties.map(d => d.contact_id))].map(cId => {
+                      const contact = contacts.find(c => c.id === cId);
+                      return contact ? (
+                        <div key={cId} className="flex items-center justify-between text-xs">
+                          <span className="font-medium">🔒 {contact.full_name}</span>
+                          <button
+                            onClick={() => handleRemovePermanentDuty(cId)}
+                            className="text-red-500 hover:text-red-700 font-medium underline"
+                          >
+                            הסר
+                          </button>
+                        </div>
+                      ) : null;
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={() => handleAddPermanentDuty(permanentContactId)}
+                  disabled={!permanentContactId}
+                  className={`flex-1 px-6 py-3 rounded-xl font-bold text-lg transition-all ${
+                    permanentContactId
+                      ? 'bg-gradient-to-l from-amber-500 to-amber-600 text-white hover:from-amber-600 hover:to-amber-700 shadow-lg hover:scale-105'
+                      : 'bg-gray-200 text-gray-400 cursor-not-allowed'
+                  }`}
+                >
+                  🔒 הגדר ככונן קבוע
+                </button>
+                <button
+                  onClick={() => { setShowPermanentModal(false); setPermanentContactId(''); }}
                   className="px-6 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-bold transition-all"
                 >
                   ביטול
