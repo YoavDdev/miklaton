@@ -58,17 +58,25 @@ export async function GET(request) {
 
       return NextResponse.json({ success: true, data: currentDuties });
     } else {
-      // Get all duty roster entries
-      const { data, error } = await supabase
+      // Get duty roster entries, optionally filtered by week
+      const weekStartDate = searchParams.get('week_start_date');
+      
+      let query = supabase
         .from('duty_roster')
         .select(`
           *,
           contacts (*),
           departments (name)
         `)
-        .eq('active', true)
-        .order('day_of_week')
-        .order('start_hour');
+        .eq('active', true);
+      
+      if (weekStartDate) {
+        query = query.eq('week_start_date', weekStartDate);
+      }
+      
+      query = query.order('day_of_week').order('start_hour');
+
+      const { data, error } = await query;
 
       if (error) throw error;
 
@@ -85,11 +93,14 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { contact_id, department_id, day_of_week, start_hour, end_hour, notes } = body;
+    const { contact_id, department_id, day_of_week, start_hour, end_hour, notes, week_start_date } = body;
+
+    const insertData = { contact_id, department_id, day_of_week, start_hour, end_hour, notes };
+    if (week_start_date) insertData.week_start_date = week_start_date;
 
     const { data, error } = await supabase
       .from('duty_roster')
-      .insert({ contact_id, department_id, day_of_week, start_hour, end_hour, notes })
+      .insert(insertData)
       .select()
       .single();
 

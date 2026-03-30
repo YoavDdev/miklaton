@@ -4,12 +4,50 @@ import { useState, useEffect } from 'react';
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
+// Get week start date (Sunday) for a given date
+function getWeekStart(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Format date for DB (YYYY-MM-DD) in local timezone
+function formatDateForDB(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 export default function WeeklyDutyRoster() {
   const [dutyRoster, setDutyRoster] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [currentDay, setCurrentDay] = useState(0);
   const [currentHour, setCurrentHour] = useState(0);
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
+
+  // Check if viewing the current week
+  const isCurrentWeek = formatDateForDB(currentWeekStart) === formatDateForDB(getWeekStart(new Date()));
+
+  // Get week dates for display
+  const getWeekDates = () => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+  const weekDates = getWeekDates();
+
+  const getWeekRangeString = () => {
+    const start = weekDates[0];
+    const end = weekDates[6];
+    return `${start.getDate()}.${start.getMonth() + 1} - ${end.getDate()}.${end.getMonth() + 1}.${end.getFullYear()}`;
+  };
 
   useEffect(() => {
     fetchData();
@@ -31,11 +69,32 @@ export default function WeeklyDutyRoster() {
     return () => clearInterval(interval);
   }, []);
 
+  useEffect(() => {
+    fetchData();
+  }, [currentWeekStart]);
+
+  const goToPreviousWeek = () => {
+    const newDate = new Date(currentWeekStart);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentWeekStart(newDate);
+  };
+
+  const goToNextWeek = () => {
+    const newDate = new Date(currentWeekStart);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentWeekStart(newDate);
+  };
+
+  const goToCurrentWeek = () => {
+    setCurrentWeekStart(getWeekStart(new Date()));
+  };
+
   const fetchData = async () => {
     setLoading(true);
     try {
+      const weekStartStr = formatDateForDB(currentWeekStart);
       const [rosterRes, contactsRes] = await Promise.all([
-        fetch('/api/duty-roster'),
+        fetch(`/api/duty-roster?week_start_date=${weekStartStr}`),
         fetch('/api/contacts')
       ]);
       
@@ -215,16 +274,9 @@ export default function WeeklyDutyRoster() {
   return (
     <div className="bg-white rounded-lg shadow">
       <div className="p-6 print:p-4">
-        <div className="flex items-center justify-between mb-6 print:mb-4">
+        <div className="flex items-center justify-between mb-4 print:mb-4">
           <div>
-            <h2 className="text-2xl font-bold text-gray-900 print:text-xl">כוננויות השבוע</h2>
-            <p className="text-sm text-gray-600 mt-1">
-              {new Date().toLocaleDateString('he-IL', { 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric' 
-              })}
-            </p>
+            <h2 className="text-2xl font-bold text-gray-900 print:text-xl">כוננויות שבועיות</h2>
           </div>
           <button
             onClick={handlePrint}
@@ -237,8 +289,42 @@ export default function WeeklyDutyRoster() {
           </button>
         </div>
 
-        {/* Current On-Call Highlight */}
-        <div className="mb-6 p-4 bg-green-50 border-2 border-green-400 rounded-lg print:hidden">
+        {/* Week Navigation */}
+        <div className="flex items-center justify-between mb-4 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3 print:hidden">
+          <button
+            onClick={goToPreviousWeek}
+            className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-bold transition-all text-sm"
+          >
+            → שבוע קודם
+          </button>
+          
+          <div className="text-center">
+            <div className="text-lg font-bold text-gray-900">{getWeekRangeString()}</div>
+            {isCurrentWeek && (
+              <span className="text-xs text-green-600 font-medium">📍 השבוע הנוכחי</span>
+            )}
+          </div>
+          
+          <div className="flex items-center gap-2">
+            {!isCurrentWeek && (
+              <button
+                onClick={goToCurrentWeek}
+                className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-bold transition-all text-sm"
+              >
+                📍 היום
+              </button>
+            )}
+            <button
+              onClick={goToNextWeek}
+              className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-bold transition-all text-sm"
+            >
+              שבוע הבא ←
+            </button>
+          </div>
+        </div>
+
+        {/* Current On-Call Highlight - only show on current week */}
+        {isCurrentWeek && <div className="mb-6 p-4 bg-green-50 border-2 border-green-400 rounded-lg print:hidden">
           <h3 className="font-bold text-green-900 mb-2 flex items-center gap-2">
             <span className="text-xl">🟢</span>
             כוננים פעילים כעת - {DAYS[currentDay]} {currentHour}:00
@@ -258,7 +344,7 @@ export default function WeeklyDutyRoster() {
               );
             })}
           </div>
-        </div>
+        </div>}
 
         {/* Weekly Table by Department */}
         {Object.entries(contactsByDept).map(([deptName, deptContacts]) => (
@@ -273,10 +359,13 @@ export default function WeeklyDutyRoster() {
                       <th 
                         key={i} 
                         className={`border border-gray-300 p-2 font-semibold ${
-                          i === currentDay ? 'bg-green-100 print:bg-gray-200' : ''
+                          isCurrentWeek && i === currentDay ? 'bg-green-100 print:bg-gray-200' : ''
                         }`}
                       >
-                        {day}
+                        <div>{day}</div>
+                        <div className="text-xs font-normal text-gray-500">
+                          {weekDates[i] && `${weekDates[i].getDate()}/${weekDates[i].getMonth() + 1}`}
+                        </div>
                       </th>
                     ))}
                   </tr>
@@ -293,7 +382,7 @@ export default function WeeklyDutyRoster() {
                       </td>
                       {DAYS.map((_, dayIndex) => {
                         const duties = getDutiesForDay(contact.id, dayIndex);
-                        const isToday = dayIndex === currentDay;
+                        const isToday = isCurrentWeek && dayIndex === currentDay;
                         return (
                           <td 
                             key={dayIndex} 

@@ -10,6 +10,23 @@ const supabase = createClient(
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
+// Get week start date (Sunday) for a given date
+function getWeekStart(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
+// Format date for DB (YYYY-MM-DD) in local timezone
+function formatDateForDB(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
 // Preset shift options for easier selection
 const SHIFT_PRESETS = [
   { label: 'יום שלם (24 שעות)', start: 8, end: 8, description: '08:00-08:00 (כל היום)' },
@@ -64,6 +81,43 @@ export default function OnCallManagerNew() {
   const [bulkDutyType, setBulkDutyType] = useState('oncall');
   const [savingBulk, setSavingBulk] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
+
+  // Check if viewing the current week
+  const isCurrentWeek = formatDateForDB(currentWeekStart) === formatDateForDB(getWeekStart(new Date()));
+
+  // Get week dates for display
+  const getWeekDates = () => {
+    const dates = [];
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(currentWeekStart.getFullYear(), currentWeekStart.getMonth(), currentWeekStart.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+  const weekDates = getWeekDates();
+
+  const getWeekRangeString = () => {
+    const start = weekDates[0];
+    const end = weekDates[6];
+    return `${start.getDate()}.${start.getMonth() + 1} - ${end.getDate()}.${end.getMonth() + 1}.${end.getFullYear()}`;
+  };
+
+  const goToPreviousWeek = () => {
+    const newDate = new Date(currentWeekStart);
+    newDate.setDate(newDate.getDate() - 7);
+    setCurrentWeekStart(newDate);
+  };
+
+  const goToNextWeek = () => {
+    const newDate = new Date(currentWeekStart);
+    newDate.setDate(newDate.getDate() + 7);
+    setCurrentWeekStart(newDate);
+  };
+
+  const goToCurrentWeek = () => {
+    setCurrentWeekStart(getWeekStart(new Date()));
+  };
 
   useEffect(() => {
     fetchAll();
@@ -91,6 +145,10 @@ export default function OnCallManagerNew() {
     };
   }, []);
 
+  useEffect(() => {
+    fetchDutyRoster();
+  }, [currentWeekStart]);
+
   const fetchAll = async () => {
     setLoading(true);
     await Promise.all([fetchDepartments(), fetchContacts(), fetchDutyRoster()]);
@@ -110,7 +168,8 @@ export default function OnCallManagerNew() {
   };
 
   const fetchDutyRoster = async () => {
-    const res = await fetch('/api/duty-roster');
+    const weekStartStr = formatDateForDB(currentWeekStart);
+    const res = await fetch(`/api/duty-roster?week_start_date=${weekStartStr}`);
     const data = await res.json();
     if (data.success) setDutyRoster(data.data || []);
   };
@@ -203,6 +262,7 @@ export default function OnCallManagerNew() {
       for (const contactId of bulkSelectedContacts) {
         const contact = contacts.find(c => c.id === contactId);
         for (const day of bulkSelectedDays) {
+          const weekStartStr = formatDateForDB(currentWeekStart);
           promises.push(
             fetch('/api/duty-roster', {
               method: 'POST',
@@ -213,7 +273,8 @@ export default function OnCallManagerNew() {
                 day_of_week: day,
                 start_hour: bulkStartHour,
                 end_hour: bulkEndHour,
-                notes: `${bulkDutyType === 'sleep' ? '[לן]' : '[כונן]'}${bulkNotes ? ' | ' + bulkNotes : ''}`
+                notes: `${bulkDutyType === 'sleep' ? '[לן]' : '[כונן]'}${bulkNotes ? ' | ' + bulkNotes : ''}`,
+                week_start_date: weekStartStr
               })
             })
           );
@@ -506,6 +567,40 @@ export default function OnCallManagerNew() {
       {/* Duty Roster Tab */}
       {activeTab === 'roster' && (
         <div>
+          {/* Week Navigation */}
+          <div className="flex items-center justify-between mb-4 bg-gray-50 border border-gray-200 rounded-lg px-4 py-3">
+            <button
+              onClick={goToPreviousWeek}
+              className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-bold transition-all text-sm"
+            >
+              → שבוע קודם
+            </button>
+            
+            <div className="text-center">
+              <div className="text-lg font-bold text-gray-900">{getWeekRangeString()}</div>
+              {isCurrentWeek && (
+                <span className="text-xs text-green-600 font-medium">📍 השבוע הנוכחי</span>
+              )}
+            </div>
+            
+            <div className="flex items-center gap-2">
+              {!isCurrentWeek && (
+                <button
+                  onClick={goToCurrentWeek}
+                  className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg font-bold transition-all text-sm"
+                >
+                  📍 היום
+                </button>
+              )}
+              <button
+                onClick={goToNextWeek}
+                className="px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 rounded-lg font-bold transition-all text-sm"
+              >
+                שבוע הבא ←
+              </button>
+            </div>
+          </div>
+
           {/* Add Duty Button */}
           <button
             onClick={() => {
@@ -825,7 +920,12 @@ export default function OnCallManagerNew() {
                 <tr className="bg-gray-100">
                   <th className="border-b border-r border-gray-200 p-3 text-right font-bold text-gray-700 min-w-[140px]">איש קשר</th>
                   {DAYS.map((day, i) => (
-                    <th key={i} className="border-b border-r border-gray-200 p-2 font-bold text-gray-700 text-center">{day}</th>
+                    <th key={i} className="border-b border-r border-gray-200 p-2 font-bold text-gray-700 text-center">
+                      <div>{day}</div>
+                      <div className="text-xs font-normal text-gray-500">
+                        {weekDates[i] && `${weekDates[i].getDate()}/${weekDates[i].getMonth() + 1}`}
+                      </div>
+                    </th>
                   ))}
                 </tr>
               </thead>
