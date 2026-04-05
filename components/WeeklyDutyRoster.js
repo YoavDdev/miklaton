@@ -28,6 +28,9 @@ export default function WeeklyDutyRoster() {
   const [currentDay, setCurrentDay] = useState(0);
   const [currentHour, setCurrentHour] = useState(0);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
+  const [queryDay, setQueryDay] = useState(null);
+  const [queryHour, setQueryHour] = useState(null);
+  const [showHourQuery, setShowHourQuery] = useState(false);
 
   // Check if viewing the current week
   const isCurrentWeek = formatDateForDB(currentWeekStart) === formatDateForDB(getWeekStart(new Date()));
@@ -200,6 +203,100 @@ export default function WeeklyDutyRoster() {
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
 
+  // Get contacts available at a specific day+hour, grouped by department
+  const getContactsAtHour = (day, hour) => {
+    const result = {};
+    contacts.forEach(contact => {
+      const duties = getDutiesForDayAndHour(contact.id, day, hour);
+      if (duties.length > 0) {
+        const deptName = contact.departments?.name || 'ללא מכלול';
+        if (!result[deptName]) result[deptName] = [];
+        // Find end hour for display
+        const endHours = duties.map(d => {
+          if (d.start_hour === d.end_hour) return 'קבוע 24 שעות';
+          const eh = d.end_hour === 0 ? '00' : String(d.end_hour).padStart(2, '0');
+          return `עד ${eh}:00`;
+        });
+        result[deptName].push({
+          ...contact,
+          endInfo: endHours.join(', '),
+          isSleep: duties.some(d => d.notes?.includes('[לן]')),
+          isPermanent: duties.some(d => d.notes?.includes('[קבוע]')),
+        });
+      }
+    });
+    return result;
+  };
+
+  const handlePrintByHour = () => {
+    if (queryDay === null || queryHour === null) return;
+    const dayName = DAYS[queryDay];
+    const hourStr = String(queryHour).padStart(2, '0') + ':00';
+    const filtered = getContactsAtHour(queryDay, queryHour);
+    
+    // Build the date string for the selected day
+    const selectedDate = weekDates[queryDay];
+    const dateStr = selectedDate ? `${selectedDate.getDate()}/${selectedDate.getMonth() + 1}/${selectedDate.getFullYear()}` : '';
+
+    let tableRows = '';
+    Object.entries(filtered).forEach(([deptName, deptContacts]) => {
+      tableRows += `<tr class="dept-row"><td colspan="4">${deptName}</td></tr>`;
+      deptContacts.forEach(c => {
+        const tags = [];
+        if (c.isPermanent) tags.push('🔒 קבוע');
+        if (c.isSleep) tags.push('🏢 לן');
+        tableRows += `<tr>
+          <td class="name-cell">${c.full_name}</td>
+          <td class="phone-cell" dir="ltr">${c.phone || '-'}</td>
+          <td>${c.endInfo}</td>
+          <td>${tags.join(' ') || '-'}</td>
+        </tr>`;
+      });
+    });
+
+    if (!tableRows) {
+      tableRows = '<tr><td colspan="4" style="text-align:center;padding:20px;">אין כוננים זמינים בשעה זו</td></tr>';
+    }
+
+    const totalCount = Object.values(filtered).reduce((sum, arr) => sum + arr.length, 0);
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>כוננים זמינים - יום ${dayName} ${hourStr}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; direction: rtl; max-width: 210mm; margin: 0 auto; padding: 10mm; }
+    @page { margin: 10mm; size: A4 portrait; }
+    h1 { font-size: 18px; text-align: center; margin-bottom: 4px; }
+    .subtitle { font-size: 13px; text-align: center; color: #333; margin-bottom: 2px; }
+    .meta { font-size: 10px; color: #666; text-align: center; margin-bottom: 12px; padding-bottom: 8px; border-bottom: 2px solid #333; }
+    table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+    th { background: #eee; border: 1px solid #333; padding: 6px 8px; text-align: right; font-size: 11px; }
+    td { border: 1px solid #333; padding: 5px 8px; font-size: 11px; }
+    .name-cell { font-weight: bold; }
+    .phone-cell { direction: ltr; text-align: left; font-family: monospace; }
+    .dept-row td { background: #333; color: white; font-weight: bold; font-size: 12px; padding: 4px 8px; }
+    tr { page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+  <h1>📋 כוננים זמינים</h1>
+  <div class="subtitle">יום ${dayName} ${dateStr} | שעה ${hourStr}</div>
+  <div class="meta">סה"כ ${totalCount} כוננים | הופק ${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}</div>
+  <table>
+    <thead><tr><th>שם</th><th>טלפון</th><th>זמינות</th><th>הערות</th></tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+  };
+
   const getDutiesForDayAndHour = (contactId, dayOfWeek, hour) => {
     return dutyRoster.filter(d => {
       if (d.contact_id !== contactId) return false;
@@ -345,6 +442,131 @@ export default function WeeklyDutyRoster() {
             })}
           </div>
         </div>}
+
+        {/* Hour Query Section */}
+        <div className="mb-6 print:hidden">
+          <button
+            onClick={() => {
+              setShowHourQuery(!showHourQuery);
+              if (!showHourQuery && queryDay === null) {
+                setQueryDay(currentDay);
+                setQueryHour(currentHour);
+              }
+            }}
+            className="flex items-center gap-2 text-blue-700 hover:text-blue-900 font-bold text-lg transition-colors"
+          >
+            <span className="text-xl">🔍</span>
+            חיפוש כוננים לפי שעה
+            <svg className={`w-5 h-5 transition-transform ${showHourQuery ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showHourQuery && (
+            <div className="mt-3 p-4 bg-blue-50 border-2 border-blue-300 rounded-lg">
+              <div className="flex flex-wrap items-end gap-4 mb-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">יום</label>
+                  <select
+                    value={queryDay ?? ''}
+                    onChange={(e) => setQueryDay(Number(e.target.value))}
+                    className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:outline-none"
+                  >
+                    {DAYS.map((day, i) => {
+                      const date = weekDates[i];
+                      const dateStr = date ? ` (${date.getDate()}/${date.getMonth() + 1})` : '';
+                      return (
+                        <option key={i} value={i}>
+                          {day}{dateStr}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1">שעה</label>
+                  <select
+                    value={queryHour ?? ''}
+                    onChange={(e) => setQueryHour(Number(e.target.value))}
+                    className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm font-medium focus:border-blue-500 focus:outline-none"
+                  >
+                    {Array.from({ length: 24 }, (_, i) => (
+                      <option key={i} value={i}>
+                        {String(i).padStart(2, '0')}:00
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <button
+                  onClick={() => { setQueryDay(currentDay); setQueryHour(currentHour); }}
+                  className="px-3 py-2 bg-green-100 hover:bg-green-200 text-green-800 rounded-lg text-sm font-bold transition-colors"
+                >
+                  📍 עכשיו
+                </button>
+                <button
+                  onClick={handlePrintByHour}
+                  disabled={queryDay === null || queryHour === null}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                  </svg>
+                  הדפס רשימה
+                </button>
+              </div>
+
+              {/* Results */}
+              {queryDay !== null && queryHour !== null && (() => {
+                const filtered = getContactsAtHour(queryDay, queryHour);
+                const totalCount = Object.values(filtered).reduce((sum, arr) => sum + arr.length, 0);
+                const dayDate = weekDates[queryDay];
+                const dateStr = dayDate ? `${dayDate.getDate()}/${dayDate.getMonth() + 1}` : '';
+
+                return (
+                  <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-bold text-blue-900">
+                        כוננים זמינים ביום {DAYS[queryDay]} {dateStr} בשעה {String(queryHour).padStart(2, '0')}:00
+                      </h4>
+                      <span className="bg-blue-200 text-blue-900 text-sm px-3 py-1 rounded-full font-bold">
+                        {totalCount} כוננים
+                      </span>
+                    </div>
+
+                    {totalCount === 0 ? (
+                      <div className="text-center py-4 text-gray-500 font-medium">
+                        אין כוננים זמינים בשעה זו
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {Object.entries(filtered).map(([deptName, deptContacts]) => (
+                          <div key={deptName}>
+                            <div className="text-sm font-bold text-purple-700 mb-1 border-b border-purple-200 pb-1">
+                              {deptName} ({deptContacts.length})
+                            </div>
+                            <div className="space-y-1">
+                              {deptContacts.map(c => (
+                                <div key={c.id} className="flex items-center gap-2 text-sm bg-white rounded px-3 py-1.5 border border-gray-200">
+                                  {c.isPermanent && <span className="bg-amber-200 text-amber-800 text-xs px-1.5 py-0.5 rounded font-bold">🔒 קבוע</span>}
+                                  {c.isSleep && <span className="bg-orange-200 text-orange-800 text-xs px-1.5 py-0.5 rounded font-bold">🏢 לן</span>}
+                                  <span className="font-semibold">{c.full_name}</span>
+                                  <span className="text-gray-500">|</span>
+                                  <span className="text-gray-600 text-xs" dir="ltr">{c.phone}</span>
+                                  <span className="text-gray-500">|</span>
+                                  <span className="text-xs text-gray-500">{c.endInfo}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+        </div>
 
         {/* Weekly Table by Department */}
         {Object.entries(contactsByDept).map(([deptName, deptContacts]) => (
