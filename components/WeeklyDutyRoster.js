@@ -534,7 +534,7 @@ export default function WeeklyDutyRoster() {
                 <button
                   onClick={() => {
                     if (queryDay === null || queryHour === null) return;
-                    const url = `${window.location.origin}${window.location.pathname}?queryDay=${queryDay}&queryHour=${queryHour}`;
+                    const url = `${window.location.origin}/on-call-query?day=${queryDay}&hour=${queryHour}`;
                     navigator.clipboard.writeText(url).then(() => {
                       setLinkCopied(true);
                       setTimeout(() => setLinkCopied(false), 2000);
