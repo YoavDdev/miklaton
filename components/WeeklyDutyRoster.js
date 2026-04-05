@@ -31,6 +31,7 @@ export default function WeeklyDutyRoster() {
   const [queryDay, setQueryDay] = useState(null);
   const [queryHour, setQueryHour] = useState(null);
   const [showHourQuery, setShowHourQuery] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
   // Check if viewing the current week
   const isCurrentWeek = formatDateForDB(currentWeekStart) === formatDateForDB(getWeekStart(new Date()));
@@ -51,6 +52,23 @@ export default function WeeklyDutyRoster() {
     const end = weekDates[6];
     return `${start.getDate()}.${start.getMonth() + 1} - ${end.getDate()}.${end.getMonth() + 1}.${end.getFullYear()}`;
   };
+
+  // Read URL params on mount to auto-open hour query
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const qd = params.get('queryDay');
+    const qh = params.get('queryHour');
+    if (qd !== null && qh !== null) {
+      const day = parseInt(qd, 10);
+      const hour = parseInt(qh, 10);
+      if (!isNaN(day) && day >= 0 && day <= 6 && !isNaN(hour) && hour >= 0 && hour <= 23) {
+        setQueryDay(day);
+        setQueryHour(hour);
+        setShowHourQuery(true);
+      }
+    }
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -512,6 +530,34 @@ export default function WeeklyDutyRoster() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                   </svg>
                   הדפס רשימה
+                </button>
+                <button
+                  onClick={() => {
+                    if (queryDay === null || queryHour === null) return;
+                    const url = `${window.location.origin}${window.location.pathname}?queryDay=${queryDay}&queryHour=${queryHour}`;
+                    navigator.clipboard.writeText(url).then(() => {
+                      setLinkCopied(true);
+                      setTimeout(() => setLinkCopied(false), 2000);
+                    });
+                  }}
+                  disabled={queryDay === null || queryHour === null}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 text-white rounded-lg text-sm font-bold transition-colors flex items-center gap-2"
+                >
+                  {linkCopied ? (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      הועתק!
+                    </>
+                  ) : (
+                    <>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                      </svg>
+                      העתק לינק
+                    </>
+                  )}
                 </button>
               </div>
 
