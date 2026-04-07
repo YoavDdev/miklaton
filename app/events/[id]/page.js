@@ -49,7 +49,7 @@ export default function EventDetailPage() {
     fetchUserInfo();
   }, [eventId]);
 
-  // Realtime subscriptions
+  // Realtime subscriptions (no filter - check in callback)
   useEffect(() => {
     if (!eventId) return;
 
@@ -59,10 +59,13 @@ export default function EventDetailPage() {
         event: 'INSERT',
         schema: 'public',
         table: 'event_journal',
-        filter: `event_id=eq.${eventId}`,
       }, (payload) => {
-        setJournal(prev => [...prev, payload.new]);
-        setTimeout(() => journalEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        if (payload.new.event_id === eventId) {
+          setJournal(prev => {
+            if (prev.find(j => j.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+        }
       })
       .subscribe();
 
@@ -72,10 +75,9 @@ export default function EventDetailPage() {
         event: '*',
         schema: 'public',
         table: 'event_participants',
-        filter: `event_id=eq.${eventId}`,
-      }, () => {
-        // Refetch participants on any change
-        fetchParticipants();
+      }, (payload) => {
+        const rec = payload.new || payload.old;
+        if (rec?.event_id === eventId) fetchParticipants();
       })
       .subscribe();
 
@@ -85,16 +87,31 @@ export default function EventDetailPage() {
         event: 'UPDATE',
         schema: 'public',
         table: 'emergency_events',
-        filter: `id=eq.${eventId}`,
       }, (payload) => {
-        setEvent(payload.new);
+        if (payload.new.id === eventId) setEvent(payload.new);
       })
       .subscribe();
+
+    // Polling fallback every 5 seconds
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/events/${eventId}`);
+        const data = await res.json();
+        if (data.success) {
+          setJournal(data.data.journal);
+          setParticipants(data.data.participants);
+          if (data.data.event.status !== event?.status) {
+            setEvent(data.data.event);
+          }
+        }
+      } catch {}
+    }, 5000);
 
     return () => {
       supabase.removeChannel(journalChannel);
       supabase.removeChannel(participantsChannel);
       supabase.removeChannel(eventChannel);
+      clearInterval(pollInterval);
     };
   }, [eventId]);
 
@@ -332,47 +349,38 @@ export default function EventDetailPage() {
 
   return (
     <div className="h-screen bg-gray-100 flex flex-col overflow-hidden" dir="rtl">
-      {/* Header */}
+      {/* Header - mobile friendly */}
       <header className={`text-white shadow-lg ${event.status === 'active' ? 'bg-red-700' : 'bg-gray-600'}`}>
-        <div className="max-w-6xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {event.status === 'active' && <span className="w-3 h-3 bg-white rounded-full animate-pulse" />}
-              <div>
-                <h1 className="text-xl font-bold">{event.title}</h1>
-                <div className="flex items-center gap-3 text-sm opacity-90 mt-0.5">
-                  <span className={`text-xs px-2 py-0.5 rounded font-bold ${sev.color}`}>{sev.icon} {sev.label}</span>
-                  <span>נפתח {formatDateTime(event.created_at)}</span>
-                  <span>👥 {confirmedCount} משתתפים</span>
+        <div className="max-w-6xl mx-auto px-3 sm:px-4 py-2 sm:py-3">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {event.status === 'active' && <span className="w-2.5 h-2.5 bg-white rounded-full animate-pulse flex-shrink-0" />}
+              <div className="min-w-0">
+                <h1 className="text-base sm:text-xl font-bold truncate">{event.title}</h1>
+                <div className="flex items-center gap-2 text-xs opacity-90 mt-0.5 flex-wrap">
+                  <span className={`px-1.5 py-0.5 rounded font-bold ${sev.color}`}>{sev.icon} {sev.label}</span>
+                  <span className="hidden sm:inline">נפתח {formatDateTime(event.created_at)}</span>
+                  <span>👥 {confirmedCount}</span>
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={handlePrint} className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1">
-                🖨️ הדפס
+            <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
+              <button onClick={handlePrint} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="הדפס">
+                🖨️<span className="hidden sm:inline"> הדפס</span>
               </button>
-              <button
-                onClick={copyInviteLink}
-                className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-sm font-bold transition-colors flex items-center gap-1"
-              >
-                {linkCopied ? '✅ הועתק!' : '🔗 העתק לינק הזמנה'}
+              <button onClick={copyInviteLink} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="העתק לינק">
+                {linkCopied ? '✅' : '🔗'}<span className="hidden sm:inline">{linkCopied ? ' הועתק!' : ' הזמנה'}</span>
               </button>
-              <button
-                onClick={() => setShowParticipants(!showParticipants)}
-                className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-sm font-bold transition-colors"
-              >
-                👥 משתתפים
+              <button onClick={() => setShowParticipants(!showParticipants)} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="משתתפים">
+                👥
               </button>
               {event.status === 'active' && (isCreator || isAdmin) && (
-                <button
-                  onClick={() => setShowCloseConfirm(true)}
-                  className="bg-gray-800 hover:bg-gray-900 px-3 py-2 rounded-lg text-sm font-bold transition-colors"
-                >
-                  🔒 סגור אירוע
+                <button onClick={() => setShowCloseConfirm(true)} className="bg-gray-800 hover:bg-gray-900 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="סגור אירוע">
+                  🔒
                 </button>
               )}
-              <button onClick={() => router.push('/events')} className="bg-white/20 hover:bg-white/30 px-3 py-2 rounded-lg text-sm font-bold transition-colors">
-                ← חזרה
+              <button onClick={() => router.push('/events')} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors">
+                ←
               </button>
             </div>
           </div>
@@ -386,11 +394,11 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      <div className="flex-1 flex max-w-6xl mx-auto w-full min-h-0">
+      <div className="flex-1 flex flex-col sm:flex-row max-w-6xl mx-auto w-full min-h-0">
         {/* Journal - main area */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Journal entries */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
             {journal.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <div className="text-4xl mb-3">📋</div>
@@ -434,13 +442,13 @@ export default function EventDetailPage() {
 
           {/* Input area */}
           {event.status === 'active' ? (
-            <div className="border-t bg-white p-4 shadow-lg">
-              <div className="flex gap-2 mb-3">
+            <div className="border-t bg-white p-3 sm:p-4 shadow-lg">
+              <div className="flex gap-1.5 sm:gap-2 mb-2 sm:mb-3 overflow-x-auto">
                 {ENTRY_TYPES.map(type => (
                   <button
                     key={type.key}
                     onClick={() => setEntryType(type.key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                       entryType === type.key
                         ? type.key === 'urgent' ? 'bg-red-600 text-white'
                         : type.key === 'decision' ? 'bg-purple-600 text-white'
@@ -463,16 +471,16 @@ export default function EventDetailPage() {
                       handleSendEntry();
                     }
                   }}
-                  placeholder="כתוב עדכון... (Enter לשליחה, Shift+Enter לשורה חדשה)"
+                  placeholder="כתוב עדכון..."
                   rows={2}
-                  className="flex-1 px-4 py-2.5 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm"
+                  className="flex-1 px-3 sm:px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm"
                 />
                 <button
                   onClick={handleSendEntry}
                   disabled={!newEntry.trim() || sending}
-                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold px-6 rounded-lg transition-colors flex items-center gap-1"
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold px-4 sm:px-6 rounded-lg transition-colors flex items-center"
                 >
-                  {sending ? '⏳' : '📤'} שלח
+                  {sending ? '⏳' : '📤'}
                 </button>
               </div>
               <div className="text-xs text-gray-400 mt-1">
@@ -487,13 +495,14 @@ export default function EventDetailPage() {
           )}
         </div>
 
-        {/* Participants sidebar */}
+        {/* Participants sidebar / mobile overlay */}
         {showParticipants && (
-          <div className="w-72 border-r bg-white overflow-y-auto shadow-lg">
-            <div className="p-4 border-b bg-gray-50">
+          <div className="fixed sm:relative inset-0 sm:inset-auto z-40 sm:z-auto sm:w-72 bg-white sm:border-r overflow-y-auto shadow-lg">
+            <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 👥 משתתפים ({confirmedCount})
               </h3>
+              <button onClick={() => setShowParticipants(false)} className="sm:hidden bg-gray-200 hover:bg-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-gray-600 font-bold">✕</button>
             </div>
             <div className="p-3 space-y-2">
               {participants.map(p => (

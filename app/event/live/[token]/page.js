@@ -49,34 +49,56 @@ export default function LiveJournalPage() {
   useEffect(() => {
     if (!event?.id) return;
 
+    const eventId = event.id;
+
     const journalChannel = supabase
-      .channel(`live-journal-${event.id}`)
+      .channel(`live-journal-${eventId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'event_journal',
-        filter: `event_id=eq.${event.id}`,
       }, (payload) => {
-        setJournal(prev => [...prev, payload.new]);
-        setTimeout(() => journalEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+        if (payload.new.event_id === eventId) {
+          setJournal(prev => {
+            if (prev.find(j => j.id === payload.new.id)) return prev;
+            return [...prev, payload.new];
+          });
+        }
       })
       .subscribe();
 
     const eventChannel = supabase
-      .channel(`live-event-${event.id}`)
+      .channel(`live-event-${eventId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
         table: 'emergency_events',
-        filter: `id=eq.${event.id}`,
       }, (payload) => {
-        setEvent(payload.new);
+        if (payload.new.id === eventId) setEvent(payload.new);
       })
       .subscribe();
+
+    // Polling fallback every 5 seconds
+    const pollInterval = setInterval(async () => {
+      try {
+        const { data: journalData } = await supabase
+          .from('event_journal').select('*').eq('event_id', eventId).order('created_at', { ascending: true });
+        if (journalData) setJournal(journalData);
+
+        const { data: participantsData } = await supabase
+          .from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
+        if (participantsData) setParticipants(participantsData);
+
+        const { data: eventData } = await supabase
+          .from('emergency_events').select('*').eq('id', eventId).single();
+        if (eventData) setEvent(eventData);
+      } catch {}
+    }, 5000);
 
     return () => {
       supabase.removeChannel(journalChannel);
       supabase.removeChannel(eventChannel);
+      clearInterval(pollInterval);
     };
   }, [event?.id]);
 
@@ -244,29 +266,26 @@ export default function LiveJournalPage() {
 
   return (
     <div className="h-screen bg-gray-100 flex flex-col overflow-hidden" dir="rtl">
-      {/* Header */}
+      {/* Header - mobile friendly */}
       <header className={`text-white shadow-lg ${event.status === 'active' ? 'bg-red-700' : 'bg-gray-600'}`}>
-        <div className="max-w-4xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              {event.status === 'active' && <span className="w-3 h-3 bg-white rounded-full animate-pulse" />}
-              <div>
-                <h1 className="text-lg font-bold">{event.title}</h1>
-                <div className="flex items-center gap-3 text-xs opacity-90 mt-0.5">
-                  <span className={`text-xs px-2 py-0.5 rounded font-bold ${sev.color}`}>{sev.icon} {sev.label}</span>
+        <div className="max-w-4xl mx-auto px-3 py-2">
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              {event.status === 'active' && <span className="w-2.5 h-2.5 bg-white rounded-full animate-pulse flex-shrink-0" />}
+              <div className="min-w-0">
+                <h1 className="text-base font-bold truncate">{event.title}</h1>
+                <div className="flex items-center gap-2 text-xs opacity-90 mt-0.5 flex-wrap">
+                  <span className={`px-1.5 py-0.5 rounded font-bold ${sev.color}`}>{sev.icon} {sev.label}</span>
                   <span>👥 {confirmedCount}</span>
-                  {participant && <span>מחובר כ: {participant.display_name}</span>}
+                  {participant && <span className="truncate">👤 {participant.display_name}</span>}
                 </div>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <button onClick={handlePrint} className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">
+            <div className="flex items-center gap-1 flex-shrink-0">
+              <button onClick={handlePrint} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg text-sm font-bold transition-colors">
                 🖨️
               </button>
-              <button
-                onClick={() => setShowParticipants(!showParticipants)}
-                className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors"
-              >
+              <button onClick={() => setShowParticipants(!showParticipants)} className="bg-white/20 hover:bg-white/30 p-2 rounded-lg text-sm font-bold transition-colors">
                 👥
               </button>
             </div>
@@ -274,14 +293,17 @@ export default function LiveJournalPage() {
         </div>
       </header>
 
-      {/* Participants panel (mobile friendly) */}
+      {/* Participants panel */}
       {showParticipants && (
         <div className="bg-white border-b shadow-sm">
-          <div className="max-w-4xl mx-auto px-4 py-3">
-            <h3 className="font-bold text-gray-700 text-sm mb-2">👥 משתתפים ({confirmedCount})</h3>
-            <div className="flex flex-wrap gap-2">
+          <div className="max-w-4xl mx-auto px-3 py-2">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="font-bold text-gray-700 text-sm">👥 משתתפים ({confirmedCount})</h3>
+              <button onClick={() => setShowParticipants(false)} className="text-gray-400 text-xs">סגור</button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
               {participants.filter(p => p.status === 'confirmed').map(p => (
-                <span key={p.id} className="bg-green-50 border border-green-200 text-green-800 text-xs px-2.5 py-1 rounded-lg font-medium">
+                <span key={p.id} className="bg-green-50 border border-green-200 text-green-800 text-xs px-2 py-1 rounded-lg font-medium">
                   {p.display_name}{p.department ? ` (${p.department})` : ''}
                 </span>
               ))}
@@ -292,7 +314,7 @@ export default function LiveJournalPage() {
 
       {/* Journal */}
       <div className="flex-1 overflow-y-auto min-h-0">
-        <div className="max-w-4xl mx-auto px-4 py-4 space-y-2">
+        <div className="max-w-4xl mx-auto px-3 py-3 space-y-2">
           {journal.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <div className="text-4xl mb-3">📋</div>
@@ -336,14 +358,14 @@ export default function LiveJournalPage() {
 
       {/* Input area */}
       {event.status === 'active' && participant ? (
-        <div className="border-t bg-white p-4 shadow-lg">
+        <div className="border-t bg-white p-3 shadow-lg safe-area-bottom">
           <div className="max-w-4xl mx-auto">
-            <div className="flex gap-2 mb-2">
+            <div className="flex gap-1.5 mb-2 overflow-x-auto">
               {ENTRY_TYPES.map(type => (
                 <button
                   key={type.key}
                   onClick={() => setEntryType(type.key)}
-                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                  className={`px-2 py-1 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
                     entryType === type.key
                       ? type.key === 'urgent' ? 'bg-red-600 text-white'
                       : type.key === 'decision' ? 'bg-purple-600 text-white'
@@ -368,12 +390,12 @@ export default function LiveJournalPage() {
                 }}
                 placeholder="כתוב עדכון..."
                 rows={2}
-                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm"
+                className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm"
               />
               <button
                 onClick={handleSendEntry}
                 disabled={!newEntry.trim() || sending}
-                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold px-5 rounded-lg transition-colors"
+                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold px-4 rounded-lg transition-colors"
               >
                 {sending ? '⏳' : '📤'}
               </button>
@@ -381,11 +403,11 @@ export default function LiveJournalPage() {
           </div>
         </div>
       ) : event.status === 'closed' ? (
-        <div className="border-t bg-gray-200 p-4 text-center">
+        <div className="border-t bg-gray-200 p-3 text-center">
           <p className="text-gray-500 font-bold text-sm">🔒 האירוע סגור</p>
         </div>
       ) : !participant ? (
-        <div className="border-t bg-yellow-50 p-4 text-center">
+        <div className="border-t bg-yellow-50 p-3 text-center">
           <p className="text-yellow-700 font-bold text-sm">צפייה בלבד - לא מזוהה כמשתתף</p>
           <button
             onClick={() => router.push(`/event/join/${token}`)}
