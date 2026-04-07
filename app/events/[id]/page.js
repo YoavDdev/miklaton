@@ -246,8 +246,11 @@ export default function EventDetailPage() {
 
   const copyInviteLink = () => {
     if (!event) return;
+    const sev = SEVERITY_MAP[event.severity] || SEVERITY_MAP.medium;
     const url = `${window.location.origin}/event/join/${event.invite_token}`;
-    navigator.clipboard.writeText(url).then(() => {
+    const time = new Date(event.created_at).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
+    const message = `🚨 הזמנה לאירוע חירום\n\n📋 ${event.title}\n${sev.icon} רמת חומרה: ${sev.label}\n🕐 נפתח: ${time}\n${event.description ? `📝 ${event.description}\n` : ''}\n👉 להצטרפות: ${url}`;
+    navigator.clipboard.writeText(message).then(() => {
       setLinkCopied(true);
       setTimeout(() => setLinkCopied(false), 2000);
     });

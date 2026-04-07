@@ -25,6 +25,38 @@ export default function JoinEventPage() {
   const [participantId, setParticipantId] = useState(null);
   const [result, setResult] = useState(null); // joined / declined / already_joined
 
+  // Auto-load saved phone from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('miklaton_phone');
+    if (saved) {
+      setPhone(saved);
+      // Auto-lookup with saved phone
+      autoLookup(saved);
+    }
+  }, [token]);
+
+  const autoLookup = async (savedPhone) => {
+    setLoading(true);
+    try {
+      const res = await fetch('/api/events/join', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invite_token: token, phone: savedPhone, action: 'lookup' }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEventInfo(data.event);
+        if (data.found) {
+          setContactInfo(data.contact);
+          setStep('confirm');
+        } else {
+          setStep('guest_register');
+        }
+      }
+    } catch {}
+    setLoading(false);
+  };
+
   const handleLookup = async () => {
     if (!phone.trim()) return;
     setLoading(true);
@@ -82,6 +114,8 @@ export default function JoinEventPage() {
       setParticipantId(data.data?.id);
       setResult(data.message);
       setEventInfo(data.event);
+      // Save phone for next time
+      localStorage.setItem('miklaton_phone', phone.trim());
       setStep('done');
     } catch (err) {
       setError('שגיאה בחיבור לשרת');

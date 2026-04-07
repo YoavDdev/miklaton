@@ -28,7 +28,7 @@ export default function LiveJournalPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const token = params.token;
-  const phone = searchParams.get('phone') || '';
+  const phone = searchParams.get('phone') || (typeof window !== 'undefined' ? localStorage.getItem('miklaton_phone') : '') || '';
   const journalEndRef = useRef(null);
 
   const [event, setEvent] = useState(null);
