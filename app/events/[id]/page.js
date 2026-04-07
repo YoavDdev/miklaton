@@ -17,9 +17,7 @@ const SEVERITY_MAP = {
 };
 
 const ENTRY_TYPES = [
-  { key: 'update', label: 'עדכון', icon: '📝', color: 'border-blue-400 bg-blue-50' },
   { key: 'urgent', label: 'דחוף', icon: '🔴', color: 'border-red-400 bg-red-50' },
-  { key: 'decision', label: 'החלטה', icon: '⚖️', color: 'border-purple-400 bg-purple-50' },
   { key: 'task', label: 'משימה', icon: '✅', color: 'border-green-400 bg-green-50' },
 ];
 
@@ -339,7 +337,10 @@ export default function EventDetailPage() {
         const data = await res.json();
         if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
       } catch {}
-    }, () => alert('לא ניתן לקבל מיקום. אנא אפשר גישה למיקום.'));
+    }, (err) => {
+      if (err.code === 1) alert('גישת מיקום נחסמה. אנא אפשר מיקום בהגדרות הדפדפן ונסה שוב.');
+      else alert('לא הצלחנו לקבל מיקום. נסה שוב בעוד רגע.');
+    }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
   };
 
   const togglePin = async (entryId, currentPinned) => {
@@ -744,22 +745,18 @@ export default function EventDetailPage() {
                 </div>
               )}
               <div className="flex gap-1.5 sm:gap-2 mb-2 sm:mb-3 overflow-x-auto">
-                {ENTRY_TYPES.map(type => (
-                  <button
-                    key={type.key}
-                    onClick={() => setEntryType(type.key)}
-                    className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
-                      entryType === type.key
-                        ? type.key === 'urgent' ? 'bg-red-600 text-white'
-                        : type.key === 'decision' ? 'bg-purple-600 text-white'
-                        : type.key === 'task' ? 'bg-green-600 text-white'
-                        : 'bg-blue-600 text-white'
-                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                    }`}
-                  >
-                    {type.icon} {type.label}
-                  </button>
-                ))}
+                <button
+                  onClick={() => setEntryType(entryType === 'urgent' ? 'update' : 'urgent')}
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    entryType === 'urgent' ? 'bg-red-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  🔴 דחוף
+                </button>
+                <button onClick={shareLocation}
+                  className="px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                  📍 מיקום
+                </button>
                 <button
                   onClick={() => setShowQuickMessages(!showQuickMessages)}
                   className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
@@ -768,9 +765,13 @@ export default function EventDetailPage() {
                 >
                   ⚡ מהיר
                 </button>
-                <button onClick={shareLocation}
-                  className="px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
-                  📍 מיקום
+                <button
+                  onClick={() => setEntryType(entryType === 'task' ? 'update' : 'task')}
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    entryType === 'task' ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  ✅ משימה
                 </button>
               </div>
               {imagePreview && (
