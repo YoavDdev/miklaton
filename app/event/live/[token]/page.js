@@ -45,14 +45,28 @@ export default function LiveJournalPage() {
     initPage();
   }, [token, phone]);
 
+  // Additive journal refresh (never removes entries)
+  const refreshJournal = async (eid) => {
+    try {
+      const { data } = await supabase
+        .from('event_journal').select('*').eq('event_id', eid).order('created_at', { ascending: true });
+      if (data) {
+        setJournal(prev => {
+          const serverMap = new Map(data.map(e => [e.id, e]));
+          const optimistic = prev.filter(e => e._optimistic && !serverMap.has(e.id));
+          return [...data, ...optimistic];
+        });
+      }
+    } catch {}
+  };
+
   // Realtime
   useEffect(() => {
     if (!event?.id) return;
-
     const eventId = event.id;
 
-    const journalChannel = supabase
-      .channel(`live-journal-${eventId}`)
+    const channel = supabase
+      .channel(`live-all-${eventId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -61,20 +75,16 @@ export default function LiveJournalPage() {
         if (payload.new.event_id === eventId) {
           setJournal(prev => {
             if (prev.find(j => j.id === payload.new.id)) return prev;
-            const optimisticIdx = prev.findIndex(j => j._optimistic && j.content === payload.new.content && j.author_name === payload.new.author_name);
-            if (optimisticIdx >= 0) {
+            const idx = prev.findIndex(j => j._optimistic && j.content === payload.new.content);
+            if (idx >= 0) {
               const updated = [...prev];
-              updated[optimisticIdx] = payload.new;
+              updated[idx] = payload.new;
               return updated;
             }
             return [...prev, payload.new];
           });
         }
       })
-      .subscribe();
-
-    const eventChannel = supabase
-      .channel(`live-event-${eventId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -82,35 +92,24 @@ export default function LiveJournalPage() {
       }, (payload) => {
         if (payload.new.id === eventId) setEvent(payload.new);
       })
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'event_participants',
+      }, async (payload) => {
+        const rec = payload.new || payload.old;
+        if (rec?.event_id === eventId) {
+          const { data } = await supabase.from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
+          if (data) setParticipants(data);
+        }
+      })
       .subscribe();
 
-    // Polling fallback every 5 seconds - merge, never replace
-    const pollInterval = setInterval(async () => {
-      try {
-        const { data: journalData } = await supabase
-          .from('event_journal').select('*').eq('event_id', eventId).order('created_at', { ascending: true });
-        if (journalData) {
-          setJournal(prev => {
-            if (journalData.length >= prev.length) return journalData;
-            const serverIds = new Set(journalData.map(e => e.id));
-            const localOnly = prev.filter(e => e._optimistic && !serverIds.has(e.id));
-            return [...journalData, ...localOnly];
-          });
-        }
-
-        const { data: participantsData } = await supabase
-          .from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
-        if (participantsData) setParticipants(participantsData);
-
-        const { data: eventData } = await supabase
-          .from('emergency_events').select('*').eq('id', eventId).single();
-        if (eventData) setEvent(eventData);
-      } catch {}
-    }, 5000);
+    // Light additive polling every 10s
+    const pollInterval = setInterval(() => refreshJournal(eventId), 10000);
 
     return () => {
-      supabase.removeChannel(journalChannel);
-      supabase.removeChannel(eventChannel);
+      supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
   }, [event?.id]);
@@ -197,6 +196,7 @@ export default function LiveJournalPage() {
       const data = await res.json();
       if (data.success) {
         setJournal(prev => prev.map(e => e.id === optimisticEntry.id ? data.data : e));
+        setTimeout(() => refreshJournal(event.id), 1000);
       } else {
         setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
         setNewEntry(content);

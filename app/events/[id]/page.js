@@ -49,12 +49,29 @@ export default function EventDetailPage() {
     fetchUserInfo();
   }, [eventId]);
 
-  // Realtime subscriptions (no filter - check in callback)
+  // Refresh journal from Supabase directly (additive only - never removes entries)
+  const refreshJournal = async () => {
+    try {
+      const { data } = await supabase
+        .from('event_journal').select('*').eq('event_id', eventId).order('created_at', { ascending: true });
+      if (data) {
+        setJournal(prev => {
+          // Build map of server entries by id
+          const serverMap = new Map(data.map(e => [e.id, e]));
+          // Keep optimistic entries that server doesn't have yet
+          const optimistic = prev.filter(e => e._optimistic && !serverMap.has(e.id));
+          return [...data, ...optimistic];
+        });
+      }
+    } catch {}
+  };
+
+  // Realtime subscriptions
   useEffect(() => {
     if (!eventId) return;
 
-    const journalChannel = supabase
-      .channel(`journal-${eventId}`)
+    const channel = supabase
+      .channel(`event-all-${eventId}`)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -62,35 +79,29 @@ export default function EventDetailPage() {
       }, (payload) => {
         if (payload.new.event_id === eventId) {
           setJournal(prev => {
-            // Skip if already exists (by real id)
             if (prev.find(j => j.id === payload.new.id)) return prev;
-            // Check if there's an optimistic entry with same content to replace
-            const optimisticIdx = prev.findIndex(j => j._optimistic && j.content === payload.new.content && j.author_name === payload.new.author_name);
-            if (optimisticIdx >= 0) {
+            // Replace optimistic with real
+            const idx = prev.findIndex(j => j._optimistic && j.content === payload.new.content);
+            if (idx >= 0) {
               const updated = [...prev];
-              updated[optimisticIdx] = payload.new;
+              updated[idx] = payload.new;
               return updated;
             }
             return [...prev, payload.new];
           });
         }
       })
-      .subscribe();
-
-    const participantsChannel = supabase
-      .channel(`participants-${eventId}`)
       .on('postgres_changes', {
         event: '*',
         schema: 'public',
         table: 'event_participants',
-      }, (payload) => {
+      }, async (payload) => {
         const rec = payload.new || payload.old;
-        if (rec?.event_id === eventId) fetchParticipants();
+        if (rec?.event_id === eventId) {
+          const { data } = await supabase.from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
+          if (data) setParticipants(data);
+        }
       })
-      .subscribe();
-
-    const eventChannel = supabase
-      .channel(`event-${eventId}`)
       .on('postgres_changes', {
         event: 'UPDATE',
         schema: 'public',
@@ -100,31 +111,11 @@ export default function EventDetailPage() {
       })
       .subscribe();
 
-    // Polling fallback every 5 seconds - merge, never replace
-    const pollInterval = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/events/${eventId}`);
-        const data = await res.json();
-        if (data.success) {
-          setJournal(prev => {
-            const serverEntries = data.data.journal || [];
-            // Use server as source of truth - it always has ALL entries
-            if (serverEntries.length >= prev.length) return serverEntries;
-            // If local has more (optimistic), merge
-            const serverIds = new Set(serverEntries.map(e => e.id));
-            const localOnly = prev.filter(e => e._optimistic && !serverIds.has(e.id));
-            return [...serverEntries, ...localOnly];
-          });
-          setParticipants(data.data.participants);
-          setEvent(data.data.event);
-        }
-      } catch {}
-    }, 5000);
+    // Light polling - only additive, every 10s
+    const pollInterval = setInterval(() => refreshJournal(), 10000);
 
     return () => {
-      supabase.removeChannel(journalChannel);
-      supabase.removeChannel(participantsChannel);
-      supabase.removeChannel(eventChannel);
+      supabase.removeChannel(channel);
       clearInterval(pollInterval);
     };
   }, [eventId]);
@@ -176,11 +167,9 @@ export default function EventDetailPage() {
 
   const fetchParticipants = async () => {
     try {
-      const res = await fetch(`/api/events/${eventId}`);
-      const data = await res.json();
-      if (data.success) {
-        setParticipants(data.data.participants);
-      }
+      const { data } = await supabase
+        .from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
+      if (data) setParticipants(data);
     } catch {}
   };
 
@@ -189,18 +178,12 @@ export default function EventDetailPage() {
     const content = newEntry.trim();
     const type = entryType;
     
-    // Optimistic update - show immediately
-    const optimisticEntry = {
-      id: `temp-${Date.now()}`,
-      event_id: eventId,
-      author_name: userName,
-      author_role: userRole,
-      entry_type: type,
-      content,
-      created_at: new Date().toISOString(),
-      _optimistic: true,
-    };
-    setJournal(prev => [...prev, optimisticEntry]);
+    // Show immediately (optimistic)
+    const tempId = `temp-${Date.now()}`;
+    setJournal(prev => [...prev, {
+      id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+      entry_type: type, content, created_at: new Date().toISOString(), _optimistic: true,
+    }]);
     setNewEntry('');
     setEntryType('update');
     setSending(true);
@@ -209,25 +192,22 @@ export default function EventDetailPage() {
       const res = await fetch(`/api/events/${eventId}/journal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          author_name: userName,
-          author_role: userRole,
-          entry_type: type,
-          content,
-        }),
+        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: type, content }),
       });
       const data = await res.json();
       if (data.success) {
-        // Replace optimistic with real entry
-        setJournal(prev => prev.map(e => e.id === optimisticEntry.id ? data.data : e));
+        // Replace optimistic with real
+        setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+        // Also refresh to be safe
+        setTimeout(() => refreshJournal(), 1000);
       } else {
-        // Remove optimistic on failure
-        setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
+        setJournal(prev => prev.filter(e => e.id !== tempId));
         setNewEntry(content);
+        alert('שגיאה: ' + (data.error || 'לא ניתן לשלוח'));
       }
     } catch (error) {
       console.error('Failed to send entry:', error);
-      setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
+      setJournal(prev => prev.filter(e => e.id !== tempId));
       setNewEntry(content);
     }
     setSending(false);
