@@ -87,7 +87,9 @@ export async function POST(request) {
       userId: authData.user.id,
       email: authData.user.email,
       role: profile.role,
-      isAdmin: profile.role === 'admin'
+      isAdmin: profile.role === 'admin',
+      fullName: profile.full_name || '',
+      username: profile.full_name || authData.user.email?.split('@')[0] || '',
     });
 
     // Audit log for successful login

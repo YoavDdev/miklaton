@@ -131,32 +131,46 @@ export default function EventDetailPage() {
 
   const fetchUserInfo = async () => {
     try {
-      const res = await fetch('/api/auth/verify');
+      const res = await fetch('/api/auth/verify', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setUserName(data.fullName || data.username || 'לא ידוע');
+        let name = data.fullName || data.username || '';
+        // If still empty, fetch from user_profiles
+        if (!name && data.userId) {
+          const { data: profile } = await supabase
+            .from('user_profiles').select('full_name').eq('id', data.userId).single();
+          name = profile?.full_name || '';
+        }
+        setUserName(name || 'משתמש');
         setUserRole(data.role || '');
-        setIsAdmin(data.role === 'admin');
+        setIsAdmin(data.role === 'admin' || data.isAdmin);
+        return data;
       }
     } catch {}
+    return null;
   };
 
   const fetchEvent = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/events/${eventId}`);
-      const data = await res.json();
-      if (data.success) {
-        setEvent(data.data.event);
-        setParticipants(data.data.participants);
-        setJournal(data.data.journal);
+      // Load directly from Supabase - no caching issues
+      const [eventRes, journalRes, participantsRes] = await Promise.all([
+        supabase.from('emergency_events').select('*').eq('id', eventId).single(),
+        supabase.from('event_journal').select('*').eq('event_id', eventId).order('created_at', { ascending: true }),
+        supabase.from('event_participants').select('*').eq('event_id', eventId).order('joined_at'),
+      ]);
+
+      if (eventRes.data) {
+        setEvent(eventRes.data);
+        setJournal(journalRes.data || []);
+        setParticipants(participantsRes.data || []);
 
         // Check if user is creator
-        const authRes = await fetch('/api/auth/verify');
+        const authRes = await fetch('/api/auth/verify', { cache: 'no-store' });
         if (authRes.ok) {
           const authData = await authRes.json();
-          setIsCreator(data.data.event.created_by === authData.userId);
-          setIsAdmin(authData.role === 'admin');
+          setIsCreator(eventRes.data.created_by === authData.userId);
+          setIsAdmin(authData.role === 'admin' || authData.isAdmin);
         }
       }
     } catch (error) {
