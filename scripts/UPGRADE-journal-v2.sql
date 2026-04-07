@@ -18,4 +18,4 @@ ALTER TABLE emergency_events ADD COLUMN IF NOT EXISTS summary TEXT;
 -- 3. עדכון entry_types לתמוך בסוגים חדשים
 ALTER TABLE event_journal DROP CONSTRAINT IF EXISTS event_journal_entry_type_check;
 ALTER TABLE event_journal ADD CONSTRAINT event_journal_entry_type_check 
-  CHECK (entry_type IN ('update', 'urgent', 'decision', 'task', 'system', 'location', 'quick'));
+  CHECK (entry_type IN ('update', 'urgent', 'decision', 'task', 'system', 'location', 'quick', 'map_marker'));

@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import dynamic from 'next/dynamic';
+import sheltersData from '@/data/shelters.json';
+
+const EventMap = dynamic(() => import('@/components/EventMap'), { ssr: false });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -60,6 +64,7 @@ export default function EventDetailPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQuickMessages, setShowQuickMessages] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     fetchEvent();
@@ -350,6 +355,23 @@ export default function EventDetailPage() {
     await supabase.from('event_journal').update({ task_status: 'done', assigned_to: userName }).eq('id', entryId);
   };
 
+  const addMapMarker = async (lat, lng, note) => {
+    const tempId = `temp-${Date.now()}`;
+    setJournal(prev => [...prev, {
+      id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+      entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng,
+      created_at: new Date().toISOString(), _optimistic: true,
+    }]);
+    try {
+      const res = await fetch(`/api/events/${eventId}/journal`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng }),
+      });
+      const data = await res.json();
+      if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+    } catch {}
+  };
+
   const generateSummary = () => {
     const duration = Math.round((Date.now() - new Date(event.created_at).getTime()) / 60000);
     const hrs = Math.floor(duration / 60);
@@ -603,6 +625,33 @@ export default function EventDetailPage() {
         </div>
       )}
 
+      {/* Map toggle + map */}
+      <div className="max-w-6xl mx-auto w-full px-3">
+        <button
+          onClick={() => setShowMap(!showMap)}
+          className={`w-full text-center text-xs py-1.5 font-bold rounded-t-lg border-b transition-colors ${
+            showMap ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+          }`}
+        >
+          🗺️ {showMap ? 'סגור מפה' : 'פתח מפה'}
+          {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length > 0 && (
+            <span className="mr-1 bg-white/20 px-1.5 rounded text-xs">
+              {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length} סימונים
+            </span>
+          )}
+        </button>
+        {showMap && (
+          <div className="border border-t-0 rounded-b-lg p-2 bg-white shadow-sm mb-1">
+            <EventMap
+              journal={journal}
+              onAddMarker={addMapMarker}
+              isActive={event.status === 'active'}
+              shelters={sheltersData}
+            />
+          </div>
+        )}
+      </div>
+
       <div className="flex-1 flex flex-col sm:flex-row max-w-6xl mx-auto w-full min-h-0">
         {/* Journal - main area */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -631,21 +680,22 @@ export default function EventDetailPage() {
                 const isLocation = entry.entry_type === 'location';
                 const isQuick = entry.entry_type === 'quick';
                 const isTask = entry.entry_type === 'task';
+                const isMapMarker = entry.entry_type === 'map_marker';
                 const taskSt = isTask && entry.task_status ? TASK_STATUS[entry.task_status] : null;
 
                 return (
                   <div key={entry.id} className={`border-r-4 rounded-lg p-3 shadow-sm relative group ${
                     entry.is_pinned ? 'ring-2 ring-amber-400 ' : ''
-                  }${isQuick ? 'border-teal-400 bg-teal-50' : typeInfo?.color || 'border-gray-300 bg-white'}`}>
+                  }${isMapMarker ? 'border-rose-400 bg-rose-50' : isQuick ? 'border-teal-400 bg-teal-50' : typeInfo?.color || 'border-gray-300 bg-white'}`}>
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
-                        <span className="text-sm">{isQuick ? '⚡' : isLocation ? '📍' : typeInfo?.icon}</span>
+                        <span className="text-sm">{isMapMarker ? '🗺️' : isQuick ? '⚡' : isLocation ? '📍' : typeInfo?.icon}</span>
                         <span className="font-bold text-gray-900 text-sm">{entry.author_name}</span>
                         {entry.author_role && (
                           <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">{entry.author_role}</span>
                         )}
                         <span className="text-xs bg-white/50 text-gray-500 px-2 py-0.5 rounded">
-                          {isQuick ? 'מהיר' : isLocation ? 'מיקום' : typeInfo?.label}
+                          {isMapMarker ? 'סימון מפה' : isQuick ? 'מהיר' : isLocation ? 'מיקום' : typeInfo?.label}
                         </span>
                         {entry.is_pinned && <span className="text-xs text-amber-600">📌</span>}
                       </div>
@@ -663,7 +713,7 @@ export default function EventDetailPage() {
                       </div>
                     </div>
                     {entry.content && <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{entry.content}</p>}
-                    {isLocation && entry.location_lat && (
+                    {(isLocation || isMapMarker) && entry.location_lat && (
                       <a
                         href={`https://www.google.com/maps?q=${entry.location_lat},${entry.location_lng}`}
                         target="_blank"

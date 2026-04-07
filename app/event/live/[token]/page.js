@@ -3,6 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import dynamic from 'next/dynamic';
+import sheltersData from '@/data/shelters.json';
+
+const EventMap = dynamic(() => import('@/components/EventMap'), { ssr: false });
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -57,6 +61,7 @@ export default function LiveJournalPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQuickMessages, setShowQuickMessages] = useState(false);
+  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     initPage();
@@ -330,6 +335,25 @@ export default function LiveJournalPage() {
     await supabase.from('event_journal').update({ task_status: 'done', assigned_to: myName }).eq('id', entryId);
   };
 
+  const addMapMarker = async (lat, lng, note) => {
+    if (!participant) return;
+    const tempId = `temp-${Date.now()}`;
+    setJournal(prev => [...prev, {
+      id: tempId, event_id: event.id, author_name: participant.display_name,
+      author_role: participant.department || participant.role || '',
+      entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng,
+      created_at: new Date().toISOString(), _optimistic: true,
+    }]);
+    try {
+      const res = await fetch(`/api/events/${event.id}/journal`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author_name: participant.display_name, author_role: participant.department || participant.role || undefined, entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng, participant_id: participant.id }),
+      });
+      const data = await res.json();
+      if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+    } catch {}
+  };
+
   const handlePrint = () => {
     if (!event) return;
     const sev = SEVERITY_MAP[event.severity] || SEVERITY_MAP.medium;
@@ -484,6 +508,33 @@ export default function LiveJournalPage() {
         </div>
       )}
 
+      {/* Map toggle + map */}
+      <div className="max-w-4xl mx-auto w-full px-3">
+        <button
+          onClick={() => setShowMap(!showMap)}
+          className={`w-full text-center text-xs py-1.5 font-bold rounded-t-lg border-b transition-colors ${
+            showMap ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
+          }`}
+        >
+          🗺️ {showMap ? 'סגור מפה' : 'פתח מפה'}
+          {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length > 0 && (
+            <span className="mr-1 bg-white/20 px-1.5 rounded text-xs">
+              {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length} סימונים
+            </span>
+          )}
+        </button>
+        {showMap && (
+          <div className="border border-t-0 rounded-b-lg p-2 bg-white shadow-sm mb-1">
+            <EventMap
+              journal={journal}
+              onAddMarker={addMapMarker}
+              isActive={event.status === 'active' && !!participant}
+              shelters={sheltersData}
+            />
+          </div>
+        )}
+      </div>
+
       {/* Journal */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-4xl mx-auto px-3 py-3 space-y-2">
@@ -510,15 +561,16 @@ export default function LiveJournalPage() {
               const isLocation = entry.entry_type === 'location';
               const isQuick = entry.entry_type === 'quick';
               const isTask = entry.entry_type === 'task';
+              const isMapMarker = entry.entry_type === 'map_marker';
               const taskSt = isTask && entry.task_status ? TASK_STATUS[entry.task_status] : null;
 
               return (
                 <div key={entry.id} className={`border-r-4 rounded-lg p-3 shadow-sm ${
                   entry.is_pinned ? 'ring-2 ring-amber-400 ' : ''
-                }${isQuick ? 'border-teal-400 bg-teal-50' : typeInfo?.color || 'border-gray-300 bg-white'}`}>
+                }${isMapMarker ? 'border-rose-400 bg-rose-50' : isQuick ? 'border-teal-400 bg-teal-50' : typeInfo?.color || 'border-gray-300 bg-white'}`}>
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      <span className="text-sm">{isQuick ? '⚡' : isLocation ? '📍' : typeInfo?.icon}</span>
+                      <span className="text-sm">{isMapMarker ? '🗺️' : isQuick ? '⚡' : isLocation ? '📍' : typeInfo?.icon}</span>
                       <span className="font-bold text-gray-900 text-sm">{entry.author_name}</span>
                       {entry.author_role && (
                         <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">{entry.author_role}</span>
@@ -528,7 +580,7 @@ export default function LiveJournalPage() {
                     <span className="text-xs text-gray-400 font-mono">{formatTime(entry.created_at)}</span>
                   </div>
                   {entry.content && <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{entry.content}</p>}
-                  {isLocation && entry.location_lat && (
+                  {(isLocation || isMapMarker) && entry.location_lat && (
                     <a
                       href={`https://www.google.com/maps?q=${entry.location_lat},${entry.location_lng}`}
                       target="_blank" rel="noopener noreferrer"
