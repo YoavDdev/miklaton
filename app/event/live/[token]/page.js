@@ -32,7 +32,6 @@ const EVENT_TYPES = {
 
 const TASK_STATUS = {
   pending: { label: 'ממתין', icon: '⏳', color: 'bg-yellow-100 text-yellow-700' },
-  in_progress: { label: 'בביצוע', icon: '🔄', color: 'bg-blue-100 text-blue-700' },
   done: { label: 'הושלם', icon: '✅', color: 'bg-green-100 text-green-700' },
 };
 
@@ -323,9 +322,12 @@ export default function LiveJournalPage() {
     }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 30000 });
   };
 
-  const updateTaskStatus = async (entryId, newStatus) => {
-    setJournal(prev => prev.map(e => e.id === entryId ? { ...e, task_status: newStatus } : e));
-    await supabase.from('event_journal').update({ task_status: newStatus }).eq('id', entryId);
+  const completeTask = async (entryId) => {
+    if (!participant) return;
+    if (!confirm('סיימת את המשימה?')) return;
+    const myName = participant.display_name;
+    setJournal(prev => prev.map(e => e.id === entryId ? { ...e, task_status: 'done', assigned_to: myName } : e));
+    await supabase.from('event_journal').update({ task_status: 'done', assigned_to: myName }).eq('id', entryId);
   };
 
   const handlePrint = () => {
@@ -522,9 +524,6 @@ export default function LiveJournalPage() {
                         <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">{entry.author_role}</span>
                       )}
                       {entry.is_pinned && <span className="text-xs text-amber-600">📌</span>}
-                      {entry.assigned_to && (
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">👤 {entry.assigned_to}</span>
-                      )}
                     </div>
                     <span className="text-xs text-gray-400 font-mono">{formatTime(entry.created_at)}</span>
                   </div>
@@ -549,17 +548,18 @@ export default function LiveJournalPage() {
                     </div>
                   )}
                   {isTask && taskSt && (
-                    <div className="flex items-center gap-2 mt-2">
-                      <span className={`text-xs px-2 py-1 rounded font-bold ${taskSt.color}`}>{taskSt.icon} {taskSt.label}</span>
-                      {event.status === 'active' && participant && (
-                        <div className="flex gap-1">
-                          {Object.entries(TASK_STATUS).filter(([k]) => k !== entry.task_status).map(([key, st]) => (
-                            <button key={key} onClick={() => updateTaskStatus(entry.id, key)}
-                              className="text-xs px-2 py-0.5 rounded border hover:bg-gray-100 transition-colors">
-                              {st.icon}
-                            </button>
-                          ))}
-                        </div>
+                    <div className="mt-2">
+                      {entry.task_status === 'done' ? (
+                        <span className="text-xs px-2 py-1 rounded font-bold bg-green-100 text-green-700">✅ בוצע ע״י {entry.assigned_to || 'לא ידוע'}</span>
+                      ) : (
+                        event.status === 'active' && participant ? (
+                          <button onClick={() => completeTask(entry.id)}
+                            className="text-xs px-3 py-1.5 rounded-lg font-bold bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-300 transition-colors">
+                            ⏳ ממתין - לחץ לסיום
+                          </button>
+                        ) : (
+                          <span className="text-xs px-2 py-1 rounded font-bold bg-yellow-100 text-yellow-700">⏳ ממתין</span>
+                        )
                       )}
                     </div>
                   )}

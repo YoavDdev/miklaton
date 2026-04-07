@@ -32,7 +32,6 @@ const EVENT_TYPES = {
 
 const TASK_STATUS = {
   pending: { label: 'ממתין', icon: '⏳', color: 'bg-yellow-100 text-yellow-700' },
-  in_progress: { label: 'בביצוע', icon: '🔄', color: 'bg-blue-100 text-blue-700' },
   done: { label: 'הושלם', icon: '✅', color: 'bg-green-100 text-green-700' },
 };
 
@@ -61,7 +60,6 @@ export default function EventDetailPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQuickMessages, setShowQuickMessages] = useState(false);
-  const [assignTo, setAssignTo] = useState('');
 
   useEffect(() => {
     fetchEvent();
@@ -255,12 +253,11 @@ export default function EventDetailPage() {
     setJournal(prev => [...prev, {
       id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
       entry_type: type, content: content || (hasImage ? '📷 תמונה' : ''), image_url: imagePreview || null,
-      assigned_to: type === 'task' ? assignTo : null, task_status: type === 'task' ? 'pending' : null,
+      task_status: type === 'task' ? 'pending' : null,
       created_at: new Date().toISOString(), _optimistic: true,
     }]);
     setNewEntry('');
     setEntryType('update');
-    setAssignTo('');
     removeImage();
     setSending(true);
 
@@ -279,7 +276,6 @@ export default function EventDetailPage() {
           author_name: userName, author_role: userRole, entry_type: type,
           content: content || (imageUrl ? '📷 תמונה' : ''),
           image_url: imageUrl,
-          assigned_to: type === 'task' ? assignTo : undefined,
         }),
       });
       const data = await res.json();
@@ -348,9 +344,10 @@ export default function EventDetailPage() {
     await supabase.from('event_journal').update({ is_pinned: !currentPinned }).eq('id', entryId);
   };
 
-  const updateTaskStatus = async (entryId, newStatus) => {
-    setJournal(prev => prev.map(e => e.id === entryId ? { ...e, task_status: newStatus } : e));
-    await supabase.from('event_journal').update({ task_status: newStatus }).eq('id', entryId);
+  const completeTask = async (entryId) => {
+    if (!confirm('סיימת את המשימה?')) return;
+    setJournal(prev => prev.map(e => e.id === entryId ? { ...e, task_status: 'done', assigned_to: userName } : e));
+    await supabase.from('event_journal').update({ task_status: 'done', assigned_to: userName }).eq('id', entryId);
   };
 
   const generateSummary = () => {
@@ -651,9 +648,6 @@ export default function EventDetailPage() {
                           {isQuick ? 'מהיר' : isLocation ? 'מיקום' : typeInfo?.label}
                         </span>
                         {entry.is_pinned && <span className="text-xs text-amber-600">📌</span>}
-                        {entry.assigned_to && (
-                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">👤 {entry.assigned_to}</span>
-                        )}
                       </div>
                       <div className="flex items-center gap-1">
                         {(isCreator || isAdmin) && event.status === 'active' && !entry._optimistic && (
@@ -690,17 +684,18 @@ export default function EventDetailPage() {
                       </div>
                     )}
                     {isTask && taskSt && (
-                      <div className="flex items-center gap-2 mt-2">
-                        <span className={`text-xs px-2 py-1 rounded font-bold ${taskSt.color}`}>{taskSt.icon} {taskSt.label}</span>
-                        {event.status === 'active' && (
-                          <div className="flex gap-1">
-                            {Object.entries(TASK_STATUS).filter(([k]) => k !== entry.task_status).map(([key, st]) => (
-                              <button key={key} onClick={() => updateTaskStatus(entry.id, key)}
-                                className="text-xs px-2 py-0.5 rounded border hover:bg-gray-100 transition-colors">
-                                {st.icon}
-                              </button>
-                            ))}
-                          </div>
+                      <div className="mt-2">
+                        {entry.task_status === 'done' ? (
+                          <span className="text-xs px-2 py-1 rounded font-bold bg-green-100 text-green-700">✅ בוצע ע״י {entry.assigned_to || 'לא ידוע'}</span>
+                        ) : (
+                          event.status === 'active' ? (
+                            <button onClick={() => completeTask(entry.id)}
+                              className="text-xs px-3 py-1.5 rounded-lg font-bold bg-yellow-100 text-yellow-700 hover:bg-yellow-200 border border-yellow-300 transition-colors">
+                              ⏳ ממתין - לחץ לסיום
+                            </button>
+                          ) : (
+                            <span className="text-xs px-2 py-1 rounded font-bold bg-yellow-100 text-yellow-700">⏳ ממתין</span>
+                          )
                         )}
                       </div>
                     )}
@@ -729,19 +724,6 @@ export default function EventDetailPage() {
                       </button>
                     ))}
                   </div>
-                </div>
-              )}
-              {/* Task assignment row */}
-              {entryType === 'task' && (
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-xs font-bold text-gray-500">👤 הקצה ל:</span>
-                  <select value={assignTo} onChange={(e) => setAssignTo(e.target.value)}
-                    className="text-xs border rounded px-2 py-1 flex-1 max-w-[200px]">
-                    <option value="">ללא הקצאה</option>
-                    {participants.filter(p => p.status === 'confirmed').map(p => (
-                      <option key={p.id} value={p.display_name}>{p.display_name}</option>
-                    ))}
-                  </select>
                 </div>
               )}
               <div className="flex gap-1.5 sm:gap-2 mb-2 sm:mb-3 overflow-x-auto">
