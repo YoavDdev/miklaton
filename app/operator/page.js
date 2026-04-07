@@ -153,6 +153,12 @@ export default function OperatorPage() {
                 👤 האיזור האישי
               </button>
               <a
+                href="/events"
+                className="bg-red-700 hover:bg-red-800 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"
+              >
+                🚨 יומן אירועים
+              </a>
+              <a
                 href="/on-call"
                 className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"
               >

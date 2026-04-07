@@ -14,7 +14,13 @@ export async function GET(request) {
       return NextResponse.json({ error: 'טוקן לא תקין' }, { status: 401 });
     }
 
-    return NextResponse.json({ isAdmin: decoded.isAdmin || false });
+    return NextResponse.json({ 
+      isAdmin: decoded.isAdmin || false,
+      userId: decoded.userId,
+      fullName: decoded.fullName || decoded.username || '',
+      username: decoded.username || '',
+      role: decoded.role || '',
+    });
   } catch (error) {
     return NextResponse.json({ error: 'שגיאה' }, { status: 500 });
   }

@@ -1,0 +1,400 @@
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
+import { useParams, useSearchParams, useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+const SEVERITY_MAP = {
+  low: { label: 'נמוך', color: 'bg-blue-100 text-blue-800', icon: 'ℹ️' },
+  medium: { label: 'בינוני', color: 'bg-yellow-100 text-yellow-800', icon: '⚠️' },
+  high: { label: 'גבוה', color: 'bg-orange-100 text-orange-800', icon: '🔶' },
+  critical: { label: 'קריטי', color: 'bg-red-100 text-red-800', icon: '🚨' },
+};
+
+const ENTRY_TYPES = [
+  { key: 'update', label: 'עדכון', icon: '📝', color: 'border-blue-400 bg-blue-50' },
+  { key: 'urgent', label: 'דחוף', icon: '🔴', color: 'border-red-400 bg-red-50' },
+  { key: 'decision', label: 'החלטה', icon: '⚖️', color: 'border-purple-400 bg-purple-50' },
+  { key: 'task', label: 'משימה', icon: '✅', color: 'border-green-400 bg-green-50' },
+];
+
+export default function LiveJournalPage() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const token = params.token;
+  const phone = searchParams.get('phone') || '';
+  const journalEndRef = useRef(null);
+
+  const [event, setEvent] = useState(null);
+  const [journal, setJournal] = useState([]);
+  const [participants, setParticipants] = useState([]);
+  const [participant, setParticipant] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [newEntry, setNewEntry] = useState('');
+  const [entryType, setEntryType] = useState('update');
+  const [sending, setSending] = useState(false);
+  const [showParticipants, setShowParticipants] = useState(false);
+
+  useEffect(() => {
+    initPage();
+  }, [token, phone]);
+
+  // Realtime
+  useEffect(() => {
+    if (!event?.id) return;
+
+    const journalChannel = supabase
+      .channel(`live-journal-${event.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'event_journal',
+        filter: `event_id=eq.${event.id}`,
+      }, (payload) => {
+        setJournal(prev => [...prev, payload.new]);
+        setTimeout(() => journalEndRef.current?.scrollIntoView({ behavior: 'smooth' }), 100);
+      })
+      .subscribe();
+
+    const eventChannel = supabase
+      .channel(`live-event-${event.id}`)
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'emergency_events',
+        filter: `id=eq.${event.id}`,
+      }, (payload) => {
+        setEvent(payload.new);
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(journalChannel);
+      supabase.removeChannel(eventChannel);
+    };
+  }, [event?.id]);
+
+  useEffect(() => {
+    if (journal.length > 0) {
+      setTimeout(() => {
+        journalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }, 150);
+    }
+  }, [journal.length]);
+
+  const initPage = async () => {
+    setLoading(true);
+    try {
+      // First find event by token
+      const { data: eventData, error: eventError } = await supabase
+        .from('emergency_events')
+        .select('*')
+        .eq('invite_token', token)
+        .single();
+
+      if (eventError || !eventData) {
+        setLoading(false);
+        return;
+      }
+
+      setEvent(eventData);
+
+      // Fetch journal and participants
+      const [journalRes, participantsRes] = await Promise.all([
+        supabase.from('event_journal').select('*').eq('event_id', eventData.id).order('created_at', { ascending: true }),
+        supabase.from('event_participants').select('*').eq('event_id', eventData.id).order('joined_at'),
+      ]);
+
+      setJournal(journalRes.data || []);
+      setParticipants(participantsRes.data || []);
+
+      // Find current participant by phone
+      if (phone) {
+        const normalizedPhone = phone.replace(/[-\s]/g, '');
+        const found = participantsRes.data?.find(p => p.phone?.replace(/[-\s]/g, '') === normalizedPhone);
+        setParticipant(found || null);
+      }
+    } catch (error) {
+      console.error('Failed to load event:', error);
+    }
+    setLoading(false);
+  };
+
+  const handleSendEntry = async () => {
+    if (!newEntry.trim() || sending || !participant) return;
+    setSending(true);
+    try {
+      const res = await fetch(`/api/events/${event.id}/journal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          author_name: participant.display_name,
+          author_role: participant.department || participant.role || undefined,
+          entry_type: entryType,
+          content: newEntry.trim(),
+          participant_id: participant.id,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setNewEntry('');
+        setEntryType('update');
+      }
+    } catch (error) {
+      console.error('Failed to send entry:', error);
+    }
+    setSending(false);
+  };
+
+  const handlePrint = () => {
+    if (!event) return;
+    const sev = SEVERITY_MAP[event.severity] || SEVERITY_MAP.medium;
+
+    const journalRows = journal.map(entry => {
+      const time = new Date(entry.created_at).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+      const date = new Date(entry.created_at).toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem' });
+      const typeInfo = ENTRY_TYPES.find(t => t.key === entry.entry_type);
+      return `<tr>
+        <td class="time-cell">${date}<br>${time}</td>
+        <td class="author-cell">${entry.author_name}${entry.author_role ? `<br><span class="role">${entry.author_role}</span>` : ''}</td>
+        <td class="type-cell">${typeInfo?.icon || '📝'} ${typeInfo?.label || 'עדכון'}</td>
+        <td class="content-cell">${entry.content}</td>
+      </tr>`;
+    }).join('');
+
+    const printWindow = window.open('', '_blank');
+    printWindow.document.write(`<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>יומן אירוע - ${event.title}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; direction: rtl; max-width: 210mm; margin: 0 auto; padding: 8mm; }
+    @page { margin: 8mm; size: A4 portrait; }
+    h1 { font-size: 16px; text-align: center; margin-bottom: 4px; }
+    .meta { font-size: 9px; color: #666; text-align: center; margin-bottom: 10px; padding-bottom: 6px; border-bottom: 2px solid #333; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #333; color: white; padding: 4px 6px; text-align: right; font-size: 9px; }
+    td { border: 1px solid #ccc; padding: 3px 6px; font-size: 9px; vertical-align: top; }
+    .time-cell { width: 12%; white-space: nowrap; font-family: monospace; font-size: 8px; }
+    .author-cell { width: 15%; font-weight: bold; }
+    .type-cell { width: 10%; text-align: center; }
+    .content-cell { width: 63%; }
+    .role { font-weight: normal; font-size: 7px; color: #666; }
+    tr { page-break-inside: avoid; }
+  </style>
+</head>
+<body>
+  <h1>🚨 יומן אירוע חירום - ${event.title}</h1>
+  <div class="meta">
+    ${sev.icon} ${sev.label} | נפתח: ${new Date(event.created_at).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })} 
+    ${event.status === 'closed' ? `| נסגר: ${new Date(event.closed_at).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}` : '| ⬤ פעיל'}
+    | ${journal.length} רשומות | הופק: ${new Date().toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem' })}
+  </div>
+  <table>
+    <thead><tr><th>זמן</th><th>כותב</th><th>סוג</th><th>תוכן</th></tr></thead>
+    <tbody>${journalRows}</tbody>
+  </table>
+</body>
+</html>`);
+    printWindow.document.close();
+    printWindow.focus();
+    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+  };
+
+  const formatTime = (dateStr) => {
+    return new Date(dateStr).toLocaleTimeString('he-IL', {
+      timeZone: 'Asia/Jerusalem',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
+        <div className="text-center">
+          <div className="text-5xl mb-4 animate-pulse">🚨</div>
+          <p className="text-lg text-gray-500">טוען אירוע...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!event) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
+        <div className="text-center">
+          <div className="text-5xl mb-4">❌</div>
+          <p className="text-lg text-gray-500">אירוע לא נמצא</p>
+        </div>
+      </div>
+    );
+  }
+
+  const sev = SEVERITY_MAP[event.severity] || SEVERITY_MAP.medium;
+  const confirmedCount = participants.filter(p => p.status === 'confirmed').length;
+
+  return (
+    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden" dir="rtl">
+      {/* Header */}
+      <header className={`text-white shadow-lg ${event.status === 'active' ? 'bg-red-700' : 'bg-gray-600'}`}>
+        <div className="max-w-4xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              {event.status === 'active' && <span className="w-3 h-3 bg-white rounded-full animate-pulse" />}
+              <div>
+                <h1 className="text-lg font-bold">{event.title}</h1>
+                <div className="flex items-center gap-3 text-xs opacity-90 mt-0.5">
+                  <span className={`text-xs px-2 py-0.5 rounded font-bold ${sev.color}`}>{sev.icon} {sev.label}</span>
+                  <span>👥 {confirmedCount}</span>
+                  {participant && <span>מחובר כ: {participant.display_name}</span>}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={handlePrint} className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors">
+                🖨️
+              </button>
+              <button
+                onClick={() => setShowParticipants(!showParticipants)}
+                className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors"
+              >
+                👥
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Participants panel (mobile friendly) */}
+      {showParticipants && (
+        <div className="bg-white border-b shadow-sm">
+          <div className="max-w-4xl mx-auto px-4 py-3">
+            <h3 className="font-bold text-gray-700 text-sm mb-2">👥 משתתפים ({confirmedCount})</h3>
+            <div className="flex flex-wrap gap-2">
+              {participants.filter(p => p.status === 'confirmed').map(p => (
+                <span key={p.id} className="bg-green-50 border border-green-200 text-green-800 text-xs px-2.5 py-1 rounded-lg font-medium">
+                  {p.display_name}{p.department ? ` (${p.department})` : ''}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Journal */}
+      <div className="flex-1 overflow-y-auto min-h-0">
+        <div className="max-w-4xl mx-auto px-4 py-4 space-y-2">
+          {journal.length === 0 ? (
+            <div className="text-center py-12 text-gray-400">
+              <div className="text-4xl mb-3">📋</div>
+              <p className="font-medium">היומן ריק</p>
+            </div>
+          ) : (
+            journal.map(entry => {
+              const typeInfo = ENTRY_TYPES.find(t => t.key === entry.entry_type);
+              const isSystem = entry.entry_type === 'system';
+
+              if (isSystem) {
+                return (
+                  <div key={entry.id} className="text-center py-1">
+                    <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                      {entry.content} • {formatTime(entry.created_at)}
+                    </span>
+                  </div>
+                );
+              }
+
+              return (
+                <div key={entry.id} className={`border-r-4 rounded-lg p-3 shadow-sm ${typeInfo?.color || 'border-gray-300 bg-white'}`}>
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-sm">{typeInfo?.icon}</span>
+                      <span className="font-bold text-gray-900 text-sm">{entry.author_name}</span>
+                      {entry.author_role && (
+                        <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">{entry.author_role}</span>
+                      )}
+                    </div>
+                    <span className="text-xs text-gray-400 font-mono">{formatTime(entry.created_at)}</span>
+                  </div>
+                  <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{entry.content}</p>
+                </div>
+              );
+            })
+          )}
+          <div ref={journalEndRef} />
+        </div>
+      </div>
+
+      {/* Input area */}
+      {event.status === 'active' && participant ? (
+        <div className="border-t bg-white p-4 shadow-lg">
+          <div className="max-w-4xl mx-auto">
+            <div className="flex gap-2 mb-2">
+              {ENTRY_TYPES.map(type => (
+                <button
+                  key={type.key}
+                  onClick={() => setEntryType(type.key)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all ${
+                    entryType === type.key
+                      ? type.key === 'urgent' ? 'bg-red-600 text-white'
+                      : type.key === 'decision' ? 'bg-purple-600 text-white'
+                      : type.key === 'task' ? 'bg-green-600 text-white'
+                      : 'bg-blue-600 text-white'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  {type.icon} {type.label}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <textarea
+                value={newEntry}
+                onChange={(e) => setNewEntry(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendEntry();
+                  }
+                }}
+                placeholder="כתוב עדכון..."
+                rows={2}
+                className="flex-1 px-4 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm"
+              />
+              <button
+                onClick={handleSendEntry}
+                disabled={!newEntry.trim() || sending}
+                className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold px-5 rounded-lg transition-colors"
+              >
+                {sending ? '⏳' : '📤'}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : event.status === 'closed' ? (
+        <div className="border-t bg-gray-200 p-4 text-center">
+          <p className="text-gray-500 font-bold text-sm">🔒 האירוע סגור</p>
+        </div>
+      ) : !participant ? (
+        <div className="border-t bg-yellow-50 p-4 text-center">
+          <p className="text-yellow-700 font-bold text-sm">צפייה בלבד - לא מזוהה כמשתתף</p>
+          <button
+            onClick={() => router.push(`/event/join/${token}`)}
+            className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white font-bold px-6 py-2 rounded-lg text-sm transition-colors"
+          >
+            הצטרף לאירוע
+          </button>
+        </div>
+      ) : null}
+    </div>
+  );
+}
