@@ -27,8 +27,16 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Event not found' }, { status: 404 });
     }
 
-    // Normalize phone - remove dashes and spaces
-    const normalizedPhone = phone.replace(/[-\s]/g, '');
+    // Normalize phone - handle +972, dashes, spaces, parentheses
+    const normalizePhone = (p) => {
+      if (!p) return '';
+      let n = p.replace(/[-\s()]/g, ''); // remove dashes, spaces, parentheses
+      // Convert +972 to 0
+      if (n.startsWith('+972')) n = '0' + n.slice(4);
+      if (n.startsWith('972')) n = '0' + n.slice(3);
+      return n;
+    };
+    const normalizedPhone = normalizePhone(phone);
 
     // Check if already a participant
     const { data: existingParticipant } = await supabase
@@ -69,8 +77,7 @@ export async function POST(request) {
       .eq('active', true);
 
     const matchedContact = contacts?.find(c => {
-      const contactPhone = c.phone?.replace(/[-\s]/g, '');
-      return contactPhone === normalizedPhone;
+      return normalizePhone(c.phone) === normalizedPhone;
     });
 
     if (action === 'decline') {

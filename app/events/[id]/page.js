@@ -62,7 +62,15 @@ export default function EventDetailPage() {
       }, (payload) => {
         if (payload.new.event_id === eventId) {
           setJournal(prev => {
+            // Skip if already exists (by real id)
             if (prev.find(j => j.id === payload.new.id)) return prev;
+            // Check if there's an optimistic entry with same content to replace
+            const optimisticIdx = prev.findIndex(j => j._optimistic && j.content === payload.new.content && j.author_name === payload.new.author_name);
+            if (optimisticIdx >= 0) {
+              const updated = [...prev];
+              updated[optimisticIdx] = payload.new;
+              return updated;
+            }
             return [...prev, payload.new];
           });
         }
@@ -92,17 +100,23 @@ export default function EventDetailPage() {
       })
       .subscribe();
 
-    // Polling fallback every 5 seconds
+    // Polling fallback every 5 seconds - merge, never replace
     const pollInterval = setInterval(async () => {
       try {
         const res = await fetch(`/api/events/${eventId}`);
         const data = await res.json();
         if (data.success) {
-          setJournal(data.data.journal);
+          setJournal(prev => {
+            const serverEntries = data.data.journal || [];
+            // Use server as source of truth - it always has ALL entries
+            if (serverEntries.length >= prev.length) return serverEntries;
+            // If local has more (optimistic), merge
+            const serverIds = new Set(serverEntries.map(e => e.id));
+            const localOnly = prev.filter(e => e._optimistic && !serverIds.has(e.id));
+            return [...serverEntries, ...localOnly];
+          });
           setParticipants(data.data.participants);
-          if (data.data.event.status !== event?.status) {
-            setEvent(data.data.event);
-          }
+          setEvent(data.data.event);
         }
       } catch {}
     }, 5000);
@@ -172,7 +186,25 @@ export default function EventDetailPage() {
 
   const handleSendEntry = async () => {
     if (!newEntry.trim() || sending) return;
+    const content = newEntry.trim();
+    const type = entryType;
+    
+    // Optimistic update - show immediately
+    const optimisticEntry = {
+      id: `temp-${Date.now()}`,
+      event_id: eventId,
+      author_name: userName,
+      author_role: userRole,
+      entry_type: type,
+      content,
+      created_at: new Date().toISOString(),
+      _optimistic: true,
+    };
+    setJournal(prev => [...prev, optimisticEntry]);
+    setNewEntry('');
+    setEntryType('update');
     setSending(true);
+
     try {
       const res = await fetch(`/api/events/${eventId}/journal`, {
         method: 'POST',
@@ -180,17 +212,23 @@ export default function EventDetailPage() {
         body: JSON.stringify({
           author_name: userName,
           author_role: userRole,
-          entry_type: entryType,
-          content: newEntry.trim(),
+          entry_type: type,
+          content,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setNewEntry('');
-        setEntryType('update');
+        // Replace optimistic with real entry
+        setJournal(prev => prev.map(e => e.id === optimisticEntry.id ? data.data : e));
+      } else {
+        // Remove optimistic on failure
+        setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
+        setNewEntry(content);
       }
     } catch (error) {
       console.error('Failed to send entry:', error);
+      setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
+      setNewEntry(content);
     }
     setSending(false);
   };

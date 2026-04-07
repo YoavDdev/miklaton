@@ -61,6 +61,12 @@ export default function LiveJournalPage() {
         if (payload.new.event_id === eventId) {
           setJournal(prev => {
             if (prev.find(j => j.id === payload.new.id)) return prev;
+            const optimisticIdx = prev.findIndex(j => j._optimistic && j.content === payload.new.content && j.author_name === payload.new.author_name);
+            if (optimisticIdx >= 0) {
+              const updated = [...prev];
+              updated[optimisticIdx] = payload.new;
+              return updated;
+            }
             return [...prev, payload.new];
           });
         }
@@ -78,12 +84,19 @@ export default function LiveJournalPage() {
       })
       .subscribe();
 
-    // Polling fallback every 5 seconds
+    // Polling fallback every 5 seconds - merge, never replace
     const pollInterval = setInterval(async () => {
       try {
         const { data: journalData } = await supabase
           .from('event_journal').select('*').eq('event_id', eventId).order('created_at', { ascending: true });
-        if (journalData) setJournal(journalData);
+        if (journalData) {
+          setJournal(prev => {
+            if (journalData.length >= prev.length) return journalData;
+            const serverIds = new Set(journalData.map(e => e.id));
+            const localOnly = prev.filter(e => e._optimistic && !serverIds.has(e.id));
+            return [...journalData, ...localOnly];
+          });
+        }
 
         const { data: participantsData } = await supabase
           .from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
@@ -150,7 +163,25 @@ export default function LiveJournalPage() {
 
   const handleSendEntry = async () => {
     if (!newEntry.trim() || sending || !participant) return;
+    const content = newEntry.trim();
+    const type = entryType;
+
+    // Optimistic update
+    const optimisticEntry = {
+      id: `temp-${Date.now()}`,
+      event_id: event.id,
+      author_name: participant.display_name,
+      author_role: participant.department || participant.role || '',
+      entry_type: type,
+      content,
+      created_at: new Date().toISOString(),
+      _optimistic: true,
+    };
+    setJournal(prev => [...prev, optimisticEntry]);
+    setNewEntry('');
+    setEntryType('update');
     setSending(true);
+
     try {
       const res = await fetch(`/api/events/${event.id}/journal`, {
         method: 'POST',
@@ -158,18 +189,22 @@ export default function LiveJournalPage() {
         body: JSON.stringify({
           author_name: participant.display_name,
           author_role: participant.department || participant.role || undefined,
-          entry_type: entryType,
-          content: newEntry.trim(),
+          entry_type: type,
+          content,
           participant_id: participant.id,
         }),
       });
       const data = await res.json();
       if (data.success) {
-        setNewEntry('');
-        setEntryType('update');
+        setJournal(prev => prev.map(e => e.id === optimisticEntry.id ? data.data : e));
+      } else {
+        setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
+        setNewEntry(content);
       }
     } catch (error) {
       console.error('Failed to send entry:', error);
+      setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
+      setNewEntry(content);
     }
     setSending(false);
   };
