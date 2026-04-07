@@ -19,6 +19,16 @@ const SEVERITY_MAP = {
   critical: { label: 'קריטי', color: 'bg-red-100 text-red-800', icon: '🚨' },
 };
 
+const ROLE_REDIRECTS = {
+  ceo: '/ceo',
+  call_center_manager: '/call-center-manager',
+  sector_manager: '/sector-manager',
+  operator: '/operator',
+  inspector: '/inspector',
+  shelter_manager: '/shelter-manager',
+  admin: '/admin/users',
+};
+
 export default function EventsPage() {
   const router = useRouter();
   const [events, setEvents] = useState([]);
@@ -27,10 +37,22 @@ export default function EventsPage() {
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState('active');
   const [newEvent, setNewEvent] = useState({ title: '', description: '', severity: 'medium', event_type: 'general' });
+  const [userRole, setUserRole] = useState('');
 
   useEffect(() => {
     fetchEvents();
+    fetchUserRole();
   }, [filter]);
+
+  const fetchUserRole = async () => {
+    try {
+      const res = await fetch('/api/auth/verify');
+      if (res.ok) {
+        const data = await res.json();
+        setUserRole(data.role || '');
+      }
+    } catch {}
+  };
 
   const fetchEvents = async () => {
     setLoading(true);
@@ -117,7 +139,7 @@ export default function EventsPage() {
                 <span className="sm:hidden">+ חדש</span>
               </button>
               <button
-                onClick={() => router.back()}
+                onClick={() => router.push(ROLE_REDIRECTS[userRole] || '/operator')}
                 className="bg-red-800 hover:bg-red-900 p-2 sm:px-4 sm:py-2.5 rounded-lg font-semibold transition-colors text-sm"
               >
                 ←<span className="hidden sm:inline"> חזרה</span>
