@@ -11,10 +11,10 @@ export async function POST(request, { params }) {
   try {
     const { id: event_id } = await params;
     const body = await request.json();
-    const { author_name, author_role, entry_type, content, participant_id } = body;
+    const { author_name, author_role, entry_type, content, participant_id, image_url } = body;
 
-    if (!content || !author_name) {
-      return NextResponse.json({ success: false, error: 'Content and author required' }, { status: 400 });
+    if ((!content && !image_url) || !author_name) {
+      return NextResponse.json({ success: false, error: 'Content or image and author required' }, { status: 400 });
     }
 
     // Verify event exists and is active
@@ -40,7 +40,8 @@ export async function POST(request, { params }) {
         author_name,
         author_role: author_role || null,
         entry_type: entry_type || 'update',
-        content,
+        content: content || '',
+        image_url: image_url || null,
       })
       .select()
       .single();

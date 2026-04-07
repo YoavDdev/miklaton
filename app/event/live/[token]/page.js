@@ -30,6 +30,7 @@ export default function LiveJournalPage() {
   const token = params.token;
   const phone = searchParams.get('phone') || (typeof window !== 'undefined' ? localStorage.getItem('miklaton_phone') : '') || '';
   const journalEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   const [event, setEvent] = useState(null);
   const [journal, setJournal] = useState([]);
@@ -40,6 +41,9 @@ export default function LiveJournalPage() {
   const [entryType, setEntryType] = useState('update');
   const [sending, setSending] = useState(false);
   const [showParticipants, setShowParticipants] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
     initPage();
@@ -160,10 +164,40 @@ export default function LiveJournalPage() {
     setLoading(false);
   };
 
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 10 * 1024 * 1024) {
+      alert('התמונה גדולה מדי (מקסימום 10MB)');
+      return;
+    }
+    setSelectedImage(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setSelectedImage(null);
+    if (imagePreview) URL.revokeObjectURL(imagePreview);
+    setImagePreview(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const uploadImage = async () => {
+    if (!selectedImage || !event) return null;
+    const formData = new FormData();
+    formData.append('file', selectedImage);
+    formData.append('event_id', event.id);
+    const res = await fetch('/api/events/upload', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (data.success) return data.url;
+    throw new Error(data.error || 'Upload failed');
+  };
+
   const handleSendEntry = async () => {
-    if (!newEntry.trim() || sending || !participant) return;
+    if ((!newEntry.trim() && !selectedImage) || sending || !participant) return;
     const content = newEntry.trim();
     const type = entryType;
+    const hasImage = !!selectedImage;
 
     // Optimistic update
     const optimisticEntry = {
@@ -172,16 +206,25 @@ export default function LiveJournalPage() {
       author_name: participant.display_name,
       author_role: participant.department || participant.role || '',
       entry_type: type,
-      content,
+      content: content || (hasImage ? '📷 תמונה' : ''),
+      image_url: imagePreview || null,
       created_at: new Date().toISOString(),
       _optimistic: true,
     };
     setJournal(prev => [...prev, optimisticEntry]);
     setNewEntry('');
     setEntryType('update');
+    removeImage();
     setSending(true);
 
     try {
+      let imageUrl = null;
+      if (hasImage) {
+        setUploading(true);
+        imageUrl = await uploadImage();
+        setUploading(false);
+      }
+
       const res = await fetch(`/api/events/${event.id}/journal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -189,7 +232,8 @@ export default function LiveJournalPage() {
           author_name: participant.display_name,
           author_role: participant.department || participant.role || undefined,
           entry_type: type,
-          content,
+          content: content || (imageUrl ? '📷 תמונה' : ''),
+          image_url: imageUrl,
           participant_id: participant.id,
         }),
       });
@@ -203,6 +247,7 @@ export default function LiveJournalPage() {
       }
     } catch (error) {
       console.error('Failed to send entry:', error);
+      setUploading(false);
       setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
       setNewEntry(content);
     }
@@ -382,7 +427,17 @@ export default function LiveJournalPage() {
                     </div>
                     <span className="text-xs text-gray-400 font-mono">{formatTime(entry.created_at)}</span>
                   </div>
-                  <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{entry.content}</p>
+                  {entry.content && <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{entry.content}</p>}
+                  {entry.image_url && (
+                    <div className="mt-2">
+                      <img
+                        src={entry.image_url}
+                        alt="תמונה מצורפת"
+                        className="max-w-full sm:max-w-xs rounded-lg border shadow-sm cursor-pointer"
+                        onClick={() => window.open(entry.image_url, '_blank')}
+                      />
+                    </div>
+                  )}
                 </div>
               );
             })
@@ -413,7 +468,27 @@ export default function LiveJournalPage() {
                 </button>
               ))}
             </div>
+            {imagePreview && (
+              <div className="mb-2 relative inline-block">
+                <img src={imagePreview} alt="תצוגה מקדימה" className="h-20 rounded-lg border" />
+                <button onClick={removeImage} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full w-5 h-5 text-xs flex items-center justify-center">✕</button>
+              </div>
+            )}
             <div className="flex gap-2">
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleImageSelect}
+                className="hidden"
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold px-3 rounded-lg transition-colors text-lg"
+                title="צלם או בחר תמונה"
+              >
+                📷
+              </button>
               <textarea
                 value={newEntry}
                 onChange={(e) => setNewEntry(e.target.value)}
@@ -429,10 +504,10 @@ export default function LiveJournalPage() {
               />
               <button
                 onClick={handleSendEntry}
-                disabled={!newEntry.trim() || sending}
+                disabled={(!newEntry.trim() && !selectedImage) || sending}
                 className="bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold px-4 rounded-lg transition-colors"
               >
-                {sending ? '⏳' : '📤'}
+                {uploading ? '⏫' : sending ? '⏳' : '📤'}
               </button>
             </div>
           </div>

@@ -60,6 +60,7 @@ CREATE TABLE IF NOT EXISTS event_journal (
   author_role VARCHAR(100),
   entry_type VARCHAR(20) NOT NULL DEFAULT 'update' CHECK (entry_type IN ('update', 'urgent', 'decision', 'task', 'system')),
   content TEXT NOT NULL,
+  image_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
