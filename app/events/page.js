@@ -3,6 +3,15 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
+const EVENT_TYPES = {
+  general: { label: 'כללי', icon: '🚨' },
+  rocket: { label: 'רסיס/נפילה', icon: '🚀' },
+  earthquake: { label: 'רעידת אדמה', icon: '🌍' },
+  fire: { label: 'שריפה', icon: '🔥' },
+  mci: { label: 'רב נפגעים', icon: '🚑' },
+  security: { label: 'ביטחוני', icon: '🛡️' },
+};
+
 const SEVERITY_MAP = {
   low: { label: 'נמוך', color: 'bg-blue-100 text-blue-800', icon: 'ℹ️' },
   medium: { label: 'בינוני', color: 'bg-yellow-100 text-yellow-800', icon: '⚠️' },
@@ -17,7 +26,7 @@ export default function EventsPage() {
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
   const [filter, setFilter] = useState('active');
-  const [newEvent, setNewEvent] = useState({ title: '', description: '', severity: 'medium' });
+  const [newEvent, setNewEvent] = useState({ title: '', description: '', severity: 'medium', event_type: 'general' });
 
   useEffect(() => {
     fetchEvents();
@@ -47,7 +56,7 @@ export default function EventsPage() {
       const data = await res.json();
       if (data.success) {
         setShowCreate(false);
-        setNewEvent({ title: '', description: '', severity: 'medium' });
+        setNewEvent({ title: '', description: '', severity: 'medium', event_type: 'general' });
         router.push(`/events/${data.data.id}`);
       }
     } catch (error) {
@@ -245,6 +254,25 @@ export default function EventsPage() {
                     rows={3}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-bold text-gray-700 mb-2">סוג אירוע</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {Object.entries(EVENT_TYPES).map(([key, val]) => (
+                      <button
+                        key={key}
+                        onClick={() => setNewEvent({ ...newEvent, event_type: key })}
+                        className={`py-2 rounded-lg text-sm font-bold transition-all border-2 ${
+                          newEvent.event_type === key
+                            ? 'bg-gray-800 text-white border-gray-800'
+                            : 'bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100'
+                        }`}
+                      >
+                        {val.icon} {val.label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
 
                 <div>

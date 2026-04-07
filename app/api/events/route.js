@@ -56,7 +56,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { title, description, severity } = body;
+    const { title, description, severity, event_type } = body;
 
     if (!title) {
       return NextResponse.json({ success: false, error: 'Title is required' }, { status: 400 });
@@ -77,6 +77,7 @@ export async function POST(request) {
         title,
         description: description || '',
         severity: severity || 'medium',
+        event_type: event_type || 'general',
         invite_token,
         created_by: decoded.userId,
         created_by_name: userProfile?.full_name || 'לא ידוע',

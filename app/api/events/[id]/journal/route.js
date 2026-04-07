@@ -11,7 +11,7 @@ export async function POST(request, { params }) {
   try {
     const { id: event_id } = await params;
     const body = await request.json();
-    const { author_name, author_role, entry_type, content, participant_id, image_url } = body;
+    const { author_name, author_role, entry_type, content, participant_id, image_url, location_lat, location_lng, location_address, assigned_to, task_status } = body;
 
     if ((!content && !image_url) || !author_name) {
       return NextResponse.json({ success: false, error: 'Content or image and author required' }, { status: 400 });
@@ -42,6 +42,11 @@ export async function POST(request, { params }) {
         entry_type: entry_type || 'update',
         content: content || '',
         image_url: image_url || null,
+        location_lat: location_lat || null,
+        location_lng: location_lng || null,
+        location_address: location_address || null,
+        assigned_to: assigned_to || null,
+        task_status: entry_type === 'task' ? (task_status || 'pending') : null,
       })
       .select()
       .single();

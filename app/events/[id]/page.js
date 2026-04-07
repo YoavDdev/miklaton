@@ -23,6 +23,21 @@ const ENTRY_TYPES = [
   { key: 'task', label: 'משימה', icon: '✅', color: 'border-green-400 bg-green-50' },
 ];
 
+const EVENT_TYPES = {
+  general: { label: 'כללי', icon: '🚨', quickMessages: ['הגעתי לשטח', 'האזור נקי', 'צריך תגבורת', 'יש נפגעים', 'מפנים אזרחים'] },
+  rocket: { label: 'רסיס/נפילה', icon: '🚀', quickMessages: ['נשמע פיצוץ', 'יש נזק ישיר', 'תושבים במקלטים', 'האזור נקי מרסיס', 'נמצא רסיס', 'אין נפגעים', 'מפנים אזרחים'] },
+  earthquake: { label: 'רעידת אדמה', icon: '🌍', quickMessages: ['הגעתי לשטח', 'יש מבנה פגוע', 'לכודים תחת הריסות', 'צריך חילוץ', 'אזור מסוכן', 'מפנים אזרחים'] },
+  fire: { label: 'שריפה', icon: '🔥', quickMessages: ['הגעתי לשטח', 'כיבוי הוזעקו', 'מפנים אזרחים', 'האש תחת שליטה', 'צריך תגבורת'] },
+  mci: { label: 'אירוע רב נפגעים', icon: '🚑', quickMessages: ['הגעתי לשטח', 'יש נפגעים', 'אמבולנס הגיע', 'מטופל במקום', 'צריך ציוד נוסף', 'מפנים לבית חולים'] },
+  security: { label: 'אירוע ביטחוני', icon: '🛡️', quickMessages: ['הגעתי לשטח', 'אזור לא מאובטח', 'משטרה במקום', 'צריך תגבורת', 'האזור נקי'] },
+};
+
+const TASK_STATUS = {
+  pending: { label: 'ממתין', icon: '⏳', color: 'bg-yellow-100 text-yellow-700' },
+  in_progress: { label: 'בביצוע', icon: '🔄', color: 'bg-blue-100 text-blue-700' },
+  done: { label: 'הושלם', icon: '✅', color: 'bg-green-100 text-green-700' },
+};
+
 export default function EventDetailPage() {
   const router = useRouter();
   const params = useParams();
@@ -47,6 +62,8 @@ export default function EventDetailPage() {
   const [selectedImage, setSelectedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [showQuickMessages, setShowQuickMessages] = useState(false);
+  const [assignTo, setAssignTo] = useState('');
 
   useEffect(() => {
     fetchEvent();
@@ -93,6 +110,15 @@ export default function EventDetailPage() {
             }
             return [...prev, payload.new];
           });
+        }
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'event_journal',
+      }, (payload) => {
+        if (payload.new.event_id === eventId) {
+          setJournal(prev => prev.map(j => j.id === payload.new.id ? payload.new : j));
         }
       })
       .on('postgres_changes', {
@@ -231,10 +257,12 @@ export default function EventDetailPage() {
     setJournal(prev => [...prev, {
       id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
       entry_type: type, content: content || (hasImage ? '📷 תמונה' : ''), image_url: imagePreview || null,
+      assigned_to: type === 'task' ? assignTo : null, task_status: type === 'task' ? 'pending' : null,
       created_at: new Date().toISOString(), _optimistic: true,
     }]);
     setNewEntry('');
     setEntryType('update');
+    setAssignTo('');
     removeImage();
     setSending(true);
 
@@ -253,6 +281,7 @@ export default function EventDetailPage() {
           author_name: userName, author_role: userRole, entry_type: type,
           content: content || (imageUrl ? '📷 תמונה' : ''),
           image_url: imageUrl,
+          assigned_to: type === 'task' ? assignTo : undefined,
         }),
       });
       const data = await res.json();
@@ -273,8 +302,90 @@ export default function EventDetailPage() {
     setSending(false);
   };
 
+  const sendQuickMessage = async (msg) => {
+    setShowQuickMessages(false);
+    const tempId = `temp-${Date.now()}`;
+    setJournal(prev => [...prev, {
+      id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+      entry_type: 'quick', content: msg, created_at: new Date().toISOString(), _optimistic: true,
+    }]);
+    try {
+      const res = await fetch(`/api/events/${eventId}/journal`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'quick', content: msg }),
+      });
+      const data = await res.json();
+      if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+      else setJournal(prev => prev.filter(e => e.id !== tempId));
+    } catch { setJournal(prev => prev.filter(e => e.id !== tempId)); }
+  };
+
+  const shareLocation = () => {
+    if (!navigator.geolocation) { alert('הדפדפן לא תומך במיקום'); return; }
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      const content = `📍 שיתף מיקום`;
+      const tempId = `temp-${Date.now()}`;
+      setJournal(prev => [...prev, {
+        id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+        entry_type: 'location', content, location_lat: latitude, location_lng: longitude,
+        created_at: new Date().toISOString(), _optimistic: true,
+      }]);
+      try {
+        const res = await fetch(`/api/events/${eventId}/journal`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'location', content, location_lat: latitude, location_lng: longitude }),
+        });
+        const data = await res.json();
+        if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+      } catch {}
+    }, () => alert('לא ניתן לקבל מיקום. אנא אפשר גישה למיקום.'));
+  };
+
+  const togglePin = async (entryId, currentPinned) => {
+    setJournal(prev => prev.map(e => e.id === entryId ? { ...e, is_pinned: !currentPinned } : e));
+    await supabase.from('event_journal').update({ is_pinned: !currentPinned }).eq('id', entryId);
+  };
+
+  const updateTaskStatus = async (entryId, newStatus) => {
+    setJournal(prev => prev.map(e => e.id === entryId ? { ...e, task_status: newStatus } : e));
+    await supabase.from('event_journal').update({ task_status: newStatus }).eq('id', entryId);
+  };
+
+  const generateSummary = () => {
+    const duration = Math.round((Date.now() - new Date(event.created_at).getTime()) / 60000);
+    const hrs = Math.floor(duration / 60);
+    const mins = duration % 60;
+    const durationStr = hrs > 0 ? `${hrs} שעות ו-${mins} דקות` : `${mins} דקות`;
+    const decisions = journal.filter(e => e.entry_type === 'decision');
+    const urgents = journal.filter(e => e.entry_type === 'urgent');
+    const tasks = journal.filter(e => e.entry_type === 'task');
+    const tasksDone = tasks.filter(e => e.task_status === 'done');
+    const images = journal.filter(e => e.image_url);
+    const locations = journal.filter(e => e.entry_type === 'location');
+    const uniqueAuthors = [...new Set(journal.map(e => e.author_name))];
+
+    let summary = `📊 סיכום אירוע: ${event.title}\n`;
+    summary += `⏱ משך: ${durationStr}\n`;
+    summary += `👥 משתתפים: ${confirmedCount} | עדכונים: ${journal.length}\n`;
+    summary += `📝 כותבים: ${uniqueAuthors.join(', ')}\n`;
+    if (urgents.length > 0) summary += `🔴 הודעות דחופות: ${urgents.length}\n`;
+    if (decisions.length > 0) summary += `⚖️ החלטות: ${decisions.length}\n`;
+    if (tasks.length > 0) summary += `✅ משימות: ${tasksDone.length}/${tasks.length} הושלמו\n`;
+    if (images.length > 0) summary += `📷 תמונות: ${images.length}\n`;
+    if (locations.length > 0) summary += `📍 שיתופי מיקום: ${locations.length}\n`;
+    if (decisions.length > 0) {
+      summary += `\n⚖️ החלטות שהתקבלו:\n`;
+      decisions.forEach(d => { summary += `  • ${d.content} (${d.author_name}, ${formatTime(d.created_at)})\n`; });
+    }
+    return summary;
+  };
+
   const handleCloseEvent = async () => {
     try {
+      const summary = generateSummary();
+      await supabase.from('emergency_events').update({ summary }).eq('id', eventId);
+
       const res = await fetch('/api/events', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -282,7 +393,7 @@ export default function EventDetailPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setEvent(data.data);
+        setEvent({ ...data.data, summary });
         setShowCloseConfirm(false);
       }
     } catch (error) {
@@ -475,6 +586,25 @@ export default function EventDetailPage() {
         </div>
       )}
 
+      {/* Pinned messages */}
+      {journal.filter(e => e.is_pinned).length > 0 && (
+        <div className="bg-amber-50 border-b border-amber-300 px-3 py-2">
+          <div className="max-w-6xl mx-auto space-y-1">
+            {journal.filter(e => e.is_pinned).map(entry => (
+              <div key={`pin-${entry.id}`} className="flex items-center gap-2 text-sm">
+                <span className="text-amber-600 font-bold">📌</span>
+                <span className="font-bold text-amber-900">{entry.author_name}:</span>
+                <span className="text-amber-800 flex-1">{entry.content}</span>
+                <span className="text-xs text-amber-500">{formatTime(entry.created_at)}</span>
+                {(isCreator || isAdmin) && (
+                  <button onClick={() => togglePin(entry.id, true)} className="text-xs text-amber-400 hover:text-red-500">✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex-1 flex flex-col sm:flex-row max-w-6xl mx-auto w-full min-h-0">
         {/* Journal - main area */}
         <div className="flex-1 flex flex-col min-h-0">
@@ -500,20 +630,54 @@ export default function EventDetailPage() {
                   );
                 }
 
+                const isLocation = entry.entry_type === 'location';
+                const isQuick = entry.entry_type === 'quick';
+                const isTask = entry.entry_type === 'task';
+                const taskSt = isTask && entry.task_status ? TASK_STATUS[entry.task_status] : null;
+
                 return (
-                  <div key={entry.id} className={`border-r-4 rounded-lg p-3 shadow-sm ${typeInfo?.color || 'border-gray-300 bg-white'}`}>
+                  <div key={entry.id} className={`border-r-4 rounded-lg p-3 shadow-sm relative group ${
+                    entry.is_pinned ? 'ring-2 ring-amber-400 ' : ''
+                  }${isQuick ? 'border-teal-400 bg-teal-50' : typeInfo?.color || 'border-gray-300 bg-white'}`}>
                     <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm">{typeInfo?.icon}</span>
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-sm">{isQuick ? '⚡' : isLocation ? '📍' : typeInfo?.icon}</span>
                         <span className="font-bold text-gray-900 text-sm">{entry.author_name}</span>
                         {entry.author_role && (
                           <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">{entry.author_role}</span>
                         )}
-                        <span className="text-xs bg-white/50 text-gray-500 px-2 py-0.5 rounded">{typeInfo?.label}</span>
+                        <span className="text-xs bg-white/50 text-gray-500 px-2 py-0.5 rounded">
+                          {isQuick ? 'מהיר' : isLocation ? 'מיקום' : typeInfo?.label}
+                        </span>
+                        {entry.is_pinned && <span className="text-xs text-amber-600">📌</span>}
+                        {entry.assigned_to && (
+                          <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-bold">👤 {entry.assigned_to}</span>
+                        )}
                       </div>
-                      <span className="text-xs text-gray-400 font-mono">{formatTime(entry.created_at)}</span>
+                      <div className="flex items-center gap-1">
+                        {(isCreator || isAdmin) && event.status === 'active' && !entry._optimistic && (
+                          <button
+                            onClick={() => togglePin(entry.id, entry.is_pinned)}
+                            className="opacity-0 group-hover:opacity-100 text-xs text-gray-400 hover:text-amber-600 transition-opacity"
+                            title={entry.is_pinned ? 'בטל הצמדה' : 'הצמד'}
+                          >
+                            📌
+                          </button>
+                        )}
+                        <span className="text-xs text-gray-400 font-mono">{formatTime(entry.created_at)}</span>
+                      </div>
                     </div>
                     {entry.content && <p className="text-sm text-gray-800 whitespace-pre-wrap mt-1">{entry.content}</p>}
+                    {isLocation && entry.location_lat && (
+                      <a
+                        href={`https://www.google.com/maps?q=${entry.location_lat},${entry.location_lng}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-block mt-1 text-xs text-blue-600 hover:text-blue-800 underline"
+                      >
+                        🗺️ פתח במפה ({entry.location_lat.toFixed(4)}, {entry.location_lng.toFixed(4)})
+                      </a>
+                    )}
                     {entry.image_url && (
                       <div className="mt-2">
                         <img
@@ -522,6 +686,21 @@ export default function EventDetailPage() {
                           className="max-w-full sm:max-w-sm rounded-lg border shadow-sm cursor-pointer"
                           onClick={() => window.open(entry.image_url, '_blank')}
                         />
+                      </div>
+                    )}
+                    {isTask && taskSt && (
+                      <div className="flex items-center gap-2 mt-2">
+                        <span className={`text-xs px-2 py-1 rounded font-bold ${taskSt.color}`}>{taskSt.icon} {taskSt.label}</span>
+                        {event.status === 'active' && (
+                          <div className="flex gap-1">
+                            {Object.entries(TASK_STATUS).filter(([k]) => k !== entry.task_status).map(([key, st]) => (
+                              <button key={key} onClick={() => updateTaskStatus(entry.id, key)}
+                                className="text-xs px-2 py-0.5 rounded border hover:bg-gray-100 transition-colors">
+                                {st.icon}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -534,6 +713,36 @@ export default function EventDetailPage() {
           {/* Input area */}
           {event.status === 'active' ? (
             <div className="border-t bg-white p-3 sm:p-4 shadow-lg">
+              {/* Quick messages panel */}
+              {showQuickMessages && (
+                <div className="mb-2 bg-teal-50 rounded-lg p-2 border border-teal-200">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-xs font-bold text-teal-700">⚡ הודעות מהירות</span>
+                    <button onClick={() => setShowQuickMessages(false)} className="text-xs text-teal-500">✕</button>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(EVENT_TYPES[event.event_type] || EVENT_TYPES.general).quickMessages.map(msg => (
+                      <button key={msg} onClick={() => sendQuickMessage(msg)}
+                        className="bg-white hover:bg-teal-100 border border-teal-300 text-teal-800 text-xs px-2.5 py-1.5 rounded-lg font-medium transition-colors">
+                        {msg}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+              {/* Task assignment row */}
+              {entryType === 'task' && (
+                <div className="mb-2 flex items-center gap-2">
+                  <span className="text-xs font-bold text-gray-500">👤 הקצה ל:</span>
+                  <select value={assignTo} onChange={(e) => setAssignTo(e.target.value)}
+                    className="text-xs border rounded px-2 py-1 flex-1 max-w-[200px]">
+                    <option value="">ללא הקצאה</option>
+                    {participants.filter(p => p.status === 'confirmed').map(p => (
+                      <option key={p.id} value={p.display_name}>{p.display_name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
               <div className="flex gap-1.5 sm:gap-2 mb-2 sm:mb-3 overflow-x-auto">
                 {ENTRY_TYPES.map(type => (
                   <button
@@ -551,6 +760,18 @@ export default function EventDetailPage() {
                     {type.icon} {type.label}
                   </button>
                 ))}
+                <button
+                  onClick={() => setShowQuickMessages(!showQuickMessages)}
+                  className={`px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+                    showQuickMessages ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                >
+                  ⚡ מהיר
+                </button>
+                <button onClick={shareLocation}
+                  className="px-2 sm:px-3 py-1.5 rounded-lg text-xs font-bold bg-gray-100 text-gray-600 hover:bg-gray-200 whitespace-nowrap">
+                  📍 מיקום
+                </button>
               </div>
               {imagePreview && (
                 <div className="mb-2 relative inline-block">
@@ -599,9 +820,17 @@ export default function EventDetailPage() {
               </div>
             </div>
           ) : (
-            <div className="border-t bg-gray-200 p-4 text-center">
-              <p className="text-gray-500 font-bold">🔒 האירוע סגור - לא ניתן להוסיף עדכונים</p>
-              <p className="text-gray-400 text-sm mt-1">נסגר ב-{formatDateTime(event.closed_at)} ע״י {event.closed_by_name}</p>
+            <div className="border-t bg-gray-200 p-4">
+              <div className="text-center">
+                <p className="text-gray-500 font-bold">🔒 האירוע סגור - לא ניתן להוסיף עדכונים</p>
+                <p className="text-gray-400 text-sm mt-1">נסגר ב-{formatDateTime(event.closed_at)} ע״י {event.closed_by_name}</p>
+              </div>
+              {event.summary && (
+                <div className="mt-3 bg-white rounded-lg p-3 border max-w-2xl mx-auto">
+                  <h4 className="text-sm font-bold text-gray-700 mb-1">📊 סיכום אירוע</h4>
+                  <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">{event.summary}</pre>
+                </div>
+              )}
             </div>
           )}
         </div>
