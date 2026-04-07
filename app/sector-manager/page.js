@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import toast, { Toaster } from 'react-hot-toast';
+import ActiveEventBanner from '@/components/ActiveEventBanner';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -728,6 +729,7 @@ export default function SectorManagerPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50" dir="rtl">
       <Toaster position="top-center" />
+      <ActiveEventBanner />
       
       {/* Header - Modern & Beautiful */}
       <header className="bg-gradient-to-l from-blue-600 via-blue-700 to-blue-800 text-white shadow-2xl">

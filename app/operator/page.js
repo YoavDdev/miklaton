@@ -8,6 +8,7 @@ import ShelterSearch from '@/components/ShelterSearch';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
 import PrintableShelterList from '@/components/PrintableShelterList';
 import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
+import ActiveEventBanner from '@/components/ActiveEventBanner';
 import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
 import alertFlowsData from '@/data/alertFlows.json';
@@ -134,6 +135,7 @@ export default function OperatorPage() {
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <ActiveEventBanner />
       <header className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-4">
           <div className="flex items-center justify-between">

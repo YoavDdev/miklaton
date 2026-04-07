@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
+import ActiveEventBanner from '@/components/ActiveEventBanner';
 
 export default function CEOPage() {
   const router = useRouter();
@@ -164,6 +165,7 @@ export default function CEOPage() {
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       <Toaster position="top-center" />
+      <ActiveEventBanner />
       
       {/* Header */}
       <header className="bg-gradient-to-r from-indigo-700 to-purple-700 text-white shadow-lg">
