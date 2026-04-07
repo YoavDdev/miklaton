@@ -56,6 +56,25 @@ export default function EventsPage() {
     setCreating(false);
   };
 
+  const handleDelete = async (id, title) => {
+    if (!confirm(`למחוק את האירוע "${title}"?\nפעולה זו בלתי הפיכה!`)) return;
+    try {
+      const res = await fetch('/api/events', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEvents(prev => prev.filter(e => e.id !== id));
+      } else {
+        alert(data.error || 'שגיאה במחיקה');
+      }
+    } catch {
+      alert('שגיאה במחיקה');
+    }
+  };
+
   const formatDate = (dateStr) => {
     if (!dateStr) return '';
     return new Date(dateStr).toLocaleString('he-IL', {
@@ -168,11 +187,23 @@ export default function EventsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="mr-4">
+                    <div className="mr-4 flex items-center gap-2">
                       {event.status === 'active' ? (
                         <span className="bg-red-100 text-red-700 text-sm px-3 py-1.5 rounded-lg font-bold">פעיל</span>
                       ) : (
-                        <span className="bg-gray-100 text-gray-600 text-sm px-3 py-1.5 rounded-lg font-bold">סגור</span>
+                        <>
+                          <span className="bg-gray-100 text-gray-600 text-sm px-3 py-1.5 rounded-lg font-bold">סגור</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(event.id, event.title);
+                            }}
+                            className="bg-red-50 hover:bg-red-100 text-red-600 text-sm p-1.5 rounded-lg transition-colors"
+                            title="מחק אירוע"
+                          >
+                            🗑️
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>

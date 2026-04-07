@@ -174,3 +174,50 @@ export async function PATCH(request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+// DELETE - delete a closed event
+export async function DELETE(request) {
+  try {
+    const cookieStore = await cookies();
+    const token = cookieStore.get('auth-token')?.value;
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await request.json();
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Event ID required' }, { status: 400 });
+    }
+
+    const { data: event } = await supabase
+      .from('emergency_events')
+      .select('status, created_by')
+      .eq('id', id)
+      .single();
+
+    if (!event) {
+      return NextResponse.json({ success: false, error: 'Event not found' }, { status: 404 });
+    }
+
+    if (event.status !== 'closed') {
+      return NextResponse.json({ success: false, error: 'Only closed events can be deleted' }, { status: 400 });
+    }
+
+    if (event.created_by !== decoded.userId && decoded.role !== 'admin') {
+      return NextResponse.json({ success: false, error: 'Only creator or admin can delete' }, { status: 403 });
+    }
+
+    // CASCADE will handle journal and participants
+    const { error } = await supabase
+      .from('emergency_events')
+      .delete()
+      .eq('id', id);
+
+    if (error) throw error;
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
