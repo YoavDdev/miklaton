@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -21,7 +21,7 @@ function formatDateForDB(date) {
   return `${year}-${month}-${day}`;
 }
 
-export default function WeeklyDutyRoster() {
+const WeeklyDutyRoster = forwardRef(function WeeklyDutyRoster(props, ref) {
   const [dutyRoster, setDutyRoster] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -220,6 +220,11 @@ export default function WeeklyDutyRoster() {
     printWindow.focus();
     setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
   };
+
+  // Expose print function to parent via ref
+  useImperativeHandle(ref, () => ({
+    print: handlePrint
+  }));
 
   // Get contacts available at a specific day+hour, grouped by department
   const getContactsAtHour = (day, hour) => {
@@ -744,4 +749,6 @@ export default function WeeklyDutyRoster() {
 
     </div>
   );
-}
+});
+
+export default WeeklyDutyRoster;

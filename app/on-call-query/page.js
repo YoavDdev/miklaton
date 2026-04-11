@@ -217,7 +217,6 @@ export default function OnCallQueryPage() {
       <header className="bg-blue-600 text-white shadow-lg">
         <div className="max-w-3xl mx-auto px-4 py-5">
           <h1 className="text-2xl font-bold text-center">📋 כוננים זמינים לפי שעה</h1>
-          <p className="text-blue-100 text-center text-sm mt-1">מקלטון - עיריית יהוד-מונוסון</p>
         </div>
       </header>
 

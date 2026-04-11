@@ -175,25 +175,8 @@ export default function AdminPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-purple-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <h1 className="text-3xl font-bold">מקלטון - ניהול מערכת</h1>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/operator')}
-                className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition-colors"
-              >
-                לעמדת מפעיל
-              </button>
-              <button
-                onClick={handleLogout}
-                className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg font-semibold transition-colors"
-              >
-                יציאה
-              </button>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
+        <div className="max-w-7xl mx-auto px-4 py-3">
+          <div className="flex items-center justify-end gap-3">
             <button
               onClick={toggleWarMode}
               className={`px-6 py-3 rounded-xl font-bold text-lg transition-all shadow-lg ${

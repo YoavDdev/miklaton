@@ -8,7 +8,7 @@ import dynamic from 'next/dynamic';
 
 const ShelterMap = dynamic(() => import('./ShelterMap'), { ssr: false });
 
-export default function ShelterSearch() {
+export default function ShelterSearch({ compact = false }) {
   const [address, setAddress] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [streetSuggestions, setStreetSuggestions] = useState([]);
@@ -195,6 +195,129 @@ export default function ShelterSearch() {
   const publicShelters = shelters.filter(s => s.shelterType === 'public');
   const openPublicShelters = publicShelters.filter(s => shelterStatuses[s.number]);
   const allPublicSheltersOpen = publicShelters.length > 0 && openPublicShelters.length === publicShelters.length;
+
+  if (compact) {
+    return (
+      <div className="space-y-4">
+        {allPublicSheltersOpen && (
+          <div className="bg-green-100 text-green-800 p-2 rounded-lg text-sm font-medium">
+            ✓ כל המקלטים הציבוריים פתוחים
+          </div>
+        )}
+        
+        {/* Compact Search Box */}
+        <div className="relative">
+          <div className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400">
+            📍
+          </div>
+          <input
+            ref={inputRef}
+            type="text"
+            value={address}
+            onChange={(e) => setAddress(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="הזן כתובת..."
+            className="w-full pr-10 pl-4 py-2.5 border border-gray-300 rounded-lg focus:border-green-500 focus:ring-2 focus:ring-green-200 focus:outline-none text-sm bg-white shadow-sm"
+          />
+          {loading && (
+            <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+            </div>
+          )}
+        </div>
+        
+        {/* Street Suggestions - Compact */}
+        {streetSuggestions.length > 0 && address.length >= 2 && !selectedLocation && (
+          <div className="bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
+            {streetSuggestions.slice(0, 4).map((street, index) => (
+              <button
+                key={index}
+                onClick={() => handleStreetSelect(street)}
+                className={`w-full text-right px-3 py-2 text-sm hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
+                  index === selectedIndex ? 'bg-blue-50' : ''
+                }`}
+              >
+                <span className="text-gray-700">{street}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        
+        {/* Compact Results */}
+        {nearestShelters.length > 0 && (
+          <div className="space-y-3">
+            {/* View Toggle */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  viewMode === 'list'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                📋 רשימה
+              </button>
+              <button
+                onClick={() => setViewMode('map')}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-colors ${
+                  viewMode === 'map'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                🗺️ מפה
+              </button>
+            </div>
+
+            {viewMode === 'map' ? (
+              <div className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                <ShelterMap 
+                  shelters={shelters}
+                  userLocation={selectedLocation}
+                  nearestShelters={nearestShelters}
+                  shelterStatuses={shelterStatuses}
+                  compact
+                />
+              </div>
+            ) : (
+              <div className="space-y-2 max-h-48 overflow-y-auto">
+                {nearestShelters.slice(0, 5).map((shelter, index) => (
+                  <div key={shelter.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 transition-colors">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                          index === 0 ? 'bg-green-500' :
+                          index === 1 ? 'bg-blue-500' :
+                          index === 2 ? 'bg-purple-500' :
+                          'bg-gray-400'
+                        }`}>
+                          {index + 1}
+                        </span>
+                        <div>
+                          <p className="font-bold text-sm text-gray-900">{shelter.name}</p>
+                          <p className="text-xs text-gray-600">{shelter.address}</p>
+                        </div>
+                      </div>
+                      <div className="text-center bg-white rounded-lg px-2 py-1 shadow-sm">
+                        <div className="text-lg font-bold text-green-600">{Math.round(shelter.distance)}</div>
+                        <div className="text-xs text-gray-500">מטר</div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {nearestShelters.length > 5 && (
+                  <p className="text-center text-xs text-gray-500 py-2">
+                    + עוד {nearestShelters.length - 5} מקלטים
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

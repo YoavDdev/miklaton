@@ -20,11 +20,16 @@ export default function CallCenterManagerPage() {
   const [showEditTaskModal, setShowEditTaskModal] = useState(false);
   const [editingTask, setEditingTask] = useState(null);
   const [messageText, setMessageText] = useState('');
+  const [messageTitle, setMessageTitle] = useState('');
+  const [isImportant, setIsImportant] = useState(false);
+  const [sendingMessage, setSendingMessage] = useState(false);
+  const [previousMessages, setPreviousMessages] = useState([]);
   const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
 
   useEffect(() => {
     checkAuth();
     loadData();
+    loadPreviousMessages();
     const interval = setInterval(loadSessions, 10000); // רענון כל 10 שניות
     return () => clearInterval(interval);
   }, []);
@@ -54,6 +59,73 @@ export default function CallCenterManagerPage() {
       setOperators(operatorsData);
     }
   }, [sessions, tasks]);
+
+  // Send message to all operators
+  const sendMessageToOperators = async () => {
+    if (!messageTitle.trim() || !messageText.trim()) return;
+    
+    setSendingMessage(true);
+    try {
+      const response = await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: messageTitle,
+          message: messageText,
+          type: isImportant ? 'urgent' : 'info',
+          author: user?.full_name || 'מנהל מוקד'
+        })
+      });
+      
+      if (response.ok) {
+        toast.success('הודעה נשלחה בהצלחה לכל המוקדנים!');
+        setMessageTitle('');
+        setMessageText('');
+        setIsImportant(false);
+        // Refresh messages list
+        loadPreviousMessages();
+      } else {
+        toast.error('שגיאה בשליחת ההודעה');
+      }
+    } catch (error) {
+      toast.error('שגיאה בשליחת ההודעה');
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
+  // Load previous messages
+  const loadPreviousMessages = async () => {
+    try {
+      const response = await fetch('/api/notifications');
+      if (response.ok) {
+        const data = await response.json();
+        setPreviousMessages(data.notifications || []);
+      }
+    } catch (error) {
+      console.error('Error loading messages:', error);
+    }
+  };
+
+  // Delete message
+  const deleteMessage = async (messageId) => {
+    if (!confirm('האם אתה בטוח שברצונך למחוק הודעה זו?')) return;
+    
+    try {
+      const response = await fetch(`/api/notifications?id=${messageId}`, {
+        method: 'DELETE'
+      });
+      
+      if (response.ok) {
+        toast.success('הודעה נמחקה בהצלחה');
+        loadPreviousMessages();
+      } else {
+        toast.error('שגיאה במחיקת ההודעה');
+      }
+    } catch (error) {
+      toast.error('שגיאה במחיקת ההודעה');
+    }
+  };
 
   const loadData = () => {
     loadSessions();
@@ -284,44 +356,6 @@ export default function CallCenterManagerPage() {
     <div className="min-h-screen bg-gray-50" dir="rtl">
       <Toaster position="top-center" />
       <ActiveEventBanner />
-      
-      {/* Header */}
-      <header className="bg-gradient-to-r from-pink-600 to-purple-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">מוקד עירוני - מנהלת מוקד</h1>
-              <p className="text-sm text-pink-100">שלום, {user?.full_name}</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/profile')}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md font-medium transition-colors flex items-center gap-2"
-              >
-                👤 האיזור האישי
-              </button>
-              <button
-                onClick={() => setShowMessageModal(true)}
-                className="px-4 py-2 bg-purple-700 hover:bg-purple-800 rounded-md font-medium transition-colors flex items-center gap-2"
-              >
-                📢 שלח הודעה
-              </button>
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-md font-medium transition-colors"
-              >
-                🏠 דף הבית
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 font-medium"
-              >
-                התנתק
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
@@ -403,14 +437,14 @@ export default function CallCenterManagerPage() {
                 🕐 משמרות כוננים
               </button>
               <button
-                onClick={() => setActiveTab('reports')}
+                onClick={() => setActiveTab('messages')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'reports'
+                  activeTab === 'messages'
                     ? 'border-pink-600 text-pink-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                📊 דוחות ביצועים
+                📢 הודעות והנחיות
               </button>
             </nav>
           </div>
@@ -572,53 +606,108 @@ export default function CallCenterManagerPage() {
           <OnCallManagerNew />
         )}
 
-        {/* Tab Content - Reports */}
-        {activeTab === 'reports' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">דוחות ביצועים</h2>
+        {/* Tab Content - Messages & Announcements */}
+        {activeTab === 'messages' && (
+          <div className="bg-white rounded-lg shadow">
+            <div className="p-6 border-b border-gray-200">
+              <h2 className="text-xl font-bold text-gray-900 mb-2">📢 הודעות והנחיות</h2>
+              <p className="text-sm text-gray-600">שלח הודעה לכל המוקדנים באזור הודעות והנחיות</p>
+            </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-6 border border-blue-200">
-                <h3 className="text-lg font-bold text-blue-900 mb-3">📊 סטטיסטיקות היום</h3>
-                <div className="space-y-2 text-sm">
-                  <p className="flex justify-between">
-                    <span className="text-blue-700">סך פניות התקבלו:</span>
-                    <span className="font-bold text-blue-900">47</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-blue-700">משימות הושלמו:</span>
-                    <span className="font-bold text-blue-900">{totalTasksCompleted}</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-blue-700">זמן תגובה ממוצע:</span>
-                    <span className="font-bold text-blue-900">2.8 דקות</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-blue-700">שביעות רצון:</span>
-                    <span className="font-bold text-blue-900">95%</span>
-                  </p>
+            <div className="p-6">
+              <div className="bg-gradient-to-r from-pink-50 to-purple-50 rounded-xl p-6 border-2 border-pink-200 mb-6">
+                <h3 className="text-lg font-bold text-pink-900 mb-4">📝 שליחת הודעה חדשה</h3>
+                
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">כותרת ההודעה</label>
+                    <input
+                      type="text"
+                      value={messageTitle}
+                      onChange={(e) => setMessageTitle(e.target.value)}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:outline-none"
+                      placeholder="למשל: עדכון חשוב לגבי תחנה 1"
+                    />
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">תוכן ההודעה</label>
+                    <textarea
+                      value={messageText}
+                      onChange={(e) => setMessageText(e.target.value)}
+                      rows={5}
+                      className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-pink-500 focus:outline-none resize-none"
+                      placeholder="כתוב כאן את ההודעה שתופיע לכל המוקדנים..."
+                    />
+                  </div>
+                  
+                  <div className="flex items-center gap-4">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={isImportant}
+                        onChange={(e) => setIsImportant(e.target.checked)}
+                        className="w-5 h-5 text-pink-600 rounded focus:ring-pink-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">🔴 הודעה דחופה</span>
+                    </label>
+                  </div>
+                  
+                  <button
+                    onClick={sendMessageToOperators}
+                    disabled={!messageText.trim() || !messageTitle.trim() || sendingMessage}
+                    className="w-full px-6 py-3 bg-gradient-to-r from-pink-600 to-purple-600 text-white rounded-lg font-semibold hover:from-pink-700 hover:to-purple-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {sendingMessage ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                        שולח...
+                      </>
+                    ) : (
+                      <>
+                        📤 שלח הודעה לכל המוקדנים
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-6 border border-green-200">
-                <h3 className="text-lg font-bold text-green-900 mb-3">🏆 מוקדן מצטיין</h3>
-                <div className="space-y-2 text-sm">
-                  <p className="flex justify-between">
-                    <span className="text-green-700">שם:</span>
-                    <span className="font-bold text-green-900">שרה כהן</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-green-700">משימות הושלמו:</span>
-                    <span className="font-bold text-green-900">15</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-green-700">זמן תגובה:</span>
-                    <span className="font-bold text-green-900">2.5 דקות</span>
-                  </p>
-                  <p className="flex justify-between">
-                    <span className="text-green-700">דירוג:</span>
-                    <span className="font-bold text-green-900">⭐⭐⭐⭐⭐</span>
-                  </p>
+              
+              {/* Previous Messages */}
+              <div>
+                <h3 className="text-lg font-bold text-gray-900 mb-4">📜 הודעות קודמות</h3>
+                <div className="space-y-3">
+                  {previousMessages.length === 0 ? (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-4xl mb-2">📝</div>
+                      <p>אין הודעות קודמות</p>
+                    </div>
+                  ) : (
+                    previousMessages.map((msg) => (
+                      <div key={msg.id} className={`p-4 rounded-lg border-2 ${msg.type === 'urgent' ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                        <div className="flex items-start justify-between mb-2">
+                          <h4 className="font-bold text-gray-900">{msg.title}</h4>
+                          <div className="flex items-center gap-2">
+                            {msg.type === 'urgent' && (
+                              <span className="text-xs bg-red-500 text-white px-2 py-1 rounded-full">🔴 דחוף</span>
+                            )}
+                            <button
+                              onClick={() => deleteMessage(msg.id)}
+                              className="text-gray-400 hover:text-red-500 transition-colors"
+                              title="מחק הודעה"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                              </svg>
+                            </button>
+                          </div>
+                        </div>
+                        <p className="text-gray-700 mb-2">{msg.message}</p>
+                        <div className="text-xs text-gray-500">
+                          נשלח על ידי {msg.author} | {new Date(msg.created_at).toLocaleString('he-IL')}
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>

@@ -30,6 +30,14 @@ export default function LoginPage() {
       const data = await response.json();
 
       if (response.ok) {
+        // Save user info to localStorage for navbar and other components
+        if (data.user) {
+          localStorage.setItem('userId', data.user.id);
+          localStorage.setItem('email', data.user.email);
+          localStorage.setItem('full_name', data.user.fullName || '');
+          localStorage.setItem('role', data.user.role);
+          localStorage.setItem('username', data.user.fullName || data.user.email?.split('@')[0] || '');
+        }
         // redirect לפי מה שה-API החזיר
         window.location.href = data.redirect || '/operator';
       } else {

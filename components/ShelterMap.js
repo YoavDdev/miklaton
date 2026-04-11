@@ -11,7 +11,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
 });
 
-export default function ShelterMap({ shelters, userLocation, nearestShelters = [], shelterStatuses = {} }) {
+export default function ShelterMap({ shelters, userLocation, nearestShelters = [], shelterStatuses = {}, compact = false }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
 
@@ -168,63 +168,66 @@ export default function ShelterMap({ shelters, userLocation, nearestShelters = [
         ref={mapRef} 
         style={{ 
           width: '100%', 
-          height: '500px', 
-          borderRadius: '12px',
-          border: '2px solid #e5e7eb',
-          boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+          height: compact ? '300px' : '500px', 
+          borderRadius: compact ? '0' : '12px',
+          border: 'none'
         }} 
       />
       <div style={{ 
-        marginTop: '10px', 
-        padding: '12px', 
+        marginTop: '8px', 
+        padding: compact ? '8px' : '12px', 
         background: '#f9fafb', 
         borderRadius: '8px',
         display: 'flex',
-        gap: '15px',
-        fontSize: '14px',
+        gap: compact ? '10px' : '15px',
+        fontSize: compact ? '12px' : '14px',
         justifyContent: 'center',
         flexWrap: 'wrap'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ 
-            width: '20px', 
-            height: '20px', 
+            width: compact ? '14px' : '20px', 
+            height: compact ? '14px' : '20px', 
             borderRadius: '50%', 
             background: '#ef4444',
             border: '2px solid white'
           }}></div>
-          <span>מקלטים קרובים</span>
+          <span>קרובים</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
           <div style={{ 
-            width: '20px', 
-            height: '20px', 
+            width: compact ? '14px' : '20px', 
+            height: compact ? '14px' : '20px', 
             borderRadius: '50%', 
             background: '#10b981',
             border: '2px solid white'
           }}></div>
-          <span>מקלט ציבורי פתוח</span>
+          <span>פתוחים</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ 
-            width: '20px', 
-            height: '20px', 
-            borderRadius: '50%', 
-            background: '#9ca3af',
-            border: '2px solid white'
-          }}></div>
-          <span>מקלט ציבורי סגור</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <div style={{ 
-            width: '20px', 
-            height: '20px', 
-            borderRadius: '50%', 
-            background: '#3b82f6',
-            border: '2px solid white'
-          }}></div>
-          <span>מקלטים אחרים</span>
-        </div>
+        {!compact && (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ 
+                width: '20px', 
+                height: '20px', 
+                borderRadius: '50%', 
+                background: '#9ca3af',
+                border: '2px solid white'
+              }}></div>
+              <span>סגורים</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <div style={{ 
+                width: '20px', 
+                height: '20px', 
+                borderRadius: '50%', 
+                background: '#3b82f6',
+                border: '2px solid white'
+              }}></div>
+              <span>אחרים</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

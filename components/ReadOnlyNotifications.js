@@ -1,7 +1,7 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-export default function ReadOnlyNotifications() {
+export default function ReadOnlyNotifications({ compact = false }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,6 +46,47 @@ export default function ReadOnlyNotifications() {
         return 'ℹ️';
     }
   };
+
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        {loading ? (
+          <div className="text-center py-4">
+            <div className="animate-pulse">
+              <div className="h-3 bg-gray-300 rounded w-1/2 mx-auto"></div>
+            </div>
+          </div>
+        ) : notifications.length === 0 ? (
+          <div className="text-center py-4 text-gray-500">
+            <p className="text-sm">אין הודעות כרגע</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {notifications.slice(0, 5).map((notification) => (
+              <div
+                key={notification.id}
+                className={`rounded-lg p-3 border-r-4 ${getTypeStyle(notification.type)}`}
+              >
+                <div className="flex items-center gap-2 mb-1">
+                  <span>{getTypeIcon(notification.type)}</span>
+                  <h3 className="font-bold text-sm">{notification.title}</h3>
+                </div>
+                <p className="text-xs opacity-90 line-clamp-2">{notification.message}</p>
+                <div className="text-xs opacity-75 mt-1">
+                  {new Date(notification.created_at).toLocaleDateString('he-IL')}
+                </div>
+              </div>
+            ))}
+            {notifications.length > 5 && (
+              <p className="text-center text-xs text-gray-500 pt-2">
+                + עוד {notifications.length - 5} הודעות
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="bg-white rounded-lg shadow p-6">

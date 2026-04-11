@@ -730,95 +730,6 @@ export default function SectorManagerPage() {
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50" dir="rtl">
       <Toaster position="top-center" />
       <ActiveEventBanner />
-      
-      {/* Header - Modern & Beautiful */}
-      <header className="bg-gradient-to-l from-blue-600 via-blue-700 to-blue-800 text-white shadow-2xl">
-        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-          <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-            <div className="flex-1">
-              <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                <div className="text-3xl sm:text-5xl">📱</div>
-                <div className="flex-1">
-                  {userDepartments.length > 1 ? (
-                    <div>
-                      <div className="relative inline-block">
-                        <select
-                          value={activeDepartmentId || ''}
-                          onChange={(e) => setActiveDepartmentId(e.target.value)}
-                          className="text-xl sm:text-2xl md:text-3xl font-bold text-white bg-transparent border-b-2 border-white/30 pb-1 pr-6 sm:pr-8 pl-0 hover:border-white/60 focus:border-white focus:outline-none transition-colors cursor-pointer appearance-none"
-                        >
-                          {userDepartments.map((ud) => (
-                            <option 
-                              key={ud.department_id} 
-                              value={ud.department_id}
-                              className="text-lg text-gray-900 bg-white py-2"
-                            >
-                              {ud.department?.name}{ud.is_primary ? ' ⭐' : ''}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="absolute left-0 top-1/2 -translate-y-1/2 pointer-events-none">
-                          <svg className="w-5 h-5 text-white/70" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                          </svg>
-                        </div>
-                      </div>
-                      <p className="text-xs text-white/60 mt-1">בחר מכלול</p>
-                    </div>
-                  ) : (
-                    <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-1">
-                      {myDepartment?.name || 'טוען...'}
-                    </h1>
-                  )}
-                  <div className="flex flex-wrap items-center gap-2 sm:gap-4 text-blue-100 text-sm sm:text-base">
-                    <span className="font-medium">👤 {user?.full_name}</span>
-                    {myDepartment?.manager_phone && (
-                      <span className="text-xs sm:text-sm">📞 {myDepartment.manager_phone}</span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Completion Badge */}
-              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm">
-                <span className="font-medium hidden sm:inline">מצב מילוי השבוע:</span>
-                <span className="font-medium sm:hidden">מילוי:</span>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 sm:w-32 h-2 bg-white/30 rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-green-400 transition-all duration-500"
-                      style={{ width: `${completionStatus.percentage}%` }}
-                    />
-                  </div>
-                  <span className="text-xs sm:text-sm font-bold">{completionStatus.percentage}%</span>
-                  <span className="text-xs hidden sm:inline">({completionStatus.filled}/{completionStatus.total} ימים)</span>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex sm:flex-col gap-2 w-full sm:w-auto">
-              <button
-                onClick={() => router.push('/profile')}
-                className="flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 bg-green-500/80 hover:bg-green-600/80 rounded-lg font-medium transition-all active:scale-95 sm:hover:scale-105 backdrop-blur-sm text-sm sm:text-base"
-              >
-                👤 <span className="hidden sm:inline">האיזור האישי שלי</span>
-              </button>
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 bg-white/20 hover:bg-white/30 rounded-lg font-medium transition-all active:scale-95 sm:hover:scale-105 backdrop-blur-sm text-sm sm:text-base"
-              >
-                🏠 <span className="hidden sm:inline">דף הבית</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="flex-1 sm:flex-none px-3 sm:px-5 py-2 sm:py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-lg font-medium transition-all active:scale-95 sm:hover:scale-105 shadow-lg text-sm sm:text-base"
-              >
-                🚪 <span className="hidden sm:inline">התנתק</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </header>
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
@@ -867,6 +778,29 @@ export default function SectorManagerPage() {
           </div>
         </div>
 
+        {/* Department Switcher - For users with multiple departments */}
+        {userDepartments.length > 1 && (
+          <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-semibold text-gray-700">🏢 מכלול:</span>
+              <select
+                value={activeDepartmentId || ''}
+                onChange={(e) => setActiveDepartmentId(e.target.value)}
+                className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg font-medium focus:border-purple-500 focus:outline-none"
+              >
+                {userDepartments.map((ud) => (
+                  <option 
+                    key={ud.department_id} 
+                    value={ud.department_id}
+                  >
+                    {ud.department?.name}{ud.is_primary ? ' ⭐ ראשי' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="bg-white rounded-lg shadow mb-4 sm:mb-6">
           <div className="border-b border-gray-200 overflow-x-auto">
@@ -879,7 +813,7 @@ export default function SectorManagerPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                📅 <span className="hidden sm:inline">לוח כוננויות שבועי</span><span className="sm:hidden">לוח כוננויות</span>
+                � <span className="hidden sm:inline">לוח כוננויות שבועי</span><span className="sm:hidden">לוח כוננויות</span>
               </button>
               <button
                 onClick={() => setActiveTab('contacts')}
@@ -889,17 +823,7 @@ export default function SectorManagerPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                👥 אנשי קשר
-              </button>
-              <button
-                onClick={() => setActiveTab('all-on-call')}
-                className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
-                  activeTab === 'all-on-call'
-                    ? 'border-purple-600 text-purple-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                🚨 <span className="hidden sm:inline">כוננים נוכחיים - כל המכלולים</span><span className="sm:hidden">כוננים - כל המכלולים</span>
+                � אנשי קשר - המכלול שלי
               </button>
             </nav>
           </div>

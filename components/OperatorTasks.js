@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 
-export default function OperatorTasks() {
+export default function OperatorTasks({ compact = false }) {
   const [tasks, setTasks] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,11 +57,72 @@ export default function OperatorTasks() {
 
   if (loading) {
     return (
-      <div className="bg-white rounded-lg shadow p-6">
+      <div className={compact ? "" : "bg-white rounded-lg shadow p-6"}>
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
           <p className="text-gray-600">טוען משימות...</p>
         </div>
+      </div>
+    );
+  }
+
+  if (compact) {
+    return (
+      <div className="space-y-3">
+        {pendingTasks.length === 0 ? (
+          <div className="text-center py-4 text-gray-500">
+            <p className="text-sm">אין משימות פתוחות 🎉</p>
+          </div>
+        ) : (
+          <div className="space-y-2 max-h-64 overflow-y-auto">
+            {pendingTasks.slice(0, 5).map((task) => (
+              <div
+                key={task.id}
+                className={`border-r-4 p-3 rounded-lg ${
+                  task.priority === 'דחוף' ? 'bg-red-50 border-red-500' :
+                  task.priority === 'גבוה' ? 'bg-orange-50 border-orange-500' :
+                  'bg-yellow-50 border-yellow-500'
+                }`}
+              >
+                <div className="flex justify-between items-start">
+                  <h4 className="font-bold text-gray-900 text-sm">{task.title}</h4>
+                  <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                    task.priority === 'דחוף' ? 'bg-red-100 text-red-800' :
+                    task.priority === 'גבוה' ? 'bg-orange-100 text-orange-800' :
+                    'bg-yellow-100 text-yellow-800'
+                  }`}>
+                    {task.priority}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between mt-2">
+                  <span className="text-xs text-gray-500">
+                    {new Date(task.created_at).toLocaleDateString('he-IL')}
+                  </span>
+                  {task.status === 'ממתין' ? (
+                    <button
+                      onClick={() => updateTaskStatus(task.id, 'בטיפול')}
+                      className="px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium"
+                    >
+                      התחל
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => updateTaskStatus(task.id, 'הושלם')}
+                      className="px-2 py-1 bg-green-600 text-white rounded text-xs font-medium"
+                    >
+                      ✅ סיים
+                    </button>
+                  )}
+                </div>
+              </div>
+            ))}
+            {pendingTasks.length > 5 && (
+              <p className="text-center text-xs text-gray-500 pt-2">
+                + עוד {pendingTasks.length - 5} משימות
+              </p>
+            )}
+          </div>
+        )}
       </div>
     );
   }

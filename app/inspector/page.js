@@ -150,43 +150,19 @@ export default function InspectorPage() {
       <Toaster position="top-center" />
       <ActiveEventBanner />
       
-      {/* Header */}
-      <header className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h1 className="text-2xl font-bold">🚨 פקח/שיטור עירוני</h1>
-              <p className="text-sm text-orange-100">שלום, {user?.full_name}</p>
-            </div>
-            <div className="flex gap-3">
-              <button
-                onClick={() => router.push('/profile')}
-                className="px-4 py-2 bg-green-600 hover:bg-green-700 rounded-md font-medium transition-colors flex items-center gap-2"
-              >
-                👤 האיזור האישי
-              </button>
-              <button
-                onClick={() => setShowReportModal(true)}
-                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-md font-medium transition-colors flex items-center gap-2"
-              >
-                📸 דיווח חדש
-              </button>
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-md font-medium transition-colors"
-              >
-                🏠 דף הבית
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-4 py-2 bg-red-700 text-white rounded-md hover:bg-red-800 font-medium"
-              >
-                התנתק
-              </button>
-            </div>
+      {/* Quick Actions Bar */}
+      <div className="bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3">
+          <div className="flex justify-end gap-3">
+            <button
+              onClick={() => setShowReportModal(true)}
+              className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-md font-medium transition-colors flex items-center gap-2"
+            >
+              📸 דיווח חדש
+            </button>
           </div>
         </div>
-      </header>
+      </div>
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         

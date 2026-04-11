@@ -1,18 +1,22 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
+import dynamic from 'next/dynamic';
 import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
-import PrintableShelterList from '@/components/PrintableShelterList';
 import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
+
+const PrintableShelterList = dynamic(() => import('@/components/PrintableShelterList'), {
+  ssr: false
+});
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,6 +29,13 @@ export default function OperatorPage() {
   const [activeEvent, setActiveEvent] = useState(null);
   const [warMode, setWarMode] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showTasks, setShowTasks] = useState(false);
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showShelters, setShowShelters] = useState(false);
+  const [showDutyRoster, setShowDutyRoster] = useState(false);
+  const [taskCount, setTaskCount] = useState(0);
+  const [notificationCount, setNotificationCount] = useState(0);
+  const dutyRosterRef = useRef(null);
 
   useEffect(() => {
     // Check if user is admin
@@ -76,6 +87,35 @@ export default function OperatorPage() {
       // ניסיון לסיים סשן
       handleBeforeUnload();
     };
+  }, []);
+
+  useEffect(() => {
+    // Fetch task and notification counts
+    const fetchCounts = async () => {
+      try {
+        // Fetch pending tasks count
+        const tasksRes = await fetch('/api/tasks?status=pending');
+        if (tasksRes.ok) {
+          const tasksData = await tasksRes.json();
+          const pendingCount = tasksData.tasks?.filter(t => t.status === 'pending').length || 0;
+          setTaskCount(pendingCount);
+        }
+
+        // Fetch unread notifications count
+        const notifRes = await fetch('/api/notifications?unread=true');
+        if (notifRes.ok) {
+          const notifData = await notifRes.json();
+          const unreadCount = notifData.notifications?.filter(n => !n.read).length || 0;
+          setNotificationCount(unreadCount);
+        }
+      } catch (error) {
+        console.error('Error fetching counts:', error);
+      }
+    };
+
+    fetchCounts();
+    const interval = setInterval(fetchCounts, 30000); // Refresh every 30 seconds
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -136,152 +176,228 @@ export default function OperatorPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <ActiveEventBanner />
-      <header className="bg-blue-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold">מקלטון - עמדת מפעיל</h1>
-              {warMode && (
-                <div className="mt-2 inline-flex items-center gap-2 bg-red-600 px-4 py-2 rounded-lg text-sm font-bold border-2 border-red-300">
-                  🚨 מצב מלחמה פעיל - שלבי מקלטים והתקשרויות ידלגו
-                </div>
-              )}
-            </div>
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => router.push('/profile')}
-                className="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-semibold transition-colors flex items-center gap-2"
-              >
-                👤 האיזור האישי
-              </button>
-              <a
-                href="/events"
-                className="bg-red-700 hover:bg-red-800 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"
-              >
-                🚨 יומן אירועים
-              </a>
-              <a
-                href="/on-call"
-                className="bg-purple-600 hover:bg-purple-700 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2 shadow-lg"
-              >
-                📞 אנשי קשר תורנים
-              </a>
-              {isAdmin && (
-                <button
-                  onClick={() => router.push('/admin')}
-                  className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg font-semibold transition-colors"
-                >
-                  לעמדת מנהל
-                </button>
-              )}
-              <button
-                onClick={handleLogout}
-                className="bg-blue-700 hover:bg-blue-800 px-4 py-2 rounded-lg font-semibold transition-colors"
-              >
-                יציאה
-              </button>
+      {/* War Mode Banner Only */}
+      {warMode && (
+        <div className="bg-red-600 text-white shadow-lg">
+          <div className="max-w-7xl mx-auto px-4 py-3">
+            <div className="inline-flex items-center gap-2 bg-red-700 px-4 py-2 rounded-lg text-sm font-bold border-2 border-red-300">
+              🚨 מצב מלחמה פעיל - שלבי מקלטים והתקשרויות ידלגו
             </div>
           </div>
         </div>
-      </header>
+      )}
 
-      <main className="max-w-7xl mx-auto px-4 py-8 space-y-6">
-        <ReadOnlyNotifications />
-        
-        <OperatorTasks />
-        
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">
-                  🚨 פעילות בזמן אזעקה
-                </h2>
-                {activeEvent && (
-                  <button
-                    onClick={resetEvent}
-                    className="bg-gray-600 hover:bg-gray-700 text-white font-semibold py-2 px-4 rounded-lg transition-colors flex items-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                    </svg>
-                    רענון
-                  </button>
+      <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Collapsible Info Section - Tasks & Notifications */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
+          {/* Tasks Summary Card */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <button
+              onClick={() => setShowTasks(!showTasks)}
+              className="w-full px-5 py-4 flex items-center justify-between bg-gradient-to-r from-orange-50 to-white hover:from-orange-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📋</span>
+                <span className="font-bold text-gray-900">משימות פתוחות</span>
+                {taskCount > 0 && (
+                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {taskCount}
+                  </span>
                 )}
               </div>
+              <svg className={`w-5 h-5 text-gray-500 transition-transform ${showTasks ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showTasks && (
+              <div className="px-5 pb-4">
+                <OperatorTasks compact />
+              </div>
+            )}
+          </div>
 
-              {!activeEvent ? (
-                <div className="space-y-4">
-                  <div>
-                    <label className="block text-lg font-semibold text-gray-900 mb-2">
-                      סוג אירוע
-                    </label>
-                    <select
-                      value={selectedFlowId}
-                      onChange={(e) => setSelectedFlowId(e.target.value)}
-                      className="w-full px-4 py-3 text-lg border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none"
+          {/* Notifications Summary Card */}
+          <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <button
+              onClick={() => setShowNotifications(!showNotifications)}
+              className="w-full px-5 py-4 flex items-center justify-between bg-gradient-to-r from-blue-50 to-white hover:from-blue-100 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <span className="text-2xl">📢</span>
+                <span className="font-bold text-gray-900">הודעות והנחיות</span>
+                {notificationCount > 0 && (
+                  <span className="bg-blue-500 text-white text-xs font-bold px-2 py-0.5 rounded-full min-w-[20px] text-center">
+                    {notificationCount}
+                  </span>
+                )}
+              </div>
+              <svg className={`w-5 h-5 text-gray-500 transition-transform ${showNotifications ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {showNotifications && (
+              <div className="px-5 pb-4">
+                <ReadOnlyNotifications compact />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Main Action Area - Emergency Response */}
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+          {/* Emergency Event Panel */}
+          <div className="xl:col-span-2">
+            <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+              <div className="bg-gradient-to-r from-red-600 to-red-700 px-6 py-4">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                    🚨 ניהול אירוע חירום
+                  </h2>
+                  {activeEvent && (
+                    <button
+                      onClick={resetEvent}
+                      className="bg-white/20 hover:bg-white/30 text-white text-sm font-semibold py-1.5 px-3 rounded-lg transition-colors flex items-center gap-1"
                     >
-                      {alertFlowsData.map((flow) => (
-                        <option key={flow.id} value={flow.id} disabled={flow.steps.length === 0}>
-                          {flow.title} {flow.steps.length === 0 ? '(לא זמין)' : ''}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <button
-                    onClick={startEvent}
-                    disabled={!selectedFlowId || alertFlowsData.find(f => f.id === selectedFlowId)?.steps.length === 0}
-                    className="w-full bg-red-600 hover:bg-red-700 disabled:bg-gray-400 text-white font-bold py-4 px-6 rounded-lg text-xl transition-colors"
-                  >
-                    🚨 התחל אירוע
-                  </button>
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      רענון
+                    </button>
+                  )}
                 </div>
-              ) : (
-                <FlowRunner flow={activeEvent} onEnd={endEvent} warMode={warMode} />
-              )}
+              </div>
+              <div className="p-6">
+                {!activeEvent ? (
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">
+                        בחר סוג אירוע
+                      </label>
+                      <select
+                        value={selectedFlowId}
+                        onChange={(e) => setSelectedFlowId(e.target.value)}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:border-red-500 focus:ring-2 focus:ring-red-200 focus:outline-none transition-all"
+                      >
+                        {alertFlowsData.map((flow) => (
+                          <option key={flow.id} value={flow.id} disabled={flow.steps.length === 0}>
+                            {flow.title} {flow.steps.length === 0 ? '(לא זמין)' : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <button
+                      onClick={startEvent}
+                      disabled={!selectedFlowId || alertFlowsData.find(f => f.id === selectedFlowId)?.steps.length === 0}
+                      className="w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 disabled:from-gray-400 disabled:to-gray-500 text-white font-bold py-4 px-6 rounded-lg text-lg transition-all shadow-lg hover:shadow-xl active:scale-[0.98]"
+                    >
+                      🚨 התחל אירוע
+                    </button>
+                  </div>
+                ) : (
+                  <FlowRunner flow={activeEvent} onEnd={endEvent} warMode={warMode} />
+                )}
+              </div>
             </div>
 
-            <div className="bg-white rounded-lg shadow p-6">
-              <div className="border-t border-gray-200 pt-4">
-                <h3 className="text-lg font-bold text-gray-900 mb-2">📞 קריאה מתושב</h3>
-                <p className="text-sm text-gray-600 mb-3">
-                  לפתיחת קריאה מתושב שמדווח על טיל / לכוד / פצוע / מידע חירום
-                </p>
+            {/* Ekron Link - Compact */}
+            <div className="mt-4 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl">📞</span>
+                  <div>
+                    <p className="font-bold text-white">קריאה מתושב</p>
+                    <p className="text-purple-100 text-sm">טיל / לכוד / פצוע / מידע חירום</p>
+                  </div>
+                </div>
                 <a
                   href={ekronUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="block text-center bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-4 rounded-lg transition-colors"
+                  className="bg-white text-purple-700 hover:bg-purple-50 font-bold py-2 px-5 rounded-lg transition-colors shadow-md"
                 >
-                  🔗 פתח Ekron
+                  פתח Ekron →
                 </a>
               </div>
             </div>
           </div>
 
-          <div className="space-y-6">
-            <div className="bg-white rounded-lg shadow p-6">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">
-                📍 חיפוש מקלט לתושב
+          {/* Shelter Search - Compact Side Panel */}
+          <div className="bg-white rounded-xl shadow-lg overflow-hidden">
+            <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                📍 חיפוש מקלט
               </h2>
-              <ShelterSearch />
+            </div>
+            <div className="p-5">
+              <ShelterSearch compact />
             </div>
           </div>
         </div>
 
-        <div className="mt-6 bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-2xl font-bold text-gray-900">
-              🏢 ניהול מקלטים ציבוריים
-            </h2>
-            <PrintableShelterList shelters={sheltersData} />
-          </div>
-          <ShelterStatusManager shelters={sheltersData} />
+        {/* Shelter Management - Collapsible */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+          <button
+            onClick={() => setShowShelters(!showShelters)}
+            className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-gray-800 to-gray-900 hover:from-gray-700 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🏢</span>
+              <span className="text-lg font-bold text-white">ניהול מקלטים ציבוריים</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <PrintableShelterList shelters={sheltersData} />
+              <svg className={`w-5 h-5 text-gray-300 transition-transform ${showShelters ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          {showShelters && (
+            <div className="p-6">
+              <ShelterStatusManager shelters={sheltersData} />
+            </div>
+          )}
         </div>
 
-        <div className="mt-6">
-          <WeeklyDutyRoster />
+        {/* Weekly Duty Roster - Collapsible */}
+        <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
+          <button
+            onClick={() => setShowDutyRoster(!showDutyRoster)}
+            className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 transition-colors"
+          >
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">📅</span>
+              <span className="text-lg font-bold text-white">ניהול כוננויות שבועיות</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  dutyRosterRef.current?.print();
+                }}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    dutyRosterRef.current?.print();
+                  }
+                }}
+                className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
+              >
+                🖨️ הדפס כוננויות
+              </div>
+              <svg className={`w-5 h-5 text-gray-300 transition-transform ${showDutyRoster ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </div>
+          </button>
+          {showDutyRoster && (
+            <div className="p-6">
+              <WeeklyDutyRoster ref={dutyRosterRef} />
+            </div>
+          )}
         </div>
       </main>
     </div>

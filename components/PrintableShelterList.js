@@ -1,8 +1,8 @@
 'use client';
 
 export default function PrintableShelterList({ shelters }) {
-
   const handlePrint = () => {
+    if (typeof window === 'undefined') return;
     // Organize shelters by category
     const categories = {
       'מקלטים ציבוריים - מוסדות חינוך': [],
@@ -81,11 +81,19 @@ export default function PrintableShelterList({ shelters }) {
   };
 
   return (
-    <button
+    <div
       onClick={handlePrint}
-      className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors flex items-center gap-2"
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handlePrint();
+        }
+      }}
+      className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-colors flex items-center gap-2 cursor-pointer"
     >
       🖨️ הדפס רשימת מקלטים
-    </button>
+    </div>
   );
 }
