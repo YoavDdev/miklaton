@@ -128,15 +128,15 @@ export async function PATCH(request) {
     const { id, status } = body;
 
     if (status === 'closed') {
-      // Only creator or admin can close
+      // Only creator, admin, or operator can close
       const { data: event } = await supabase
         .from('emergency_events')
         .select('created_by')
         .eq('id', id)
         .single();
 
-      if (event?.created_by !== decoded.userId && decoded.role !== 'admin') {
-        return NextResponse.json({ success: false, error: 'Only creator or admin can close' }, { status: 403 });
+      if (event?.created_by !== decoded.userId && decoded.role !== 'admin' && decoded.role !== 'operator') {
+        return NextResponse.json({ success: false, error: 'Only creator, admin, or operator can close' }, { status: 403 });
       }
 
       const { data: userProfile } = await supabase

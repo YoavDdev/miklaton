@@ -5,6 +5,7 @@ import { useRouter, useParams } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 import sheltersData from '@/data/shelters.json';
+import StatusSelector, { FIELD_STATUSES } from '@/components/StatusSelector';
 
 const EventMap = dynamic(() => import('@/components/EventMap'), { ssr: false });
 
@@ -65,10 +66,37 @@ export default function EventDetailPage() {
   const [uploading, setUploading] = useState(false);
   const [showQuickMessages, setShowQuickMessages] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const [myFieldStatus, setMyFieldStatus] = useState('ready');
+  const [myParticipantId, setMyParticipantId] = useState(null);
+  const [showInitialStatusModal, setShowInitialStatusModal] = useState(false);
+  const [eventLocations, setEventLocations] = useState([]);
+  const [roadBlocks, setRoadBlocks] = useState([]);
+
+  // Save map data to database
+  const saveMapData = async (locations, blocks) => {
+    try {
+      const { data, error } = await supabase
+        .from('emergency_events')
+        .update({
+          event_locations: locations,
+          road_blocks: blocks
+        })
+        .eq('id', eventId)
+        .select('event_locations, road_blocks')
+        .single();
+
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Error saving map data:', error);
+      return false;
+    }
+  };
 
   useEffect(() => {
     fetchEvent();
     fetchUserInfo();
+    fetchParticipants();
   }, [eventId]);
 
   // Refresh journal from Supabase directly (additive only - never removes entries)
@@ -195,6 +223,10 @@ export default function EventDetailPage() {
         setEvent(eventRes.data);
         setJournal(journalRes.data || []);
         setParticipants(participantsRes.data || []);
+        
+        // Load map data
+        setEventLocations(eventRes.data.event_locations || []);
+        setRoadBlocks(eventRes.data.road_blocks || []);
 
         // Check if user is creator
         const authRes = await fetch('/api/auth/verify', { cache: 'no-store' });
@@ -214,8 +246,129 @@ export default function EventDetailPage() {
     try {
       const { data } = await supabase
         .from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
-      if (data) setParticipants(data);
-    } catch {}
+      if (data) {
+        // Fix participants with UUID as display_name
+        for (const participant of data) {
+          if (participant.display_name && participant.display_name.match(/^[0-9a-f-]{36}$/i)) {
+            // This is a UUID, fetch the real name
+            const { data: profile } = await supabase
+              .from('user_profiles')
+              .select('full_name')
+              .eq('id', participant.user_id)
+              .single();
+            
+            if (profile?.full_name) {
+              // Update the participant with the real name
+              await supabase
+                .from('event_participants')
+                .update({ display_name: profile.full_name })
+                .eq('id', participant.id);
+              
+              participant.display_name = profile.full_name;
+            }
+          }
+        }
+        
+        setParticipants(data);
+        // Find current user's participant record
+        try {
+          const authRes = await fetch('/api/auth/verify');
+          if (authRes.ok) {
+            const authData = await authRes.json();
+            const myRecord = data.find(p => p.user_id === authData.userId);
+            if (myRecord) {
+              setMyParticipantId(myRecord.id);
+              const status = myRecord.field_status || 'ready';
+              setMyFieldStatus(status);
+              
+              // If user has no status yet (null or undefined), show initial status modal
+              if (!myRecord.field_status) {
+                setShowInitialStatusModal(true);
+              }
+            }
+          }
+        } catch (authError) {
+          console.log('Auth check failed:', authError);
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch participants:', error);
+    }
+  };
+
+  const updateMyFieldStatus = async (newStatus) => {
+    if (!myParticipantId) return;
+    setMyFieldStatus(newStatus);
+    try {
+      await supabase
+        .from('event_participants')
+        .update({ 
+          field_status: newStatus, 
+          field_status_updated_at: new Date().toISOString() 
+        })
+        .eq('id', myParticipantId);
+      
+      // Add system message with status encoded in content
+      const displayName = userName || 'משתמש';
+      const requestBody = {
+        author_name: displayName,
+        author_role: userRole,
+        entry_type: 'system',
+        content: `STATUS:${newStatus}:${displayName}`,
+      };
+      
+      await fetch(`/api/events/${eventId}/journal`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody),
+      });
+      
+      // Refresh journal to show the new message
+      await refreshJournal();
+    } catch (err) {
+      console.error('Failed to update field status:', err);
+    }
+  };
+
+  const handleJoinEvent = async () => {
+    try {
+      const authRes = await fetch('/api/auth/verify');
+      if (!authRes.ok) {
+        alert('עליך להתחבר קודם');
+        return;
+      }
+      
+      const authData = await authRes.json();
+      
+      // Don't send UUID as display_name - let the API fetch the real name
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const displayName = (authData.name && !uuidRegex.test(authData.name)) ? authData.name : null;
+      
+      const res = await fetch(`/api/events/${eventId}/join`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: authData.userId,
+          display_name: displayName,
+          role: authData.role || 'participant',
+          department: authData.department || null,
+          phone: authData.phone || null,
+        }),
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        // Refresh participants to get the new record
+        await fetchParticipants();
+        // Refresh journal to show the join message (API already added it)
+        await refreshJournal();
+      } else {
+        alert(data.error || 'שגיאה בהצטרפות לאירוע');
+      }
+    } catch (err) {
+      console.error('Failed to join event:', err);
+      alert('שגיאה בהצטרפות לאירוע');
+    }
   };
 
   const handleImageSelect = (e) => {
@@ -281,6 +434,7 @@ export default function EventDetailPage() {
           author_name: userName, author_role: userRole, entry_type: type,
           content: content || (imageUrl ? '📷 תמונה' : ''),
           image_url: imageUrl,
+          author_field_status: myFieldStatus,
         }),
       });
       const data = await res.json();
@@ -311,7 +465,7 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/events/${eventId}/journal`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'quick', content: msg }),
+        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'quick', content: msg, author_field_status: myFieldStatus }),
       });
       const data = await res.json();
       if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
@@ -333,7 +487,7 @@ export default function EventDetailPage() {
       try {
         const res = await fetch(`/api/events/${eventId}/journal`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'location', content, location_lat: latitude, location_lng: longitude }),
+          body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'location', content, location_lat: latitude, location_lng: longitude, author_field_status: myFieldStatus }),
         });
         const data = await res.json();
         if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
@@ -365,11 +519,35 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/events/${eventId}/journal`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng }),
+        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng, author_field_status: myFieldStatus }),
       });
       const data = await res.json();
       if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
-    } catch {}
+    } catch (err) { console.error(err); }
+  };
+
+  const deleteMapMarker = async (markerId) => {
+    if (!confirm('למחוק את הסימון הזה?')) return;
+    
+    try {
+      // Optimistic delete
+      setJournal(prev => prev.filter(e => e.id !== markerId));
+      
+      // Delete from database
+      const { error } = await supabase
+        .from('event_journal')
+        .delete()
+        .eq('id', markerId);
+      
+      if (error) {
+        console.error('Error deleting marker:', error);
+        // Refresh on error
+        await refreshJournal();
+      }
+    } catch (err) {
+      console.error('Delete marker error:', err);
+      await refreshJournal();
+    }
   };
 
   const generateSummary = () => {
@@ -433,8 +611,8 @@ export default function EventDetailPage() {
     });
   };
 
-  const handlePrint = () => {
-    if (!event) return;
+  const buildPrintHTML = () => {
+    if (!event) return '';
     const sev = SEVERITY_MAP[event.severity] || SEVERITY_MAP.medium;
 
     const journalRows = journal.map(entry => {
@@ -442,9 +620,12 @@ export default function EventDetailPage() {
       const date = new Date(entry.created_at).toLocaleDateString('he-IL', { timeZone: 'Asia/Jerusalem' });
       const typeLabel = ENTRY_TYPES.find(t => t.key === entry.entry_type)?.label || 'עדכון';
       const typeIcon = ENTRY_TYPES.find(t => t.key === entry.entry_type)?.icon || '📝';
+      const statusData = entry.author_field_status ? FIELD_STATUSES[entry.author_field_status] : null;
+      const statusIcon = statusData?.icon || '';
+      const statusLabel = statusData?.label || '';
       return `<tr>
         <td class="time-cell">${date}<br>${time}</td>
-        <td class="author-cell">${entry.author_name}${entry.author_role ? `<br><span class="role">${entry.author_role}</span>` : ''}</td>
+        <td class="author-cell">${entry.author_name} ${statusIcon}${statusLabel ? `<br><span class="status-label">${statusLabel}</span>` : ''}${entry.author_role ? `<br><span class="role">${entry.author_role}</span>` : ''}</td>
         <td class="type-cell">${typeIcon} ${typeLabel}</td>
         <td class="content-cell">${entry.content}</td>
       </tr>`;
@@ -455,8 +636,7 @@ export default function EventDetailPage() {
       .map(p => `<li>${p.display_name}${p.department ? ` (${p.department})` : ''}${p.phone ? ` - ${p.phone}` : ''}</li>`)
       .join('');
 
-    const printWindow = window.open('', '_blank');
-    printWindow.document.write(`<!DOCTYPE html>
+    return `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
   <meta charset="UTF-8">
@@ -482,6 +662,7 @@ export default function EventDetailPage() {
     .type-cell { width: 10%; text-align: center; }
     .content-cell { width: 63%; }
     .role { font-weight: normal; font-size: 7px; color: #666; }
+    .status-label { font-weight: normal; font-size: 7px; color: #2196F3; }
     ul { padding-right: 16px; font-size: 9px; }
     li { margin-bottom: 2px; }
     tr { page-break-inside: avoid; }
@@ -507,10 +688,38 @@ export default function EventDetailPage() {
     <tbody>${journalRows}</tbody>
   </table>
 </body>
-</html>`);
-    printWindow.document.close();
-    printWindow.focus();
-    setTimeout(() => { printWindow.print(); printWindow.close(); }, 500);
+</html>`;
+  };
+
+  const openSummaryPage = () => {
+    const htmlContent = buildPrintHTML();
+    
+// Add print button to the page
+    const htmlWithPrintButton = htmlContent.replace(
+      '</style>',
+      `
+    @media print {
+      .no-print { display: none !important; }
+    }
+  </style>`
+    ).replace(
+      '</body>',
+      `
+  <div class="no-print" style="text-align: center; margin-top: 20px; padding: 20px; border-top: 2px solid #333;">
+    <button onclick="window.print()" style="background: #2563eb; color: white; padding: 12px 32px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); margin-left: 10px;">
+      🖨️ הדפס דף זה
+    </button>
+    <button onclick="window.close()" style="background: #6b7280; color: white; padding: 12px 32px; border: none; border-radius: 8px; font-size: 16px; font-weight: bold; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+      סגור
+    </button>
+  </div>
+</body>`
+    );
+    
+    const summaryWindow = window.open('', '_blank');
+    summaryWindow.document.write(htmlWithPrintButton);
+    summaryWindow.document.close();
+    summaryWindow.focus();
   };
 
   const formatTime = (dateStr) => {
@@ -577,8 +786,8 @@ export default function EventDetailPage() {
               </div>
             </div>
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
-              <button onClick={handlePrint} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="הדפס">
-                🖨️<span className="hidden sm:inline"> הדפס</span>
+              <button onClick={openSummaryPage} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="סיכום האירוע">
+                �<span className="hidden sm:inline"> סיכום</span>
               </button>
               <button onClick={copyInviteLink} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="העתק לינק">
                 {linkCopied ? '✅' : '🔗'}<span className="hidden sm:inline">{linkCopied ? ' הועתק!' : ' הזמנה'}</span>
@@ -586,7 +795,7 @@ export default function EventDetailPage() {
               <button onClick={() => setShowParticipants(!showParticipants)} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="משתתפים">
                 👥
               </button>
-              {event.status === 'active' && (isCreator || isAdmin) && (
+              {event.status === 'active' && (isCreator || isAdmin || userRole === 'operator') && (
                 <button onClick={() => setShowCloseConfirm(true)} className="bg-gray-800 hover:bg-gray-900 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="סגור אירוע">
                   🔒
                 </button>
@@ -598,6 +807,41 @@ export default function EventDetailPage() {
           </div>
         </div>
       </header>
+
+      {/* My Status Selector */}
+      {event.status === 'active' ? (
+        myParticipantId ? (
+          <div className="bg-white border-b border-gray-200 px-3 py-2">
+            <div className="max-w-6xl mx-auto">
+              <StatusSelector 
+                currentStatus={myFieldStatus}
+                onStatusChange={updateMyFieldStatus}
+                compact
+              />
+            </div>
+          </div>
+        ) : (
+          <div className="bg-yellow-50 border-b border-yellow-200 px-3 py-2">
+            <div className="max-w-6xl mx-auto flex items-center justify-between">
+              <div className="text-sm text-yellow-800">
+                ⚠️ עליך להצטרף לאירוע כדי לעדכן סטטוס
+              </div>
+              <button 
+                onClick={handleJoinEvent}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-1.5 rounded-lg text-sm font-bold transition-colors"
+              >
+                הצטרף לאירוע
+              </button>
+            </div>
+          </div>
+        )
+      ) : (
+        <div className="bg-gray-50 border-b border-gray-200 px-3 py-2">
+          <div className="max-w-6xl mx-auto text-sm text-gray-600">
+            📋 סטטוסים זמינים רק באירוע פעיל
+          </div>
+        </div>
+      )}
 
       {/* Description banner */}
       {event.description && (
@@ -645,8 +889,32 @@ export default function EventDetailPage() {
             <EventMap
               journal={journal}
               onAddMarker={addMapMarker}
+              onDeleteMarker={deleteMapMarker}
               isActive={event.status === 'active'}
               shelters={sheltersData}
+              eventLocations={eventLocations}
+              onAddEventLocation={async (location) => {
+                const newLocations = [...eventLocations, location];
+                setEventLocations(newLocations);
+                await saveMapData(newLocations, roadBlocks);
+              }}
+              onRemoveEventLocation={async (id) => {
+                const newLocations = eventLocations.filter(loc => loc.id !== id);
+                setEventLocations(newLocations);
+                await saveMapData(newLocations, roadBlocks);
+              }}
+              roadBlocks={roadBlocks}
+              onAddRoadBlock={async (points) => {
+                const note = prompt('תיאור החסימה (אופציונלי):');
+                const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
+                setRoadBlocks(newBlocks);
+                await saveMapData(eventLocations, newBlocks);
+              }}
+              onRemoveRoadBlock={async (id) => {
+                const newBlocks = roadBlocks.filter(block => block.id !== id);
+                setRoadBlocks(newBlocks);
+                await saveMapData(eventLocations, newBlocks);
+              }}
             />
           </div>
         )}
@@ -663,9 +931,28 @@ export default function EventDetailPage() {
                 <p className="font-medium">היומן ריק - הוסף את העדכון הראשון</p>
               </div>
             ) : (
-              journal.map(entry => {
+              <>
+                {journal.map(entry => {
                 const typeInfo = ENTRY_TYPES.find(t => t.key === entry.entry_type);
                 const isSystem = entry.entry_type === 'system';
+                
+                // Check if this is a status update message
+                if (isSystem && entry.content?.startsWith('STATUS:')) {
+                  const match = entry.content.match(/^STATUS:([^:]+):(.+)$/);
+                  if (match) {
+                    const [, statusCode, displayName] = match;
+                    const statusData = FIELD_STATUSES[statusCode];
+                    const statusIcon = statusData?.icon || '📋';
+                    const statusLabel = statusData?.label || statusCode;
+                    return (
+                      <div key={entry.id} className="text-center py-1">
+                        <span className="text-xs text-gray-400 bg-gray-100 px-3 py-1 rounded-full">
+                          {displayName} {statusIcon} עדכן סטטוס: {statusLabel} • {formatTime(entry.created_at)}
+                        </span>
+                      </div>
+                    );
+                  }
+                }
 
                 if (isSystem) {
                   return (
@@ -683,6 +970,10 @@ export default function EventDetailPage() {
                 const isMapMarker = entry.entry_type === 'map_marker';
                 const taskSt = isTask && entry.task_status ? TASK_STATUS[entry.task_status] : null;
 
+                // Use historical status saved in the entry, not current participant status
+                const authorStatus = entry.author_field_status;
+                const authorStatusData = authorStatus ? FIELD_STATUSES[authorStatus] : null;
+
                 return (
                   <div key={entry.id} className={`border-r-4 rounded-lg p-3 shadow-sm relative group ${
                     entry.is_pinned ? 'ring-2 ring-amber-400 ' : ''
@@ -690,9 +981,13 @@ export default function EventDetailPage() {
                     <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="text-sm">{isMapMarker ? '🗺️' : isQuick ? '⚡' : isLocation ? '📍' : typeInfo?.icon}</span>
-                        <span className="font-bold text-gray-900 text-sm">{entry.author_name}</span>
-                        {entry.author_role && (
-                          <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">{entry.author_role}</span>
+                        <span className="font-bold text-gray-900 text-sm">
+                          {entry.author_name}
+                        </span>
+                        {authorStatusData && (
+                          <span className={`text-xs px-2 py-0.5 rounded ${authorStatusData.color}`}>
+                            {authorStatusData.icon} {authorStatusData.label}
+                          </span>
                         )}
                         <span className="text-xs bg-white/50 text-gray-500 px-2 py-0.5 rounded">
                           {isMapMarker ? 'סימון מפה' : isQuick ? 'מהיר' : isLocation ? 'מיקום' : typeInfo?.label}
@@ -700,7 +995,7 @@ export default function EventDetailPage() {
                         {entry.is_pinned && <span className="text-xs text-amber-600">📌</span>}
                       </div>
                       <div className="flex items-center gap-1">
-                        {(isCreator || isAdmin) && event.status === 'active' && !entry._optimistic && (
+                        {(isCreator || isAdmin || userRole === 'operator') && event.status === 'active' && !entry._optimistic && (
                           <button
                             onClick={() => togglePin(entry.id, entry.is_pinned)}
                             className="opacity-0 group-hover:opacity-100 text-xs text-gray-400 hover:text-amber-600 transition-opacity"
@@ -751,7 +1046,8 @@ export default function EventDetailPage() {
                     )}
                   </div>
                 );
-              })
+              })}
+              </>
             )}
             <div ref={journalEndRef} />
           </div>
@@ -878,21 +1174,41 @@ export default function EventDetailPage() {
               <button onClick={() => setShowParticipants(false)} className="sm:hidden bg-gray-200 hover:bg-gray-300 rounded-full w-8 h-8 flex items-center justify-center text-gray-600 font-bold">✕</button>
             </div>
             <div className="p-3 space-y-2">
-              {participants.map(p => (
-                <div key={p.id} className={`text-sm p-2.5 rounded-lg border ${
-                  p.status === 'confirmed' ? 'bg-green-50 border-green-200' :
-                  p.status === 'declined' ? 'bg-red-50 border-red-200 opacity-60' :
-                  'bg-gray-50 border-gray-200'
-                }`}>
-                  <div className="font-bold text-gray-900">{p.display_name}</div>
-                  {p.department && <div className="text-xs text-gray-500">{p.department}</div>}
-                  {p.role && <div className="text-xs text-gray-400">{p.role}</div>}
-                  {p.phone && <div className="text-xs text-gray-400" dir="ltr">{p.phone}</div>}
-                  <div className="text-xs mt-1">
-                    {p.status === 'confirmed' ? '✅ אישר' : p.status === 'declined' ? '❌ סירב' : '⏳ ממתין'}
+              {participants.map(p => {
+                const fieldStatus = p.field_status || 'ready';
+                const statusData = FIELD_STATUSES[fieldStatus];
+                return (
+                  <div key={p.id} className={`text-sm p-2.5 rounded-lg border ${
+                    p.status === 'confirmed' ? 'bg-white border-gray-200' :
+                    p.status === 'declined' ? 'bg-red-50 border-red-200 opacity-60' :
+                    'bg-gray-50 border-gray-200'
+                  }`}>
+                    <div className="flex items-center justify-between mb-1">
+                      <div className="font-bold text-gray-900">{p.display_name}</div>
+                      {p.status === 'confirmed' && statusData && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${statusData.color}`}>
+                          {statusData.icon}
+                        </span>
+                      )}
+                    </div>
+                    {p.department && <div className="text-xs text-gray-500">{p.department}</div>}
+                    {p.role && <div className="text-xs text-gray-400">{p.role}</div>}
+                    {p.phone && <div className="text-xs text-gray-400" dir="ltr">{p.phone}</div>}
+                    <div className="text-xs mt-1 flex items-center gap-2">
+                      {p.status === 'confirmed' ? (
+                        <>
+                          <span className="text-green-600">✅</span>
+                          {statusData && <span className="text-gray-600">{statusData.label}</span>}
+                        </>
+                      ) : p.status === 'declined' ? (
+                        <span className="text-red-600">❌ סירב</span>
+                      ) : (
+                        <span className="text-yellow-600">⏳ ממתין</span>
+                      )}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {participants.length === 0 && (
                 <p className="text-center text-gray-400 text-sm py-4">אין משתתפים עדיין</p>
               )}
@@ -900,6 +1216,40 @@ export default function EventDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Initial status selection modal */}
+      {showInitialStatusModal && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl p-8" dir="rtl">
+            <h3 className="text-2xl font-bold text-gray-900 mb-2 text-center">👋 ברוכים הבאים!</h3>
+            <p className="text-gray-600 mb-6 text-center">לפני שמתחילים, אנא בחר את הסטטוס הנוכחי שלך:</p>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-6">
+              {Object.entries(FIELD_STATUSES).map(([key, status]) => (
+                <button
+                  key={key}
+                  onClick={async () => {
+                    await updateMyFieldStatus(key);
+                    setShowInitialStatusModal(false);
+                  }}
+                  className={`p-4 rounded-xl border-2 transition-all hover:scale-105 ${
+                    myFieldStatus === key
+                      ? `${status.color} border-blue-500 shadow-lg`
+                      : 'bg-gray-50 border-gray-300 hover:border-blue-300'
+                  }`}
+                >
+                  <div className="text-3xl mb-2">{status.icon}</div>
+                  <div className="font-bold text-sm">{status.label}</div>
+                </button>
+              ))}
+            </div>
+            
+            <p className="text-xs text-gray-500 text-center">
+              תוכל לשנות את הסטטוס שלך בכל עת מהסרגל העליון
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Close confirmation modal */}
       {showCloseConfirm && (
