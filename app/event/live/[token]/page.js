@@ -61,7 +61,6 @@ export default function LiveJournalPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQuickMessages, setShowQuickMessages] = useState(false);
-  const [showMap, setShowMap] = useState(false);
 
   useEffect(() => {
     initPage();
@@ -508,36 +507,26 @@ export default function LiveJournalPage() {
         </div>
       )}
 
-      {/* Map toggle + map */}
-      <div className="max-w-4xl mx-auto w-full px-3">
-        <button
-          onClick={() => setShowMap(!showMap)}
-          className={`w-full text-center text-xs py-1.5 font-bold rounded-t-lg border-b transition-colors ${
-            showMap ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-          }`}
-        >
-          🗺️ {showMap ? 'סגור מפה' : 'פתח מפה'}
-          {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length > 0 && (
-            <span className="mr-1 bg-white/20 px-1.5 rounded text-xs">
-              {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length} סימונים
-            </span>
-          )}
-        </button>
-        {showMap && (
-          <div className="border border-t-0 rounded-b-lg p-2 bg-white shadow-sm mb-1">
-            <EventMap
-              journal={journal}
-              onAddMarker={addMapMarker}
-              isActive={event.status === 'active' && !!participant}
-              shelters={sheltersData}
-            />
-          </div>
-        )}
-      </div>
-
       {/* Journal */}
       <div className="flex-1 overflow-y-auto min-h-0">
         <div className="max-w-4xl mx-auto px-3 py-3 space-y-2">
+          {/* Map - always visible */}
+          <div className="mb-3 -mx-1">
+            <div className="border-2 border-blue-200 rounded-xl p-3 bg-gradient-to-br from-white to-blue-50 shadow-lg">
+              <EventMap
+                journal={journal}
+                onAddMarker={addMapMarker}
+                isActive={event.status === 'active' && !!participant}
+                shelters={sheltersData}
+              />
+              {/* Map usage hint */}
+              <div className="mt-2 flex items-center gap-2 text-xs text-blue-700 bg-blue-100 px-3 py-2 rounded-lg" dir="rtl">
+                <span className="text-base">💡</span>
+                <span className="font-medium">לחץ על המפה כדי להפעיל זום • גלילה רגילה תזיז את הדף</span>
+              </div>
+            </div>
+          </div>
+
           {journal.length === 0 ? (
             <div className="text-center py-12 text-gray-400">
               <div className="text-4xl mb-3">📋</div>

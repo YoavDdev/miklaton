@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 import sheltersData from '@/data/shelters.json';
 import StatusSelector, { FIELD_STATUSES } from '@/components/StatusSelector';
+import toast from 'react-hot-toast';
 
 const EventMap = dynamic(() => import('@/components/EventMap'), { ssr: false });
 
@@ -65,7 +66,6 @@ export default function EventDetailPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQuickMessages, setShowQuickMessages] = useState(false);
-  const [showMap, setShowMap] = useState(false);
   const [myFieldStatus, setMyFieldStatus] = useState('ready');
   const [myParticipantId, setMyParticipantId] = useState(null);
   const [showInitialStatusModal, setShowInitialStatusModal] = useState(false);
@@ -522,32 +522,63 @@ export default function EventDetailPage() {
         body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng, author_field_status: myFieldStatus }),
       });
       const data = await res.json();
-      if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
-    } catch (err) { console.error(err); }
+      if (data.success) {
+        setJournal(prev => prev.filter(e => e.id !== tempId).concat(data.data));
+      }
+    } catch (error) {
+      console.error('Failed to add marker:', error);
+      await refreshJournal();
+    }
   };
 
   const deleteMapMarker = async (markerId) => {
-    if (!confirm('למחוק את הסימון הזה?')) return;
-    
-    try {
-      // Optimistic delete
-      setJournal(prev => prev.filter(e => e.id !== markerId));
-      
-      // Delete from database
-      const { error } = await supabase
-        .from('event_journal')
-        .delete()
-        .eq('id', markerId);
-      
-      if (error) {
-        console.error('Error deleting marker:', error);
-        // Refresh on error
-        await refreshJournal();
-      }
-    } catch (err) {
-      console.error('Delete marker error:', err);
-      await refreshJournal();
-    }
+    toast((t) => (
+      <div dir="rtl" className="text-center">
+        <p className="font-bold mb-3">🗑️ למחוק את הסימון הזה?</p>
+        <div className="flex gap-2">
+          <button
+            onClick={async () => {
+              toast.dismiss(t.id);
+              try {
+                // Optimistic delete
+                setJournal(prev => prev.filter(e => e.id !== markerId));
+                
+                // Delete from database
+                const { error } = await supabase
+                  .from('event_journal')
+                  .delete()
+                  .eq('id', markerId);
+                
+                if (error) {
+                  console.error('Error deleting marker:', error);
+                  await refreshJournal();
+                } else {
+                  toast.success('✅ הסימון נמחק!', {
+                    duration: 2000,
+                    style: { direction: 'rtl' }
+                  });
+                }
+              } catch (error) {
+                console.error('Failed to delete marker:', error);
+                await refreshJournal();
+              }
+            }}
+            className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700"
+          >
+            מחק
+          </button>
+          <button
+            onClick={() => toast.dismiss(t.id)}
+            className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600"
+          >
+            ביטול
+          </button>
+        </div>
+      </div>
+    ), {
+      duration: 5000,
+      position: 'top-center',
+    });
   };
 
   const generateSummary = () => {
@@ -787,12 +818,12 @@ export default function EventDetailPage() {
             </div>
             <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
               <button onClick={openSummaryPage} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="סיכום האירוע">
-                �<span className="hidden sm:inline"> סיכום</span>
+                📄<span className="hidden sm:inline"> סיכום</span>
               </button>
               <button onClick={copyInviteLink} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="העתק לינק">
                 {linkCopied ? '✅' : '🔗'}<span className="hidden sm:inline">{linkCopied ? ' הועתק!' : ' הזמנה'}</span>
               </button>
-              <button onClick={() => setShowParticipants(!showParticipants)} className="bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="משתתפים">
+              <button onClick={() => setShowParticipants(!showParticipants)} className="lg:hidden bg-white/20 hover:bg-white/30 p-2 sm:px-3 sm:py-2 rounded-lg text-sm font-bold transition-colors" title="משתתפים">
                 👥
               </button>
               {event.status === 'active' && (isCreator || isAdmin || userRole === 'operator') && (
@@ -808,10 +839,10 @@ export default function EventDetailPage() {
         </div>
       </header>
 
-      {/* My Status Selector */}
+      {/* My Status Selector - Enhanced & Clear */}
       {event.status === 'active' ? (
         myParticipantId ? (
-          <div className="bg-white border-b border-gray-200 px-3 py-2">
+          <div className="bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 border-b-2 border-indigo-200 px-3 py-3 shadow-sm">
             <div className="max-w-6xl mx-auto">
               <StatusSelector 
                 currentStatus={myFieldStatus}
@@ -869,62 +900,99 @@ export default function EventDetailPage() {
         </div>
       )}
 
-      {/* Map toggle + map */}
-      <div className="max-w-6xl mx-auto w-full px-3">
-        <button
-          onClick={() => setShowMap(!showMap)}
-          className={`w-full text-center text-xs py-1.5 font-bold rounded-t-lg border-b transition-colors ${
-            showMap ? 'bg-blue-600 text-white' : 'bg-gray-50 text-gray-500 hover:bg-gray-100'
-          }`}
-        >
-          🗺️ {showMap ? 'סגור מפה' : 'פתח מפה'}
-          {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length > 0 && (
-            <span className="mr-1 bg-white/20 px-1.5 rounded text-xs">
-              {journal.filter(e => e.entry_type === 'map_marker' || e.entry_type === 'location').length} סימונים
-            </span>
-          )}
-        </button>
-        {showMap && (
-          <div className="border border-t-0 rounded-b-lg p-2 bg-white shadow-sm mb-1">
-            <EventMap
-              journal={journal}
-              onAddMarker={addMapMarker}
-              onDeleteMarker={deleteMapMarker}
-              isActive={event.status === 'active'}
-              shelters={sheltersData}
-              eventLocations={eventLocations}
-              onAddEventLocation={async (location) => {
-                const newLocations = [...eventLocations, location];
-                setEventLocations(newLocations);
-                await saveMapData(newLocations, roadBlocks);
-              }}
-              onRemoveEventLocation={async (id) => {
-                const newLocations = eventLocations.filter(loc => loc.id !== id);
-                setEventLocations(newLocations);
-                await saveMapData(newLocations, roadBlocks);
-              }}
-              roadBlocks={roadBlocks}
-              onAddRoadBlock={async (points) => {
-                const note = prompt('תיאור החסימה (אופציונלי):');
-                const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
-                setRoadBlocks(newBlocks);
-                await saveMapData(eventLocations, newBlocks);
-              }}
-              onRemoveRoadBlock={async (id) => {
-                const newBlocks = roadBlocks.filter(block => block.id !== id);
-                setRoadBlocks(newBlocks);
-                await saveMapData(eventLocations, newBlocks);
-              }}
-            />
+      {/* Desktop: 3 columns | Mobile: Stack */}
+      <div className="flex-1 flex flex-col lg:flex-row w-full min-h-0 max-w-screen-2xl mx-auto">
+        
+        {/* Column 1 (Desktop Right): Participants - Hidden on mobile, shown on lg+ */}
+        <div className="hidden lg:flex lg:w-1/5 flex-col border-l-2 border-gray-200 bg-gray-50 overflow-y-auto shadow-xl">
+          <div className="sticky top-0 p-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white z-10 shadow-md">
+            <h3 className="font-bold flex items-center gap-2 text-sm">
+              👥 משתתפים ({confirmedCount})
+            </h3>
           </div>
-        )}
-      </div>
+          <div className="p-2 space-y-2">
+            {participants.map(p => {
+              const fieldStatus = p.field_status || 'ready';
+              const statusData = FIELD_STATUSES[fieldStatus];
+              return (
+                <div key={p.id} className={`text-xs p-2 rounded-lg border ${
+                  p.status === 'confirmed' ? 'bg-white border-blue-200' :
+                  p.status === 'declined' ? 'bg-red-50 border-red-200 opacity-60' :
+                  'bg-gray-50 border-gray-200'
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="font-bold text-gray-900 truncate">{p.display_name}</div>
+                    {p.status === 'confirmed' && statusData && (
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${statusData.color}`}>
+                        {statusData.icon}
+                      </span>
+                    )}
+                  </div>
+                  {p.department && <div className="text-[10px] text-gray-500 truncate">{p.department}</div>}
+                  {p.role && <div className="text-[10px] text-gray-400 truncate">{p.role}</div>}
+                  <div className="text-[10px] mt-1">
+                    {p.status === 'confirmed' ? (
+                      <span className="text-green-600">✅ {statusData?.label}</span>
+                    ) : p.status === 'declined' ? (
+                      <span className="text-red-600">❌ סירב</span>
+                    ) : (
+                      <span className="text-yellow-600">⏳ ממתין</span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+            {participants.length === 0 && (
+              <p className="text-center text-gray-400 text-xs py-4">אין משתתפים</p>
+            )}
+          </div>
+        </div>
 
-      <div className="flex-1 flex flex-col sm:flex-row max-w-6xl mx-auto w-full min-h-0">
-        {/* Journal - main area */}
+        {/* Column 2 (Center): Journal & Input */}
         <div className="flex-1 flex flex-col min-h-0">
           {/* Journal entries */}
           <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-2">
+            {/* Map on mobile/tablet only */}
+            <div className="lg:hidden mb-3 -mx-1 sm:-mx-2">
+              <div className="border-2 border-blue-200 rounded-xl p-3 bg-gradient-to-br from-white to-blue-50 shadow-lg">
+                <EventMap
+                  journal={journal}
+                  onAddMarker={addMapMarker}
+                  onDeleteMarker={deleteMapMarker}
+                  isActive={event.status === 'active'}
+                  shelters={sheltersData}
+                  eventLocations={eventLocations}
+                  onAddEventLocation={async (location) => {
+                    const newLocations = [...eventLocations, location];
+                    setEventLocations(newLocations);
+                    await saveMapData(newLocations, roadBlocks);
+                  }}
+                  onRemoveEventLocation={async (id) => {
+                    const newLocations = eventLocations.filter(loc => loc.id !== id);
+                    setEventLocations(newLocations);
+                    await saveMapData(newLocations, roadBlocks);
+                  }}
+                  roadBlocks={roadBlocks}
+                  onAddRoadBlock={async (points, note) => {
+                    const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
+                    setRoadBlocks(newBlocks);
+                    await saveMapData(eventLocations, newBlocks);
+                  }}
+                  onRemoveRoadBlock={async (id) => {
+                    const newBlocks = roadBlocks.filter(block => block.id !== id);
+                    setRoadBlocks(newBlocks);
+                    await saveMapData(eventLocations, newBlocks);
+                  }}
+                />
+                {/* Map usage hint */}
+                <div className="mt-2 flex items-center gap-2 text-xs text-blue-700 bg-blue-100 px-3 py-2 rounded-lg" dir="rtl">
+                  <span className="text-base">💡</span>
+                  <span className="font-medium">לחץ על המפה כדי להפעיל זום • גלילה רגילה תזיז את הדף</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Journal entries */}
             {journal.length === 0 ? (
               <div className="text-center py-12 text-gray-400">
                 <div className="text-4xl mb-3">📋</div>
@@ -1164,9 +1232,53 @@ export default function EventDetailPage() {
           )}
         </div>
 
-        {/* Participants sidebar / mobile overlay */}
+        {/* Column 3 (Desktop Left): Map - Hidden on mobile */}
+        <div className="hidden lg:flex lg:w-[30%] flex-col border-r-2 border-blue-200 bg-gradient-to-br from-white to-blue-50 overflow-y-auto shadow-xl">
+          <div className="sticky top-0 p-3 bg-gradient-to-r from-blue-600 to-indigo-600 text-white z-10 shadow-md">
+            <h3 className="font-bold text-sm flex items-center gap-2">
+              🗺️ מפת האירוע
+            </h3>
+          </div>
+          <div className="p-3 flex-1 flex flex-col">
+            <EventMap
+              className="h-full"
+              journal={journal}
+              onAddMarker={addMapMarker}
+              onDeleteMarker={deleteMapMarker}
+              isActive={event.status === 'active'}
+              shelters={sheltersData}
+              eventLocations={eventLocations}
+              onAddEventLocation={async (location) => {
+                const newLocations = [...eventLocations, location];
+                setEventLocations(newLocations);
+                await saveMapData(newLocations, roadBlocks);
+              }}
+              onRemoveEventLocation={async (id) => {
+                const newLocations = eventLocations.filter(loc => loc.id !== id);
+                setEventLocations(newLocations);
+                await saveMapData(newLocations, roadBlocks);
+              }}
+              roadBlocks={roadBlocks}
+              onAddRoadBlock={async (points, note) => {
+                const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
+                setRoadBlocks(newBlocks);
+                await saveMapData(eventLocations, newBlocks);
+              }}
+              onRemoveRoadBlock={async (id) => {
+                const newBlocks = roadBlocks.filter(block => block.id !== id);
+                setRoadBlocks(newBlocks);
+                await saveMapData(eventLocations, newBlocks);
+              }}
+            />
+            <div className="mt-2 text-[10px] text-blue-700 bg-blue-100 px-2 py-1.5 rounded-lg" dir="rtl">
+              💡 לחץ על המפה להפעלת זום
+            </div>
+          </div>
+        </div>
+
+        {/* Mobile Participants Overlay - Only shown when button clicked on mobile */}
         {showParticipants && (
-          <div className="fixed sm:relative inset-0 sm:inset-auto z-40 sm:z-auto sm:w-72 bg-white sm:border-r overflow-y-auto shadow-lg">
+          <div className="lg:hidden fixed inset-0 z-40 bg-white overflow-y-auto shadow-lg">
             <div className="p-4 border-b bg-gray-50 flex items-center justify-between">
               <h3 className="font-bold text-gray-900 flex items-center gap-2">
                 👥 משתתפים ({confirmedCount})

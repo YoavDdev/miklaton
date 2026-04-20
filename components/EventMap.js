@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import toast, { Toaster } from 'react-hot-toast';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -28,7 +29,8 @@ export default function EventMap({
   onRemoveEventLocation,
   roadBlocks = [],
   onAddRoadBlock,
-  onRemoveRoadBlock 
+  onRemoveRoadBlock,
+  className = '' 
 }) {
   const mapRef = useRef(null);
   const mapInstanceRef = useRef(null);
@@ -38,11 +40,19 @@ export default function EventMap({
   const onDeleteMarkerRef = useRef(onDeleteMarker);
   const onRemoveEventLocationRef = useRef(onRemoveEventLocation);
   const onRemoveRoadBlockRef = useRef(onRemoveRoadBlock);
+  const hasZoomedToEventRef = useRef(false); // Track if we've already zoomed to event location
+  const roadBlockPointsRef = useRef([]); // Use ref to prevent click handler re-registration
+  const modeRef = useRef('view'); // Track mode in ref to avoid stale closures
   const [mode, setMode] = useState('view'); // 'view', 'event_location', 'road_block', 'marker', 'delete'
   const [roadBlockPoints, setRoadBlockPoints] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState([]);
   const [searching, setSearching] = useState(false);
+  
+  // Modal for editing names
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [tempName, setTempName] = useState('');
+  const [pendingAction, setPendingAction] = useState(null); // Stores the action to execute after name input
   
   // Update refs when functions change
   useEffect(() => {
@@ -50,6 +60,84 @@ export default function EventMap({
     onRemoveEventLocationRef.current = onRemoveEventLocation;
     onRemoveRoadBlockRef.current = onRemoveRoadBlock;
   }, [onDeleteMarker, onRemoveEventLocation, onRemoveRoadBlock]);
+
+  // Sync mode ref with mode state
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  // Show toast notifications when entering modes
+  useEffect(() => {
+    if (mode === 'event_location') {
+      toast('🚨 לחץ על המפה לסימון מיקום האירוע', {
+        duration: 3000,
+        position: 'bottom-center',
+        style: {
+          background: '#ef4444',
+          color: '#fff',
+          fontWeight: 'bold',
+          direction: 'rtl',
+        },
+      });
+    } else if (mode === 'road_block') {
+      toast('🚧 לחץ על המפה לסימון נקודות לאורך הכביש', {
+        duration: 3000,
+        position: 'bottom-center',
+        style: {
+          background: '#f97316',
+          color: '#fff',
+          fontWeight: 'bold',
+          direction: 'rtl',
+        },
+      });
+    } else if (mode === 'marker') {
+      toast('📍 לחץ על המפה להוספת סימון', {
+        duration: 3000,
+        position: 'bottom-center',
+        style: {
+          background: '#3b82f6',
+          color: '#fff',
+          fontWeight: 'bold',
+          direction: 'rtl',
+        },
+      });
+    }
+  }, [mode]);
+
+  // Handle map resize - critical for accurate coordinate mapping
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Invalidate size immediately when component mounts or className changes
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 100);
+
+    // Watch for container resize events
+    const resizeObserver = new ResizeObserver(() => {
+      map.invalidateSize();
+    });
+
+    const container = map.getContainer();
+    if (container) {
+      resizeObserver.observe(container);
+    }
+
+    // Also handle window resize (for mobile/desktop transitions)
+    const handleWindowResize = () => {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
+    };
+    
+    window.addEventListener('resize', handleWindowResize);
+
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener('resize', handleWindowResize);
+    };
+  }, [className]);
 
   // Search for address using Nominatim (OpenStreetMap)
   const searchAddress = async () => {
@@ -75,6 +163,49 @@ export default function EventMap({
     }
   };
 
+  // Handle name confirmation from modal
+  const handleNameConfirm = () => {
+    if (!pendingAction || !tempName.trim()) return;
+
+    if (pendingAction.type === 'event_location') {
+      onAddEventLocation({
+        lat: pendingAction.lat,
+        lng: pendingAction.lng,
+        address: tempName.trim(),
+        id: Date.now()
+      });
+      setMode('view');
+      toast.success('✅ מיקום האירוע נוסף בהצלחה!', {
+        duration: 2000,
+        position: 'bottom-center',
+        style: { direction: 'rtl', fontWeight: 'bold' },
+      });
+    } else if (pendingAction.type === 'marker') {
+      onAddMarker(pendingAction.lat, pendingAction.lng, tempName.trim());
+      setMode('view');
+      toast.success('✅ סימון נוסף למפה!', {
+        duration: 2000,
+        position: 'bottom-center',
+        style: { direction: 'rtl', fontWeight: 'bold' },
+      });
+    } else if (pendingAction.type === 'road_block') {
+      onAddRoadBlock(pendingAction.points, tempName.trim());
+      roadBlockPointsRef.current = [];
+      setRoadBlockPoints([]);
+      setMode('view');
+      toast.success('✅ חסימת הכביש נוספה בהצלחה!', {
+        duration: 2000,
+        position: 'bottom-center',
+        style: { direction: 'rtl', fontWeight: 'bold' },
+      });
+    }
+
+    // Reset modal state
+    setShowNameModal(false);
+    setPendingAction(null);
+    setTempName('');
+  };
+
   // Initialize map
   useEffect(() => {
     if (!mapRef.current) return;
@@ -83,10 +214,26 @@ export default function EventMap({
       mapInstanceRef.current = null;
     }
 
-    const map = L.map(mapRef.current, { zoomControl: true }).setView([32.0300, 34.8900], 15);
+    const map = L.map(mapRef.current, { 
+      zoomControl: true,
+      scrollWheelZoom: false  // Disable scroll wheel zoom by default to prevent page scroll confusion
+    }).setView([32.0300, 34.8900], 15);
+    
     mapInstanceRef.current = map;
     markersLayerRef.current = L.layerGroup().addTo(map);
     roadBlocksLayerRef.current = L.layerGroup().addTo(map);
+    
+    // Enable scroll wheel zoom when user clicks on map
+    map.on('click', function() {
+      if (!map.scrollWheelZoom.enabled()) {
+        map.scrollWheelZoom.enable();
+      }
+    });
+    
+    // Disable scroll wheel zoom when mouse leaves map
+    map.on('mouseout', function() {
+      map.scrollWheelZoom.disable();
+    });
     
     // Event listener for delete buttons (using event delegation)
     map.on('popupopen', (e) => {
@@ -101,8 +248,36 @@ export default function EventMap({
             btn.onclick = () => {
               const markerId = btn.getAttribute('data-marker-id');
               if (markerId && onDeleteMarkerRef.current) {
-                onDeleteMarkerRef.current(markerId);
-                popup._source.closePopup();
+                toast((t) => (
+                  <div dir="rtl" className="text-center">
+                    <p className="font-bold mb-3">🗑️ למחוק את הסימון הזה?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          onDeleteMarkerRef.current(markerId);
+                          popup._source.closePopup();
+                          toast.dismiss(t.id);
+                          toast.success('✅ הסימון נמחק!', {
+                            duration: 2000,
+                            style: { direction: 'rtl' }
+                          });
+                        }}
+                        className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700"
+                      >
+                        מחק
+                      </button>
+                      <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                ), {
+                  duration: 5000,
+                  position: 'top-center',
+                });
               }
             };
           });
@@ -113,11 +288,37 @@ export default function EventMap({
             btn.onclick = () => {
               const locationIdStr = btn.getAttribute('data-location-id');
               if (locationIdStr && onRemoveEventLocationRef.current) {
-                if (confirm('למחוק את המיקום הזה?')) {
-                  const locationId = parseInt(locationIdStr);
-                  onRemoveEventLocationRef.current(locationId);
-                  popup._source.closePopup();
-                }
+                const locationId = parseInt(locationIdStr);
+                toast((t) => (
+                  <div dir="rtl" className="text-center">
+                    <p className="font-bold mb-3">🗑️ למחוק את המיקום הזה?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          onRemoveEventLocationRef.current(locationId);
+                          popup._source.closePopup();
+                          toast.dismiss(t.id);
+                          toast.success('✅ המיקום נמחק!', {
+                            duration: 2000,
+                            style: { direction: 'rtl' }
+                          });
+                        }}
+                        className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700"
+                      >
+                        מחק
+                      </button>
+                      <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                ), {
+                  duration: 5000,
+                  position: 'top-center',
+                });
               }
             };
           });
@@ -128,11 +329,37 @@ export default function EventMap({
             btn.onclick = () => {
               const blockIdStr = btn.getAttribute('data-block-id');
               if (blockIdStr && onRemoveRoadBlockRef.current) {
-                if (confirm('למחוק את החסימה הזו?')) {
-                  const blockId = parseInt(blockIdStr);
-                  onRemoveRoadBlockRef.current(blockId);
-                  popup._source.closePopup();
-                }
+                const blockId = parseInt(blockIdStr);
+                toast((t) => (
+                  <div dir="rtl" className="text-center">
+                    <p className="font-bold mb-3">🗑️ למחוק את החסימה הזו?</p>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {
+                          onRemoveRoadBlockRef.current(blockId);
+                          popup._source.closePopup();
+                          toast.dismiss(t.id);
+                          toast.success('✅ החסימה נמחקה!', {
+                            duration: 2000,
+                            style: { direction: 'rtl' }
+                          });
+                        }}
+                        className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700"
+                      >
+                        מחק
+                      </button>
+                      <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600"
+                      >
+                        ביטול
+                      </button>
+                    </div>
+                  </div>
+                ), {
+                  duration: 5000,
+                  position: 'top-center',
+                });
               }
             };
           });
@@ -170,38 +397,11 @@ export default function EventMap({
       L.marker([shelter.lat, shelter.lng], { icon, interactive: false }).addTo(map);
     });
 
-    // Click handler based on mode
-    map.on('click', (e) => {
-      // Event location mode
-      if (mode === 'event_location') {
-        if (onAddEventLocation) {
-          const address = prompt('תיאור המיקום (אופציונלי):');
-          onAddEventLocation({ 
-            lat: e.latlng.lat, 
-            lng: e.latlng.lng, 
-            address: address || 'מיקום אירוע',
-            id: Date.now()
-          });
-          setMode('view');
-        }
-        return;
-      }
-      
-      // Road block mode
-      if (mode === 'road_block') {
-        const newPoints = [...roadBlockPoints, [e.latlng.lat, e.latlng.lng]];
-        setRoadBlockPoints(newPoints);
-        return;
-      }
-      
-      // Marker mode
-      if (mode === 'marker' && onAddMarker && isActive) {
-        const note = prompt('הוסף הערה על המפה:');
-        if (note !== null && note.trim()) {
-          onAddMarker(e.latlng.lat, e.latlng.lng, note.trim());
-          setMode('view');
-        }
-      }
+    // Fix map size after initialization - critical for accurate clicks
+    map.whenReady(() => {
+      setTimeout(() => {
+        map.invalidateSize();
+      }, 100);
     });
 
     return () => {
@@ -212,44 +412,54 @@ export default function EventMap({
     };
   }, []);
 
-  // Update click handler based on mode
+  // Register click handler ONCE - use refs to avoid re-registration issues
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    map.off('click');
-    map.on('click', (e) => {
-      // Event location mode
-      if (mode === 'event_location') {
+    
+    const handleMapClick = (e) => {
+      const currentMode = modeRef.current;
+      
+      // Event location mode - ask for name
+      if (currentMode === 'event_location') {
         if (onAddEventLocation) {
-          const address = prompt('תיאור המיקום (אופציונלי):');
-          onAddEventLocation({ 
-            lat: e.latlng.lat, 
-            lng: e.latlng.lng, 
-            address: address || 'מיקום אירוע',
-            id: Date.now()
+          setPendingAction({
+            type: 'event_location',
+            lat: e.latlng.lat,
+            lng: e.latlng.lng,
           });
-          setMode('view');
+          setTempName('מיקום אירוע');
+          setShowNameModal(true);
         }
         return;
       }
       
-      // Road block mode
-      if (mode === 'road_block') {
-        const newPoints = [...roadBlockPoints, [e.latlng.lat, e.latlng.lng]];
+      // Road block mode - use ref to get current points
+      if (currentMode === 'road_block') {
+        const newPoints = [...roadBlockPointsRef.current, [e.latlng.lat, e.latlng.lng]];
+        roadBlockPointsRef.current = newPoints;
         setRoadBlockPoints(newPoints);
         return;
       }
       
-      // Marker mode
-      if (mode === 'marker' && onAddMarker && isActive) {
-        const note = prompt('הוסף הערה על המפה:');
-        if (note !== null && note.trim()) {
-          onAddMarker(e.latlng.lat, e.latlng.lng, note.trim());
-          setMode('view');
-        }
+      // Marker mode - ask for name
+      if (currentMode === 'marker' && onAddMarker && isActive) {
+        setPendingAction({
+          type: 'marker',
+          lat: e.latlng.lat,
+          lng: e.latlng.lng,
+        });
+        setTempName('סימון על המפה');
+        setShowNameModal(true);
       }
-    });
-  }, [mode, roadBlockPoints, onAddEventLocation, onAddMarker, onAddRoadBlock, isActive]);
+    };
+    
+    map.on('click', handleMapClick);
+    
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [onAddEventLocation, onAddMarker, isActive]); // Only re-register if callbacks change
 
   // Update markers when journal changes
   useEffect(() => {
@@ -368,13 +578,14 @@ export default function EventMap({
         
         marker.addTo(mapInstanceRef.current);
         eventMarkersRef.current.push(marker);
-        
-        // Zoom to first event location
-        if (idx === 0) {
-          mapInstanceRef.current.setView([eventLocation.lat, eventLocation.lng], 17);
-        }
       }
     });
+    
+    // Zoom to first event location only once when first location is added
+    if (eventLocations.length > 0 && !hasZoomedToEventRef.current) {
+      mapInstanceRef.current.setView([eventLocations[0].lat, eventLocations[0].lng], 17);
+      hasZoomedToEventRef.current = true;
+    }
   }, [eventLocations, mode, onRemoveEventLocation]);
 
   // Update road blocks
@@ -472,26 +683,22 @@ export default function EventMap({
         </button>
       </div>
 
-      {/* Mode selection - Big clear buttons */}
+      {/* Mode selection - Compact */}
       {isActive && (
-        <div className="mb-3 bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl border-2 border-blue-200" dir="rtl">
-          <div className="text-base font-bold text-gray-800 mb-1">⚡ פעולות על המפה</div>
-          <div className="text-xs text-gray-600 mb-3">בחר פעולה ולחץ על המפה</div>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="mb-2 bg-gradient-to-r from-blue-50 to-purple-50 p-2 rounded-lg border border-blue-200" dir="rtl">
+          <div className="text-xs font-bold text-gray-700 mb-1.5">⚡ פעולות מפה</div>
+          <div className="grid grid-cols-3 gap-1.5">
             {onAddEventLocation && (
               <button
                 onClick={() => setMode(mode === 'event_location' ? 'view' : 'event_location')}
-                className={`p-4 rounded-lg font-bold text-sm transition-all ${
+                className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
                   mode === 'event_location'
-                    ? 'bg-red-600 text-white shadow-lg scale-105'
-                    : 'bg-white text-red-600 border-2 border-red-600 hover:bg-red-50'
+                    ? 'bg-red-600 text-white shadow-md'
+                    : 'bg-white text-red-600 border border-red-500 hover:bg-red-50'
                 }`}
               >
-                <div className="text-2xl mb-1">🚨</div>
-                <div>הוסף מיקום אירוע</div>
-                <div className="text-xs opacity-75 mt-1">
-                  {eventLocations.length > 0 ? `(יש ${eventLocations.length})` : 'לחץ על המפה'}
-                </div>
+                <div className="text-lg mb-0.5">🚨</div>
+                <div className="leading-tight">מיקום{eventLocations.length > 0 ? ` (${eventLocations.length})` : ''}</div>
               </button>
             )}
             {onAddRoadBlock && (
@@ -499,56 +706,52 @@ export default function EventMap({
                 onClick={() => {
                   if (mode === 'road_block') {
                     setMode('view');
+                    roadBlockPointsRef.current = [];
                     setRoadBlockPoints([]);
                   } else {
                     setMode('road_block');
                   }
                 }}
-                className={`p-4 rounded-lg font-bold text-sm transition-all ${
+                className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
                   mode === 'road_block'
-                    ? 'bg-orange-600 text-white shadow-lg scale-105'
-                    : 'bg-white text-orange-600 border-2 border-orange-600 hover:bg-orange-50'
+                    ? 'bg-orange-600 text-white shadow-md'
+                    : 'bg-white text-orange-600 border border-orange-500 hover:bg-orange-50'
                 }`}
               >
-                <div className="text-2xl mb-1">🚧</div>
-                <div>{mode === 'road_block' ? 'ביטול חסימה' : 'כביש חסום?'}</div>
-                <div className="text-xs opacity-75 mt-1">
-                  {mode === 'road_block' ? 'לחץ לביטול' : 'סמן על המפה'}
-                </div>
+                <div className="text-lg mb-0.5">🚧</div>
+                <div className="leading-tight">{mode === 'road_block' ? 'ביטול' : 'חסימה'}</div>
               </button>
             )}
             {onAddMarker && (
               <button
                 onClick={() => setMode(mode === 'marker' ? 'view' : 'marker')}
-                className={`p-4 rounded-lg font-bold text-sm transition-all ${
+                className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
                   mode === 'marker'
-                    ? 'bg-blue-600 text-white shadow-lg scale-105'
-                    : 'bg-white text-blue-600 border-2 border-blue-600 hover:bg-blue-50'
+                    ? 'bg-blue-600 text-white shadow-md'
+                    : 'bg-white text-blue-600 border border-blue-500 hover:bg-blue-50'
                 }`}
               >
-                <div className="text-2xl mb-1">📍</div>
-                <div>הוסף סימון</div>
-                <div className="text-xs opacity-75 mt-1">נקודת עניין</div>
+                <div className="text-lg mb-0.5">📍</div>
+                <div className="leading-tight">סימון</div>
               </button>
             )}
           </div>
           
-          {/* Road block actions */}
-          {mode === 'road_block' && (
-            <div className="mt-3 p-3 bg-orange-100 rounded-lg border-2 border-orange-300">
-              <div className="text-sm font-bold text-orange-900 mb-2">
-                ✨ לחץ על המפה כדי לסמן נקודות על הכביש החסום
-              </div>
-              <div className="text-xs text-orange-700 mb-2">
-                נקודות שנסמנו: {roadBlockPoints.length}
+          {/* Road block actions - show only when points are marked */}
+          {mode === 'road_block' && roadBlockPoints.length > 0 && (
+            <div className="mt-2 p-2 bg-orange-100 rounded-lg border border-orange-300">
+              <div className="text-xs font-bold text-orange-900 mb-1">
+                ✨ סמן נקודות על הכביש החסום ({roadBlockPoints.length})
               </div>
               {roadBlockPoints.length >= 2 && (
                 <button
                   onClick={() => {
-                    const note = prompt('תיאור החסימה (אופציונלי):');
-                    onAddRoadBlock(roadBlockPoints);
-                    setRoadBlockPoints([]);
-                    setMode('view');
+                    setPendingAction({
+                      type: 'road_block',
+                      points: roadBlockPoints,
+                    });
+                    setTempName('חסימת כביש');
+                    setShowNameModal(true);
                   }}
                   className="w-full p-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700"
                 >
@@ -558,6 +761,7 @@ export default function EventMap({
               <button
                 onClick={() => {
                   setMode('view');
+                  roadBlockPointsRef.current = [];
                   setRoadBlockPoints([]);
                 }}
                 className="w-full mt-2 p-2 bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-700"
@@ -569,26 +773,12 @@ export default function EventMap({
         </div>
       )}
 
-      <div
-        ref={mapRef}
-        style={{ width: '100%', height: '350px', borderRadius: '12px', border: '2px solid #e5e7eb' }}
-      />
-      {/* Mode instructions - clear and animated */}
-      {mode !== 'view' && (
-        <div className="absolute bottom-3 left-3 right-3 z-[1000] animate-pulse" dir="rtl">
-          <div className={`backdrop-blur rounded-xl px-4 py-3 shadow-2xl border-2 ${
-            mode === 'event_location' ? 'bg-red-500/95 border-red-600 text-white' :
-            mode === 'road_block' ? 'bg-orange-500/95 border-orange-600 text-white' :
-            'bg-blue-500/95 border-blue-600 text-white'
-          }`}>
-            <div className="text-sm font-bold">
-              {mode === 'event_location' && '🚨 לחץ על המפה במיקום האירוע'}
-              {mode === 'road_block' && `🚧 לחץ על נקודות לאורך הכביש החסום (${roadBlockPoints.length} נקודות)`}
-              {mode === 'marker' && '� לחץ על המפה להוספת סימון'}
-            </div>
-          </div>
-        </div>
-      )}
+      <div className={`relative ${className}`} style={{ minHeight: className ? '500px' : 'auto' }}>
+        <div
+          ref={mapRef}
+          style={{ width: '100%', height: className ? '100%' : '350px', borderRadius: '12px', border: '2px solid #e5e7eb' }}
+        />
+      </div>
       <div className="flex gap-3 mt-2 text-xs justify-center flex-wrap" dir="rtl">
         {eventLocations.length > 0 && (
           <div className="flex items-center gap-1.5 bg-red-50 px-2 py-1 rounded-lg">
@@ -619,6 +809,48 @@ export default function EventMap({
           <span>מקלטים</span>
         </div>
       </div>
+
+      {/* Name Input Modal */}
+      {showNameModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999]" onClick={() => setShowNameModal(false)}>
+          <div className="bg-white rounded-xl p-6 shadow-2xl max-w-md w-full mx-4" onClick={(e) => e.stopPropagation()} dir="rtl">
+            <h3 className="text-lg font-bold text-gray-800 mb-4">✏️ הוסף שם לסימון</h3>
+            <input
+              type="text"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
+                  handleNameConfirm();
+                }
+              }}
+              className="w-full p-3 border-2 border-gray-300 rounded-lg text-right focus:border-blue-500 focus:outline-none"
+              placeholder="הזן שם..."
+              autoFocus
+            />
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={handleNameConfirm}
+                className="flex-1 bg-blue-600 text-white py-2 px-4 rounded-lg font-bold hover:bg-blue-700 transition-colors"
+              >
+                ✅ אישור
+              </button>
+              <button
+                onClick={() => {
+                  setShowNameModal(false);
+                  setPendingAction(null);
+                  setTempName('');
+                }}
+                className="flex-1 bg-gray-500 text-white py-2 px-4 rounded-lg font-bold hover:bg-gray-600 transition-colors"
+              >
+                ❌ ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Toaster />
     </div>
   );
 }
