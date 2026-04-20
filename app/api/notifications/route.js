@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client locally to ensure env vars are available at runtime
+const getSupabase = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+};
 
 // GET all notifications
 export async function GET() {
+  const supabase = getSupabase();
   try {
     if (!supabase) {
       return NextResponse.json({ 
@@ -34,6 +47,7 @@ export async function GET() {
 // POST new notification
 export async function POST(request) {
   try {
+    const supabase = getSupabase();
     if (!supabase) {
       return NextResponse.json({ 
         error: 'Database not configured' 
@@ -74,15 +88,10 @@ export async function POST(request) {
   }
 }
 
-// DELETE notification
+// DELETE notification by ID
 export async function DELETE(request) {
   try {
-    if (!supabase) {
-      return NextResponse.json({ 
-        error: 'Database not configured' 
-      }, { status: 503 });
-    }
-
+    const supabase = getSupabase();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

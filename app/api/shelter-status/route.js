@@ -1,8 +1,21 @@
 import { NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { createClient } from '@supabase/supabase-js';
+
+// Create Supabase client locally to ensure env vars are available at runtime
+const getSupabase = () => {
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  
+  if (!supabaseUrl || !supabaseKey) {
+    throw new Error('Missing Supabase environment variables');
+  }
+  
+  return createClient(supabaseUrl, supabaseKey);
+};
 
 export async function GET() {
   try {
+    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('shelter_status')
       .select('shelter_number, is_open, updated_at, updated_by')
@@ -36,6 +49,7 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const supabase = getSupabase();
     const body = await request.json();
     const { shelterNumber, isOpen, updatedBy } = body;
 
