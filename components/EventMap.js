@@ -232,16 +232,16 @@ export default function EventMap({
     markersLayerRef.current = L.layerGroup().addTo(map);
     roadBlocksLayerRef.current = L.layerGroup().addTo(map);
     
-    // Enable scroll wheel zoom when mouse enters map container
+    // Enable/disable scroll wheel zoom based on mouse position
     const container = map.getContainer();
-    container.addEventListener('mouseenter', () => {
-      map.scrollWheelZoom.enable();
-    });
-    
-    // Disable scroll wheel zoom when mouse leaves map container
-    container.addEventListener('mouseleave', () => {
-      map.scrollWheelZoom.disable();
-    });
+    const onMouseEnter = () => {
+      if (mapInstanceRef.current) mapInstanceRef.current.scrollWheelZoom.enable();
+    };
+    const onMouseLeave = () => {
+      if (mapInstanceRef.current) mapInstanceRef.current.scrollWheelZoom.disable();
+    };
+    container.addEventListener('mouseenter', onMouseEnter);
+    container.addEventListener('mouseleave', onMouseLeave);
     
     // Event listener for delete buttons (using event delegation)
     map.on('popupopen', (e) => {
@@ -413,6 +413,8 @@ export default function EventMap({
     });
 
     return () => {
+      container.removeEventListener('mouseenter', onMouseEnter);
+      container.removeEventListener('mouseleave', onMouseLeave);
       if (mapInstanceRef.current) {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
