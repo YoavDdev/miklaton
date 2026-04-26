@@ -197,8 +197,14 @@ export default function EventMap({
     markersLayerRef.current = L.layerGroup().addTo(map);
     roadBlocksLayerRef.current = L.layerGroup().addTo(map);
     
-    // Enable/disable scroll wheel zoom based on mouse position
+    // Prevent page scroll when Leaflet focuses the map container on click
     const container = map.getContainer();
+    const originalFocus = container.focus;
+    container.focus = function(options) {
+      originalFocus.call(this, { preventScroll: true, ...options });
+    };
+    
+    // Enable/disable scroll wheel zoom based on mouse position
     const onMouseEnter = () => {
       if (mapInstanceRef.current) mapInstanceRef.current.scrollWheelZoom.enable();
     };
