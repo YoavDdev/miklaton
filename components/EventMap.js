@@ -432,18 +432,17 @@ export default function EventMap({
             style: { background: '#f97316', color: '#fff', fontWeight: 'bold', direction: 'rtl' },
           });
         } else {
-          // Second point - auto save
+          // Second point - ask for name
           const finalPoints = [...currentPoints, [latlng.lat, latlng.lng]];
           toast.dismiss('roadblock-progress');
-          onAddRoadBlock(finalPoints, 'חסימת כביש');
-          roadBlockPointsRef.current = [];
-          setRoadBlockPoints([]);
-          setMode('view');
-          toast.success('✅ חסימת הכביש נוספה!', {
-            duration: 2000,
-            position: 'top-center',
-            style: { direction: 'rtl', fontWeight: 'bold' },
+          roadBlockPointsRef.current = finalPoints;
+          setRoadBlockPoints(finalPoints);
+          setPendingAction({
+            type: 'road_block',
+            points: finalPoints,
           });
+          setTempName('חסימת כביש');
+          setShowNameModal(true);
         }
         return;
       }
