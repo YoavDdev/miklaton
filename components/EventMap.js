@@ -61,18 +61,9 @@ export default function EventMap({
     onRemoveRoadBlockRef.current = onRemoveRoadBlock;
   }, [onDeleteMarker, onRemoveEventLocation, onRemoveRoadBlock]);
 
-  // Sync mode ref with mode state and recalculate map size
+  // Sync mode ref with mode state
   useEffect(() => {
     modeRef.current = mode;
-    // When mode changes, UI buttons change which may resize the map container.
-    // Force invalidateSize immediately so the first click has correct coordinates.
-    const map = mapInstanceRef.current;
-    if (map && mode !== 'view') {
-      // Use requestAnimationFrame to ensure DOM has updated before recalculating
-      requestAnimationFrame(() => {
-        map.invalidateSize();
-      });
-    }
   }, [mode]);
 
   // Show toast notifications when entering modes
@@ -431,9 +422,13 @@ export default function EventMap({
       const currentMode = modeRef.current;
       if (currentMode === 'view') return;
       
-      // Recalculate accurate latlng - invalidateSize ensures correct mapping
-      map.invalidateSize();
-      const latlng = map.containerPointToLatLng(e.containerPoint);
+      // IMPORTANT: Calculate latlng from raw DOM event to bypass Leaflet's
+      // potentially stale container position cache. This ensures 100% accuracy
+      // even when UI elements above the map change height.
+      const rect = map.getContainer().getBoundingClientRect();
+      const x = e.originalEvent.clientX - rect.left;
+      const y = e.originalEvent.clientY - rect.top;
+      const latlng = map.containerPointToLatLng(L.point(x, y));
       
       // Event location mode - ask for name
       if (currentMode === 'event_location') {
