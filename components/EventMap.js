@@ -417,11 +417,34 @@ export default function EventMap({
         return;
       }
       
-      // Road block mode - use ref to get current points
+      // Road block mode - 2 points then auto-save
       if (currentMode === 'road_block') {
-        const newPoints = [...roadBlockPointsRef.current, [latlng.lat, latlng.lng]];
-        roadBlockPointsRef.current = newPoints;
-        setRoadBlockPoints(newPoints);
+        const currentPoints = roadBlockPointsRef.current;
+        if (currentPoints.length === 0) {
+          // First point
+          const newPoints = [[latlng.lat, latlng.lng]];
+          roadBlockPointsRef.current = newPoints;
+          setRoadBlockPoints(newPoints);
+          toast('🚧 נקודה ראשונה סומנה - לחץ על הנקודה השנייה', {
+            id: 'roadblock-progress',
+            duration: 5000,
+            position: 'top-center',
+            style: { background: '#f97316', color: '#fff', fontWeight: 'bold', direction: 'rtl' },
+          });
+        } else {
+          // Second point - auto save
+          const finalPoints = [...currentPoints, [latlng.lat, latlng.lng]];
+          toast.dismiss('roadblock-progress');
+          onAddRoadBlock(finalPoints, 'חסימת כביש');
+          roadBlockPointsRef.current = [];
+          setRoadBlockPoints([]);
+          setMode('view');
+          toast.success('✅ חסימת הכביש נוספה!', {
+            duration: 2000,
+            position: 'top-center',
+            style: { direction: 'rtl', fontWeight: 'bold' },
+          });
+        }
         return;
       }
       
@@ -718,54 +741,6 @@ export default function EventMap({
                 <div className="leading-tight">סימון</div>
               </button>
             )}
-          </div>
-        </div>
-      )}
-
-      {/* Road block panel - between buttons and map */}
-      {mode === 'road_block' && roadBlockPoints.length > 0 && (
-        <div className="mb-2 p-2.5 bg-orange-100 rounded-lg border border-orange-300 shadow" dir="rtl">
-          <div className="text-xs font-bold text-orange-900 mb-1.5">
-            🚧 {roadBlockPoints.length} נקודות סומנו {roadBlockPoints.length < 2 && '(סמן לפחות 2)'}
-          </div>
-          <input
-            type="text"
-            value={tempName}
-            onChange={(e) => setTempName(e.target.value)}
-            placeholder="שם החסימה (אופציונלי)"
-            className="w-full px-3 py-1.5 mb-2 text-xs bg-white border border-orange-300 rounded-lg focus:outline-none focus:border-orange-500"
-          />
-          <div className="flex gap-2">
-            {roadBlockPoints.length >= 2 && (
-              <button
-                onClick={() => {
-                  onAddRoadBlock(roadBlockPoints, tempName.trim() || 'חסימת כביש');
-                  roadBlockPointsRef.current = [];
-                  setRoadBlockPoints([]);
-                  setTempName('');
-                  setMode('view');
-                  toast.success('✅ חסימת הכביש נוספה!', {
-                    duration: 2000,
-                    position: 'top-center',
-                    style: { direction: 'rtl', fontWeight: 'bold' },
-                  });
-                }}
-                className="flex-1 p-2 bg-green-600 text-white rounded-lg font-bold text-xs hover:bg-green-700"
-              >
-                ✅ אישור
-              </button>
-            )}
-            <button
-              onClick={() => {
-                setMode('view');
-                roadBlockPointsRef.current = [];
-                setRoadBlockPoints([]);
-                setTempName('');
-              }}
-              className="flex-1 p-2 bg-gray-600 text-white rounded-lg font-bold text-xs hover:bg-gray-700"
-            >
-              ❌ ביטול
-            </button>
           </div>
         </div>
       )}
