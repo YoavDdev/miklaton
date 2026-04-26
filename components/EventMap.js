@@ -66,41 +66,31 @@ export default function EventMap({
     modeRef.current = mode;
   }, [mode]);
 
-  // Show toast notifications when entering modes
+  // Show toast notifications when entering modes - use top-center to avoid layout shift
   useEffect(() => {
     if (mode === 'event_location') {
       toast('🚨 לחץ על המפה לסימון מיקום האירוע', {
-        duration: 3000,
-        position: 'bottom-center',
-        style: {
-          background: '#ef4444',
-          color: '#fff',
-          fontWeight: 'bold',
-          direction: 'rtl',
-        },
+        id: 'mode-toast',
+        duration: 2000,
+        position: 'top-center',
+        style: { background: '#ef4444', color: '#fff', fontWeight: 'bold', direction: 'rtl' },
       });
     } else if (mode === 'road_block') {
       toast('🚧 לחץ על המפה לסימון נקודות לאורך הכביש', {
-        duration: 3000,
-        position: 'bottom-center',
-        style: {
-          background: '#f97316',
-          color: '#fff',
-          fontWeight: 'bold',
-          direction: 'rtl',
-        },
+        id: 'mode-toast',
+        duration: 2000,
+        position: 'top-center',
+        style: { background: '#f97316', color: '#fff', fontWeight: 'bold', direction: 'rtl' },
       });
     } else if (mode === 'marker') {
       toast('📍 לחץ על המפה להוספת סימון', {
-        duration: 3000,
-        position: 'bottom-center',
-        style: {
-          background: '#3b82f6',
-          color: '#fff',
-          fontWeight: 'bold',
-          direction: 'rtl',
-        },
+        id: 'mode-toast',
+        duration: 2000,
+        position: 'top-center',
+        style: { background: '#3b82f6', color: '#fff', fontWeight: 'bold', direction: 'rtl' },
       });
+    } else {
+      toast.dismiss('mode-toast');
     }
   }, [mode]);
 
