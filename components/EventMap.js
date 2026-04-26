@@ -101,13 +101,13 @@ export default function EventMap({
 
     // Invalidate size immediately when component mounts or className changes
     setTimeout(() => {
-      map.invalidateSize();
+      map.invalidateSize({ pan: false });
     }, 100);
 
     // Watch for container AND parent resize events - parent layout shifts
     // can move the map without changing its own size
     const resizeObserver = new ResizeObserver(() => {
-      map.invalidateSize();
+      map.invalidateSize({ pan: false });
     });
 
     const container = map.getContainer();
@@ -122,7 +122,7 @@ export default function EventMap({
     // Also handle window resize (for mobile/desktop transitions)
     const handleWindowResize = () => {
       setTimeout(() => {
-        map.invalidateSize();
+        map.invalidateSize({ pan: false });
       }, 100);
     };
     
@@ -391,17 +391,9 @@ export default function EventMap({
       L.marker([shelter.lat, shelter.lng], { icon, interactive: false }).addTo(map);
     });
 
-    // Fix map size after initialization - call multiple times to ensure
-    // the map is fully synced before user's first interaction.
-    // The page layout may shift as other components render, so we need
-    // to keep recalculating until everything has settled.
+    // Fix map size once after initialization - use { pan: false } to prevent visual jump
     map.whenReady(() => {
-      map.invalidateSize();
-      setTimeout(() => map.invalidateSize(), 100);
-      setTimeout(() => map.invalidateSize(), 300);
-      setTimeout(() => map.invalidateSize(), 500);
-      setTimeout(() => map.invalidateSize(), 1000);
-      setTimeout(() => map.invalidateSize(), 2000);
+      map.invalidateSize({ pan: false });
     });
 
     return () => {
@@ -702,7 +694,7 @@ export default function EventMap({
             {onAddEventLocation && (
               <button
                 onClick={() => {
-                  mapInstanceRef.current?.invalidateSize();
+                  mapInstanceRef.current?.invalidateSize({ pan: false });
                   setMode(mode === 'event_location' ? 'view' : 'event_location');
                 }}
                 className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
@@ -718,7 +710,7 @@ export default function EventMap({
             {onAddRoadBlock && (
               <button
                 onClick={() => {
-                  mapInstanceRef.current?.invalidateSize();
+                  mapInstanceRef.current?.invalidateSize({ pan: false });
                   if (mode === 'road_block') {
                     setMode('view');
                     roadBlockPointsRef.current = [];
@@ -740,7 +732,7 @@ export default function EventMap({
             {onAddMarker && (
               <button
                 onClick={() => {
-                  mapInstanceRef.current?.invalidateSize();
+                  mapInstanceRef.current?.invalidateSize({ pan: false });
                   setMode(mode === 'marker' ? 'view' : 'marker');
                 }}
                 className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
