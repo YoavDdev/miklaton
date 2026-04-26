@@ -104,7 +104,8 @@ export default function EventMap({
       map.invalidateSize();
     }, 100);
 
-    // Watch for container resize events
+    // Watch for container AND parent resize events - parent layout shifts
+    // can move the map without changing its own size
     const resizeObserver = new ResizeObserver(() => {
       map.invalidateSize();
     });
@@ -112,6 +113,10 @@ export default function EventMap({
     const container = map.getContainer();
     if (container) {
       resizeObserver.observe(container);
+      // Also watch parent - catches layout shifts from sibling elements
+      if (container.parentElement) {
+        resizeObserver.observe(container.parentElement);
+      }
     }
 
     // Also handle window resize (for mobile/desktop transitions)
@@ -386,11 +391,17 @@ export default function EventMap({
       L.marker([shelter.lat, shelter.lng], { icon, interactive: false }).addTo(map);
     });
 
-    // Fix map size after initialization - critical for accurate clicks
+    // Fix map size after initialization - call multiple times to ensure
+    // the map is fully synced before user's first interaction.
+    // The page layout may shift as other components render, so we need
+    // to keep recalculating until everything has settled.
     map.whenReady(() => {
-      setTimeout(() => {
-        map.invalidateSize();
-      }, 100);
+      map.invalidateSize();
+      setTimeout(() => map.invalidateSize(), 100);
+      setTimeout(() => map.invalidateSize(), 300);
+      setTimeout(() => map.invalidateSize(), 500);
+      setTimeout(() => map.invalidateSize(), 1000);
+      setTimeout(() => map.invalidateSize(), 2000);
     });
 
     return () => {
