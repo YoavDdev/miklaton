@@ -429,14 +429,19 @@ export default function EventMap({
     
     const handleMapClick = (e) => {
       const currentMode = modeRef.current;
+      if (currentMode === 'view') return;
+      
+      // Recalculate accurate latlng - invalidateSize ensures correct mapping
+      map.invalidateSize();
+      const latlng = map.containerPointToLatLng(e.containerPoint);
       
       // Event location mode - ask for name
       if (currentMode === 'event_location') {
         if (onAddEventLocation) {
           setPendingAction({
             type: 'event_location',
-            lat: e.latlng.lat,
-            lng: e.latlng.lng,
+            lat: latlng.lat,
+            lng: latlng.lng,
           });
           setTempName('מיקום אירוע');
           setShowNameModal(true);
@@ -446,7 +451,7 @@ export default function EventMap({
       
       // Road block mode - use ref to get current points
       if (currentMode === 'road_block') {
-        const newPoints = [...roadBlockPointsRef.current, [e.latlng.lat, e.latlng.lng]];
+        const newPoints = [...roadBlockPointsRef.current, [latlng.lat, latlng.lng]];
         roadBlockPointsRef.current = newPoints;
         setRoadBlockPoints(newPoints);
         return;
@@ -456,8 +461,8 @@ export default function EventMap({
       if (currentMode === 'marker' && onAddMarker && isActive) {
         setPendingAction({
           type: 'marker',
-          lat: e.latlng.lat,
-          lng: e.latlng.lng,
+          lat: latlng.lat,
+          lng: latlng.lng,
         });
         setTempName('סימון על המפה');
         setShowNameModal(true);
