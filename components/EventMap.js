@@ -701,7 +701,10 @@ export default function EventMap({
           <div className="grid grid-cols-3 gap-1.5">
             {onAddEventLocation && (
               <button
-                onClick={() => setMode(mode === 'event_location' ? 'view' : 'event_location')}
+                onClick={() => {
+                  mapInstanceRef.current?.invalidateSize();
+                  setMode(mode === 'event_location' ? 'view' : 'event_location');
+                }}
                 className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
                   mode === 'event_location'
                     ? 'bg-red-600 text-white shadow-md'
@@ -715,6 +718,7 @@ export default function EventMap({
             {onAddRoadBlock && (
               <button
                 onClick={() => {
+                  mapInstanceRef.current?.invalidateSize();
                   if (mode === 'road_block') {
                     setMode('view');
                     roadBlockPointsRef.current = [];
@@ -735,7 +739,10 @@ export default function EventMap({
             )}
             {onAddMarker && (
               <button
-                onClick={() => setMode(mode === 'marker' ? 'view' : 'marker')}
+                onClick={() => {
+                  mapInstanceRef.current?.invalidateSize();
+                  setMode(mode === 'marker' ? 'view' : 'marker');
+                }}
                 className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
                   mode === 'marker'
                     ? 'bg-blue-600 text-white shadow-md'
