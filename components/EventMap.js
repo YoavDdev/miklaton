@@ -733,15 +733,13 @@ export default function EventMap({
             <div className="text-xs font-bold text-orange-900 mb-1.5">
               🚧 {roadBlockPoints.length} נקודות סומנו {roadBlockPoints.length < 2 && '(סמן לפחות 2)'}
             </div>
-            {roadBlockPoints.length >= 2 && (
-              <input
-                type="text"
-                value={tempName}
-                onChange={(e) => setTempName(e.target.value)}
-                placeholder="שם החסימה (אופציונלי)"
-                className="w-full px-3 py-1.5 mb-2 text-xs border border-orange-300 rounded-lg focus:outline-none focus:border-orange-500"
-              />
-            )}
+            <input
+              type="text"
+              value={tempName}
+              onChange={(e) => setTempName(e.target.value)}
+              placeholder="שם החסימה (אופציונלי)"
+              className="w-full px-3 py-1.5 mb-2 text-xs bg-white border border-orange-300 rounded-lg focus:outline-none focus:border-orange-500"
+            />
             <div className="flex gap-2">
               {roadBlockPoints.length >= 2 && (
                 <button
