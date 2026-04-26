@@ -147,7 +147,7 @@ export default function LiveJournalPage() {
   useEffect(() => {
     if (journal.length > 0) {
       setTimeout(() => {
-        journalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        journalEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 150);
     }
   }, [journal.length]);

@@ -179,11 +179,11 @@ export default function EventDetailPage() {
     };
   }, [eventId]);
 
-  // Auto-scroll on new entries
+  // Auto-scroll on new entries - only scroll the journal container, not the whole page
   useEffect(() => {
     if (journal.length > 0) {
       setTimeout(() => {
-        journalEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        journalEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       }, 150);
     }
   }, [journal.length]);
