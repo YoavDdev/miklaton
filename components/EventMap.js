@@ -61,9 +61,18 @@ export default function EventMap({
     onRemoveRoadBlockRef.current = onRemoveRoadBlock;
   }, [onDeleteMarker, onRemoveEventLocation, onRemoveRoadBlock]);
 
-  // Sync mode ref with mode state
+  // Sync mode ref with mode state and recalculate map size
   useEffect(() => {
     modeRef.current = mode;
+    // When mode changes, UI buttons change which may resize the map container.
+    // Force invalidateSize immediately so the first click has correct coordinates.
+    const map = mapInstanceRef.current;
+    if (map && mode !== 'view') {
+      // Use requestAnimationFrame to ensure DOM has updated before recalculating
+      requestAnimationFrame(() => {
+        map.invalidateSize();
+      });
+    }
   }, [mode]);
 
   // Show toast notifications when entering modes
@@ -223,15 +232,14 @@ export default function EventMap({
     markersLayerRef.current = L.layerGroup().addTo(map);
     roadBlocksLayerRef.current = L.layerGroup().addTo(map);
     
-    // Enable scroll wheel zoom when user clicks on map
-    map.on('click', function() {
-      if (!map.scrollWheelZoom.enabled()) {
-        map.scrollWheelZoom.enable();
-      }
+    // Enable scroll wheel zoom when mouse enters map container
+    const container = map.getContainer();
+    container.addEventListener('mouseenter', () => {
+      map.scrollWheelZoom.enable();
     });
     
-    // Disable scroll wheel zoom when mouse leaves map
-    map.on('mouseout', function() {
+    // Disable scroll wheel zoom when mouse leaves map container
+    container.addEventListener('mouseleave', () => {
       map.scrollWheelZoom.disable();
     });
     
