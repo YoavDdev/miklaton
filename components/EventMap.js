@@ -722,58 +722,59 @@ export default function EventMap({
         </div>
       )}
 
+      {/* Road block panel - between buttons and map */}
+      {mode === 'road_block' && roadBlockPoints.length > 0 && (
+        <div className="mb-2 p-2.5 bg-orange-100 rounded-lg border border-orange-300 shadow" dir="rtl">
+          <div className="text-xs font-bold text-orange-900 mb-1.5">
+            🚧 {roadBlockPoints.length} נקודות סומנו {roadBlockPoints.length < 2 && '(סמן לפחות 2)'}
+          </div>
+          <input
+            type="text"
+            value={tempName}
+            onChange={(e) => setTempName(e.target.value)}
+            placeholder="שם החסימה (אופציונלי)"
+            className="w-full px-3 py-1.5 mb-2 text-xs bg-white border border-orange-300 rounded-lg focus:outline-none focus:border-orange-500"
+          />
+          <div className="flex gap-2">
+            {roadBlockPoints.length >= 2 && (
+              <button
+                onClick={() => {
+                  onAddRoadBlock(roadBlockPoints, tempName.trim() || 'חסימת כביש');
+                  roadBlockPointsRef.current = [];
+                  setRoadBlockPoints([]);
+                  setTempName('');
+                  setMode('view');
+                  toast.success('✅ חסימת הכביש נוספה!', {
+                    duration: 2000,
+                    position: 'top-center',
+                    style: { direction: 'rtl', fontWeight: 'bold' },
+                  });
+                }}
+                className="flex-1 p-2 bg-green-600 text-white rounded-lg font-bold text-xs hover:bg-green-700"
+              >
+                ✅ אישור
+              </button>
+            )}
+            <button
+              onClick={() => {
+                setMode('view');
+                roadBlockPointsRef.current = [];
+                setRoadBlockPoints([]);
+                setTempName('');
+              }}
+              className="flex-1 p-2 bg-gray-600 text-white rounded-lg font-bold text-xs hover:bg-gray-700"
+            >
+              ❌ ביטול
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className={`relative ${className}`} style={{ minHeight: className ? '500px' : 'auto' }}>
         <div
           ref={mapRef}
           style={{ width: '100%', height: className ? '100%' : '350px', borderRadius: '12px', border: '2px solid #e5e7eb' }}
         />
-        {/* Road block actions - INSIDE map as overlay to prevent layout shift */}
-        {mode === 'road_block' && roadBlockPoints.length > 0 && (
-          <div className="absolute bottom-3 left-3 right-3 z-[1000] p-2.5 bg-orange-100/95 backdrop-blur-sm rounded-lg border border-orange-300 shadow-lg" dir="rtl">
-            <div className="text-xs font-bold text-orange-900 mb-1.5">
-              🚧 {roadBlockPoints.length} נקודות סומנו {roadBlockPoints.length < 2 && '(סמן לפחות 2)'}
-            </div>
-            <input
-              type="text"
-              value={tempName}
-              onChange={(e) => setTempName(e.target.value)}
-              placeholder="שם החסימה (אופציונלי)"
-              className="w-full px-3 py-1.5 mb-2 text-xs bg-white border border-orange-300 rounded-lg focus:outline-none focus:border-orange-500"
-            />
-            <div className="flex gap-2">
-              {roadBlockPoints.length >= 2 && (
-                <button
-                  onClick={() => {
-                    onAddRoadBlock(roadBlockPoints, tempName.trim() || 'חסימת כביש');
-                    roadBlockPointsRef.current = [];
-                    setRoadBlockPoints([]);
-                    setTempName('');
-                    setMode('view');
-                    toast.success('✅ חסימת הכביש נוספה!', {
-                      duration: 2000,
-                      position: 'top-center',
-                      style: { direction: 'rtl', fontWeight: 'bold' },
-                    });
-                  }}
-                  className="flex-1 p-2 bg-green-600 text-white rounded-lg font-bold text-xs hover:bg-green-700"
-                >
-                  ✅ אישור
-                </button>
-              )}
-              <button
-                onClick={() => {
-                  setMode('view');
-                  roadBlockPointsRef.current = [];
-                  setRoadBlockPoints([]);
-                  setTempName('');
-                }}
-                className="flex-1 p-2 bg-gray-600 text-white rounded-lg font-bold text-xs hover:bg-gray-700"
-              >
-                ❌ ביטול
-              </button>
-            </div>
-          </div>
-        )}
       </div>
       <div className="flex gap-3 mt-2 text-xs justify-center flex-wrap" dir="rtl">
         {eventLocations.length > 0 && (
