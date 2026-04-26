@@ -736,13 +736,21 @@ export default function EventMap({
               </button>
             )}
           </div>
-          
-          {/* Road block actions - show only when points are marked */}
-          {mode === 'road_block' && roadBlockPoints.length > 0 && (
-            <div className="mt-2 p-2 bg-orange-100 rounded-lg border border-orange-300">
-              <div className="text-xs font-bold text-orange-900 mb-1">
-                ✨ סמן נקודות על הכביש החסום ({roadBlockPoints.length})
-              </div>
+        </div>
+      )}
+
+      <div className={`relative ${className}`} style={{ minHeight: className ? '500px' : 'auto' }}>
+        <div
+          ref={mapRef}
+          style={{ width: '100%', height: className ? '100%' : '350px', borderRadius: '12px', border: '2px solid #e5e7eb' }}
+        />
+        {/* Road block actions - INSIDE map as overlay to prevent layout shift */}
+        {mode === 'road_block' && roadBlockPoints.length > 0 && (
+          <div className="absolute bottom-3 left-3 right-3 z-[1000] p-2 bg-orange-100/95 backdrop-blur-sm rounded-lg border border-orange-300 shadow-lg" dir="rtl">
+            <div className="text-xs font-bold text-orange-900 mb-1">
+              🚧 {roadBlockPoints.length} נקודות סומנו
+            </div>
+            <div className="flex gap-2">
               {roadBlockPoints.length >= 2 && (
                 <button
                   onClick={() => {
@@ -753,9 +761,9 @@ export default function EventMap({
                     setTempName('חסימת כביש');
                     setShowNameModal(true);
                   }}
-                  className="w-full p-2 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700"
+                  className="flex-1 p-2 bg-green-600 text-white rounded-lg font-bold text-xs hover:bg-green-700"
                 >
-                  ✅ סיים וסמן חסימה
+                  ✅ סיים
                 </button>
               )}
               <button
@@ -764,20 +772,13 @@ export default function EventMap({
                   roadBlockPointsRef.current = [];
                   setRoadBlockPoints([]);
                 }}
-                className="w-full mt-2 p-2 bg-gray-600 text-white rounded-lg font-bold hover:bg-gray-700"
+                className="flex-1 p-2 bg-gray-600 text-white rounded-lg font-bold text-xs hover:bg-gray-700"
               >
                 ❌ ביטול
               </button>
             </div>
-          )}
-        </div>
-      )}
-
-      <div className={`relative ${className}`} style={{ minHeight: className ? '500px' : 'auto' }}>
-        <div
-          ref={mapRef}
-          style={{ width: '100%', height: className ? '100%' : '350px', borderRadius: '12px', border: '2px solid #e5e7eb' }}
-        />
+          </div>
+        )}
       </div>
       <div className="flex gap-3 mt-2 text-xs justify-center flex-wrap" dir="rtl">
         {eventLocations.length > 0 && (
