@@ -176,22 +176,31 @@ export default function AdminPage() {
     <div className="min-h-screen bg-gray-50">
       <header className="bg-purple-600 text-white shadow-lg">
         <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex items-center justify-between gap-3">
             <button
-              onClick={toggleWarMode}
-              className={`px-6 py-3 rounded-xl font-bold text-lg transition-all shadow-lg ${
-                warMode
-                  ? 'bg-red-600 hover:bg-red-700 border-2 border-red-300'
-                  : 'bg-white/20 hover:bg-white/30 border-2 border-white/30'
-              }`}
+              onClick={() => router.push('/admin/presentation')}
+              className="px-6 py-3 rounded-xl font-bold text-lg transition-all shadow-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-2 border-yellow-300"
             >
-              {warMode ? '🚨 מצב מלחמה פעיל' : '⚪ מצב רגיל'}
+              🎬 מצגת למנהלים
             </button>
-            {warMode && (
-              <span className="text-sm bg-red-500/30 px-3 py-1 rounded-lg border border-red-300">
-                שלבי מקלטים והתקשרויות ידלגו אוטומטית
-              </span>
-            )}
+            
+            <div className="flex items-center gap-3">
+              <button
+                onClick={toggleWarMode}
+                className={`px-6 py-3 rounded-xl font-bold text-lg transition-all shadow-lg ${
+                  warMode
+                    ? 'bg-red-600 hover:bg-red-700 border-2 border-red-300'
+                    : 'bg-white/20 hover:bg-white/30 border-2 border-white/30'
+                }`}
+              >
+                {warMode ? '🚨 מצב מלחמה פעיל' : '⚪ מצב רגיל'}
+              </button>
+              {warMode && (
+                <span className="text-sm bg-red-500/30 px-3 py-1 rounded-lg border border-red-300">
+                  שלבי מקלטים והתקשרויות ידלגו אוטומטית
+                </span>
+              )}
+            </div>
           </div>
         </div>
       </header>
