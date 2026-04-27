@@ -592,6 +592,7 @@ export default function EventDetailPage() {
     const tasksDone = tasks.filter(e => e.task_status === 'done');
     const images = journal.filter(e => e.image_url);
     const locations = journal.filter(e => e.entry_type === 'location');
+    const mapMarkers = journal.filter(e => e.entry_type === 'map_marker');
     const uniqueAuthors = [...new Set(journal.map(e => e.author_name))];
 
     let summary = `📊 סיכום אירוע: ${event.title}\n`;
@@ -603,10 +604,44 @@ export default function EventDetailPage() {
     if (tasks.length > 0) summary += `✅ משימות: ${tasksDone.length}/${tasks.length} הושלמו\n`;
     if (images.length > 0) summary += `📷 תמונות: ${images.length}\n`;
     if (locations.length > 0) summary += `📍 שיתופי מיקום: ${locations.length}\n`;
+    if (mapMarkers.length > 0) summary += `📌 סימונים במפה: ${mapMarkers.length}\n`;
+    if (eventLocations.length > 0) summary += `🚨 מיקומי אירוע: ${eventLocations.length}\n`;
+    if (roadBlocks.length > 0) summary += `🚧 חסימות כבישים: ${roadBlocks.length}\n`;
+    
+    // רשימה מפורטת של החלטות
     if (decisions.length > 0) {
       summary += `\n⚖️ החלטות שהתקבלו:\n`;
       decisions.forEach(d => { summary += `  • ${d.content} (${d.author_name}, ${formatTime(d.created_at)})\n`; });
     }
+    
+    // רשימה מפורטת של תמונות
+    if (images.length > 0) {
+      summary += `\n📷 תמונות שהועלו:\n`;
+      images.forEach((img, idx) => {
+        const time = formatTime(img.created_at);
+        const content = img.content ? ` - ${img.content}` : '';
+        summary += `  ${idx + 1}. ${img.author_name} (${time})${content}\n`;
+        summary += `     🔗 ${img.image_url}\n`;
+      });
+    }
+    
+    // רשימה מפורטת של מיקומי אירוע
+    if (eventLocations.length > 0) {
+      summary += `\n🚨 מיקומי אירוע:\n`;
+      eventLocations.forEach((loc, idx) => {
+        summary += `  ${idx + 1}. ${loc.address || 'מיקום מדויק'}\n`;
+        summary += `     📍 ${loc.lat.toFixed(6)}, ${loc.lng.toFixed(6)}\n`;
+      });
+    }
+    
+    // רשימה מפורטת של חסימות כבישים
+    if (roadBlocks.length > 0) {
+      summary += `\n🚧 חסימות כבישים:\n`;
+      roadBlocks.forEach((block, idx) => {
+        summary += `  ${idx + 1}. ${block.note || 'חסימת כביש'}\n`;
+      });
+    }
+    
     return summary;
   };
 
