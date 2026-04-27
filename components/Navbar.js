@@ -162,8 +162,9 @@ export default function Navbar() {
   // Don't show navbar on public pages
   if (!user && !loading) return null;
 
-  // Don't show on login/register pages
+  // Don't show on login/register/live pages
   if (pathname === '/login' || pathname === '/register') return null;
+  if (pathname.startsWith('/event/live/') || pathname.startsWith('/event/join/')) return null;
 
   const userConfig = NAV_CONFIG[user?.role] || NAV_CONFIG.operator;
   const roleName = ROLE_NAMES[user?.role] || 'משתמש';

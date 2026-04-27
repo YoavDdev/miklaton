@@ -444,7 +444,7 @@ export default function LiveJournalPage() {
   const confirmedCount = participants.filter(p => p.status === 'confirmed').length;
 
   return (
-    <div className="h-screen bg-gray-100 flex flex-col overflow-hidden" dir="rtl">
+    <div className="h-screen-safe bg-gray-100 flex flex-col overflow-hidden" dir="rtl">
       {/* Header - mobile friendly */}
       <header className={`text-white shadow-lg ${event.status === 'active' ? 'bg-red-700' : 'bg-gray-600'}`}>
         <div className="max-w-4xl mx-auto px-3 py-2">
@@ -512,17 +512,18 @@ export default function LiveJournalPage() {
         <div className="max-w-4xl mx-auto px-3 py-3 space-y-2">
           {/* Map - always visible */}
           <div className="mb-3 -mx-1">
-            <div className="border-2 border-blue-200 rounded-xl p-3 bg-gradient-to-br from-white to-blue-50 shadow-lg">
+            <div className="border-2 border-blue-200 rounded-xl p-2 sm:p-3 bg-gradient-to-br from-white to-blue-50 shadow-lg">
               <EventMap
                 journal={journal}
                 onAddMarker={addMapMarker}
                 isActive={event.status === 'active' && !!participant}
                 shelters={sheltersData}
+                className="h-[200px] sm:h-[300px]"
               />
               {/* Map usage hint */}
-              <div className="mt-2 flex items-center gap-2 text-xs text-blue-700 bg-blue-100 px-3 py-2 rounded-lg" dir="rtl">
-                <span className="text-base">💡</span>
-                <span className="font-medium">לחץ על המפה כדי להפעיל זום • גלילה רגילה תזיז את הדף</span>
+              <div className="mt-1.5 flex items-center gap-2 text-xs text-blue-700 bg-blue-100 px-2 py-1.5 rounded-lg" dir="rtl">
+                <span className="text-sm">💡</span>
+                <span className="font-medium text-[11px] sm:text-xs">לחץ על המפה להפעלת זום • גלילה רגילה תזיז את הדף</span>
               </div>
             </div>
           </div>
@@ -554,13 +555,13 @@ export default function LiveJournalPage() {
               const taskSt = isTask && entry.task_status ? TASK_STATUS[entry.task_status] : null;
 
               return (
-                <div key={entry.id} className={`border-r-4 rounded-lg p-3 shadow-sm ${
+                <div key={entry.id} className={`border-r-4 rounded-lg p-2 sm:p-3 shadow-sm ${
                   entry.is_pinned ? 'ring-2 ring-amber-400 ' : ''
                 }${isMapMarker ? 'border-rose-400 bg-rose-50' : isQuick ? 'border-teal-400 bg-teal-50' : typeInfo?.color || 'border-gray-300 bg-white'}`}>
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <div className="flex items-center gap-1.5 sm:gap-2 mb-0.5 flex-wrap">
                       <span className="text-sm">{isMapMarker ? '🗺️' : isQuick ? '⚡' : isLocation ? '📍' : typeInfo?.icon}</span>
-                      <span className="font-bold text-gray-900 text-sm">{entry.author_name}</span>
+                      <span className="font-bold text-gray-900 text-xs sm:text-sm">{entry.author_name}</span>
                       {entry.author_role && (
                         <span className="text-xs bg-gray-200 text-gray-600 px-2 py-0.5 rounded">{entry.author_role}</span>
                       )}
@@ -614,7 +615,7 @@ export default function LiveJournalPage() {
 
       {/* Input area */}
       {event.status === 'active' && participant ? (
-        <div className="border-t bg-white p-3 shadow-lg safe-area-bottom">
+        <div className="border-t bg-white p-2 sm:p-3 shadow-lg safe-area-bottom">
           <div className="max-w-4xl mx-auto">
             {/* Quick messages panel */}
             {showQuickMessages && (
@@ -694,8 +695,10 @@ export default function LiveJournalPage() {
                   }
                 }}
                 placeholder="כתוב עדכון..."
-                rows={2}
-                className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm"
+                rows={1}
+                className="flex-1 px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-red-500 focus:outline-none resize-none text-sm min-h-[40px] max-h-[100px]"
+                style={{ height: 'auto', overflow: 'hidden' }}
+                onInput={(e) => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; }}
               />
               <button
                 onClick={handleSendEntry}
