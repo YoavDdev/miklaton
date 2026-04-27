@@ -89,6 +89,13 @@ export default function EventMap({
         position: 'top-center',
         style: { background: '#3b82f6', color: '#fff', fontWeight: 'bold', direction: 'rtl' },
       });
+    } else if (mode === 'delete') {
+      toast('🗑️ לחץ על סימון כדי למחוק אותו', {
+        id: 'mode-toast',
+        duration: 3000,
+        position: 'top-center',
+        style: { background: '#dc2626', color: '#fff', fontWeight: 'bold', direction: 'rtl' },
+      });
     } else {
       toast.dismiss('mode-toast');
     }
@@ -241,136 +248,48 @@ export default function EventMap({
       container._activateMap = activateMap;
     }
     
-    // Event listener for delete buttons (using event delegation)
+    // In delete mode, show confirmation when clicking on any marker/feature
     map.on('popupopen', (e) => {
+      if (modeRef.current !== 'delete') return;
       const popup = e.popup;
-      const content = popup.getContent();
-      if (typeof content === 'string') {
-        // Add click listeners to all delete buttons
-        setTimeout(() => {
-          // Map markers
-          const markerButtons = popup._contentNode.querySelectorAll('.delete-map-marker');
-          markerButtons.forEach(btn => {
-            btn.onclick = () => {
-              const markerId = btn.getAttribute('data-marker-id');
-              if (markerId && onDeleteMarkerRef.current) {
-                toast((t) => (
-                  <div dir="rtl" className="text-center">
-                    <p className="font-bold mb-3">🗑️ למחוק את הסימון הזה?</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          onDeleteMarkerRef.current(markerId);
-                          popup._source.closePopup();
-                          toast.dismiss(t.id);
-                          toast.success('✅ הסימון נמחק!', {
-                            duration: 2000,
-                            style: { direction: 'rtl' }
-                          });
-                        }}
-                        className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700"
-                      >
-                        מחק
-                      </button>
-                      <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600"
-                      >
-                        ביטול
-                      </button>
-                    </div>
-                  </div>
-                ), {
-                  duration: 5000,
-                  position: 'top-center',
-                });
-              }
-            };
-          });
-          
-          // Event locations
-          const locationButtons = popup._contentNode.querySelectorAll('.delete-event-location');
-          locationButtons.forEach(btn => {
-            btn.onclick = () => {
-              const locationIdStr = btn.getAttribute('data-location-id');
-              if (locationIdStr && onRemoveEventLocationRef.current) {
-                const locationId = parseInt(locationIdStr);
-                toast((t) => (
-                  <div dir="rtl" className="text-center">
-                    <p className="font-bold mb-3">🗑️ למחוק את המיקום הזה?</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          onRemoveEventLocationRef.current(locationId);
-                          popup._source.closePopup();
-                          toast.dismiss(t.id);
-                          toast.success('✅ המיקום נמחק!', {
-                            duration: 2000,
-                            style: { direction: 'rtl' }
-                          });
-                        }}
-                        className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700"
-                      >
-                        מחק
-                      </button>
-                      <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600"
-                      >
-                        ביטול
-                      </button>
-                    </div>
-                  </div>
-                ), {
-                  duration: 5000,
-                  position: 'top-center',
-                });
-              }
-            };
-          });
-          
-          // Road blocks
-          const blockButtons = popup._contentNode.querySelectorAll('.delete-road-block');
-          blockButtons.forEach(btn => {
-            btn.onclick = () => {
-              const blockIdStr = btn.getAttribute('data-block-id');
-              if (blockIdStr && onRemoveRoadBlockRef.current) {
-                const blockId = parseInt(blockIdStr);
-                toast((t) => (
-                  <div dir="rtl" className="text-center">
-                    <p className="font-bold mb-3">🗑️ למחוק את החסימה הזו?</p>
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => {
-                          onRemoveRoadBlockRef.current(blockId);
-                          popup._source.closePopup();
-                          toast.dismiss(t.id);
-                          toast.success('✅ החסימה נמחקה!', {
-                            duration: 2000,
-                            style: { direction: 'rtl' }
-                          });
-                        }}
-                        className="flex-1 bg-red-600 text-white px-4 py-2 rounded-lg font-bold hover:bg-red-700"
-                      >
-                        מחק
-                      </button>
-                      <button
-                        onClick={() => toast.dismiss(t.id)}
-                        className="flex-1 bg-gray-500 text-white px-4 py-2 rounded-lg font-bold hover:bg-gray-600"
-                      >
-                        ביטול
-                      </button>
-                    </div>
-                  </div>
-                ), {
-                  duration: 5000,
-                  position: 'top-center',
-                });
-              }
-            };
-          });
-        }, 0);
-      }
+      const source = popup._source;
+      if (!source) return;
+
+      // Determine what was clicked based on data attributes
+      const content = popup.getContent() || '';
+      
+      setTimeout(() => {
+        // Find delete-confirm button in popup
+        const confirmBtn = popup._contentNode?.querySelector('.delete-confirm-btn');
+        if (confirmBtn) {
+          confirmBtn.onclick = () => {
+            const type = confirmBtn.getAttribute('data-type');
+            const id = confirmBtn.getAttribute('data-id');
+            
+            if (type === 'marker' && id && onDeleteMarkerRef.current) {
+              onDeleteMarkerRef.current(id);
+              toast.success('✅ הסימון נמחק!', { duration: 2000, position: 'top-center', style: { direction: 'rtl' } });
+            } else if (type === 'event_location' && id && onRemoveEventLocationRef.current) {
+              onRemoveEventLocationRef.current(parseInt(id));
+              toast.success('✅ המיקום נמחק!', { duration: 2000, position: 'top-center', style: { direction: 'rtl' } });
+            } else if (type === 'road_block' && id && onRemoveRoadBlockRef.current) {
+              onRemoveRoadBlockRef.current(parseInt(id));
+              toast.success('✅ החסימה נמחקה!', { duration: 2000, position: 'top-center', style: { direction: 'rtl' } });
+            }
+            
+            source.closePopup();
+            modeRef.current = 'view';
+            setMode('view');
+          };
+        }
+        
+        const cancelBtn = popup._contentNode?.querySelector('.delete-cancel-btn');
+        if (cancelBtn) {
+          cancelBtn.onclick = () => {
+            source.closePopup();
+          };
+        }
+      }, 0);
     });
 
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -532,18 +451,26 @@ export default function EventMap({
 
       const marker = L.marker([entry.location_lat, entry.location_lng], { icon });
       
+      const deleteUI = modeRef.current === 'delete' ? `
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+          <p style="color: #dc2626; font-weight: bold; font-size: 12px; margin-bottom: 6px;">⚠️ אתה בטוח שרוצה למחוק?</p>
+          <button class="delete-confirm-btn" data-type="marker" data-id="${entry.id}" style="background: #dc2626; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 48%; margin-left: 4%;">כן, מחק</button>
+          <button class="delete-cancel-btn" style="background: #6b7280; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 48%;">ביטול</button>
+        </div>` : '';
+
       marker.bindPopup(`
         <div style="text-align: right; direction: rtl; font-family: sans-serif; min-width: 150px;">
           <strong style="color: #1f2937;">${entry.author_name}</strong>
           <span style="color: #9ca3af; font-size: 11px; margin-right: 6px;">${time}</span>
           <br/>
           <span style="color: #374151; font-size: 13px;">${entry.content || ''}</span>
+          ${deleteUI}
         </div>
       `);
       
       marker.addTo(markersLayerRef.current);
     });
-  }, [journal, onDeleteMarker]);
+  }, [journal, onDeleteMarker, mode]);
 
   // Update event location markers
   useEffect(() => {
@@ -585,6 +512,13 @@ export default function EventMap({
         
         const marker = L.marker([eventLocation.lat, eventLocation.lng], { icon });
         
+        const deleteUI = modeRef.current === 'delete' ? `
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #dc2626; font-weight: bold; font-size: 12px; margin-bottom: 6px;">⚠️ אתה בטוח שרוצה למחוק?</p>
+            <button class="delete-confirm-btn" data-type="event_location" data-id="${eventLocation.id}" style="background: #dc2626; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 48%; margin-left: 4%;">כן, מחק</button>
+            <button class="delete-cancel-btn" style="background: #6b7280; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 48%;">ביטול</button>
+          </div>` : '';
+
         marker.bindPopup(`
           <div style="text-align: right; direction: rtl; font-family: sans-serif; min-width: 200px;">
             <strong style="color: #ef4444; font-size: 16px;">🚨 מיקום אירוע ${eventLocations.length > 1 ? `#${idx + 1}` : ''}</strong>
@@ -594,6 +528,7 @@ export default function EventMap({
             <a href="https://waze.com/ul?ll=${eventLocation.lat},${eventLocation.lng}&navigate=yes" target="_blank" style="background: #00d4ff; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: bold;">
               🚗 נווט ב-Waze
             </a>
+            ${deleteUI}
           </div>
         `);
         
@@ -623,9 +558,17 @@ export default function EventMap({
           opacity: 0.8,
         });
         
+        const deleteUI = modeRef.current === 'delete' ? `
+          <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #e5e7eb;">
+            <p style="color: #dc2626; font-weight: bold; font-size: 12px; margin-bottom: 6px;">⚠️ אתה בטוח שרוצה למחוק?</p>
+            <button class="delete-confirm-btn" data-type="road_block" data-id="${block.id}" style="background: #dc2626; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 48%; margin-left: 4%;">כן, מחק</button>
+            <button class="delete-cancel-btn" style="background: #6b7280; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; width: 48%;">ביטול</button>
+          </div>` : '';
+
         polyline.bindPopup(`
           <div style="text-align: right; direction: rtl; font-family: sans-serif; min-width: 150px;">
             <strong style="color: #dc2626;">🚧 ${block.note || 'חסימת כביש'}</strong>
+            ${deleteUI}
           </div>
         `);
         
@@ -683,7 +626,7 @@ export default function EventMap({
         tempLine.addTo(roadBlocksLayerRef.current);
       }
     }
-  }, [roadBlocks, roadBlockPoints, onRemoveRoadBlock]);
+  }, [roadBlocks, roadBlockPoints, onRemoveRoadBlock, mode]);
 
   return (
     <div className="relative">
@@ -725,7 +668,7 @@ export default function EventMap({
       {isActive && (
         <div className="mb-2 bg-gradient-to-r from-blue-50 to-purple-50 p-2 rounded-lg border border-blue-200" dir="rtl">
           <div className="text-xs font-bold text-gray-700 mb-1.5">⚡ פעולות מפה</div>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-4 gap-1.5">
             {onAddEventLocation && (
               <button
                 onClick={() => setMode(mode === 'event_location' ? 'view' : 'event_location')}
@@ -773,6 +716,17 @@ export default function EventMap({
                 <div className="leading-tight">סימון</div>
               </button>
             )}
+            <button
+              onClick={() => setMode(mode === 'delete' ? 'view' : 'delete')}
+              className={`p-2 rounded-lg font-bold text-[10px] transition-all ${
+                mode === 'delete'
+                  ? 'bg-red-700 text-white shadow-md'
+                  : 'bg-white text-red-600 border border-red-400 hover:bg-red-50'
+              }`}
+            >
+              <div className="text-lg mb-0.5">🗑️</div>
+              <div className="leading-tight">מחיקה</div>
+            </button>
           </div>
         </div>
       )}
