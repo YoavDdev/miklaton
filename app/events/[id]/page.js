@@ -702,6 +702,20 @@ export default function EventDetailPage() {
       .map(p => `<li>${p.display_name}${p.department ? ` (${p.department})` : ''}${p.phone ? ` - ${p.phone}` : ''}</li>`)
       .join('');
 
+    const imagesHTML = journal.filter(e => e.image_url).map((img, idx) => {
+      const time = new Date(img.created_at).toLocaleString('he-IL', { timeZone: 'Asia/Jerusalem', hour: '2-digit', minute: '2-digit' });
+      const content = img.content || '';
+      return `
+        <div class="image-item">
+          <img src="${img.image_url}" alt="תמונה ${idx + 1}">
+          <div class="image-caption">
+            <strong>${idx + 1}. ${img.author_name}</strong> | ${time}
+            ${content ? `<br>${content}` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+
     return `<!DOCTYPE html>
 <html dir="rtl" lang="he">
 <head>
@@ -732,6 +746,11 @@ export default function EventDetailPage() {
     ul { padding-right: 16px; font-size: 9px; }
     li { margin-bottom: 2px; }
     tr { page-break-inside: avoid; }
+    .images-gallery { margin-top: 12px; page-break-before: always; }
+    .images-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; }
+    .image-item { page-break-inside: avoid; border: 1px solid #ccc; border-radius: 4px; overflow: hidden; background: #f9f9f9; }
+    .image-item img { width: 100%; height: auto; display: block; max-height: 180px; object-fit: contain; background: white; }
+    .image-caption { padding: 4px 6px; font-size: 8px; background: #f5f5f5; border-top: 1px solid #ddd; }
   </style>
 </head>
 <body>
@@ -753,6 +772,14 @@ export default function EventDetailPage() {
     <thead><tr><th>זמן</th><th>כותב</th><th>סוג</th><th>תוכן</th></tr></thead>
     <tbody>${journalRows}</tbody>
   </table>
+  
+  ${imagesHTML ? `
+  <div class="images-gallery">
+    <h2>📷 גלריית תמונות מהאירוע (${journal.filter(e => e.image_url).length})</h2>
+    <div class="images-grid">
+      ${imagesHTML}
+    </div>
+  </div>` : ''}
 </body>
 </html>`;
   };
@@ -1340,9 +1367,33 @@ export default function EventDetailPage() {
                 <p className="text-gray-400 text-sm mt-1">נסגר ב-{formatDateTime(event.closed_at)} ע״י {event.closed_by_name}</p>
               </div>
               {event.summary && (
-                <div className="mt-3 bg-white rounded-lg p-3 border max-w-2xl mx-auto">
-                  <h4 className="text-sm font-bold text-gray-700 mb-1">📊 סיכום אירוע</h4>
-                  <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans">{event.summary}</pre>
+                <div className="mt-3 bg-white rounded-lg p-3 border max-w-4xl mx-auto" dir="rtl">
+                  <h4 className="text-sm font-bold text-gray-700 mb-2">📊 סיכום אירוע</h4>
+                  <pre className="text-xs text-gray-600 whitespace-pre-wrap font-sans mb-3">{event.summary}</pre>
+                  
+                  {/* תמונות מהאירוע */}
+                  {journal.filter(e => e.image_url).length > 0 && (
+                    <div className="mt-4 border-t pt-3">
+                      <h5 className="text-xs font-bold text-gray-700 mb-2">📷 גלריית תמונות מהאירוע</h5>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                        {journal.filter(e => e.image_url).map((img, idx) => (
+                          <div key={img.id} className="bg-gray-50 rounded-lg overflow-hidden border">
+                            <img 
+                              src={img.image_url} 
+                              alt={img.content || `תמונה ${idx + 1}`}
+                              className="w-full h-32 object-cover cursor-pointer hover:opacity-90 transition-opacity"
+                              onClick={() => window.open(img.image_url, '_blank')}
+                            />
+                            <div className="p-2 text-[10px]">
+                              <div className="font-bold text-gray-700">{img.author_name}</div>
+                              <div className="text-gray-500">{formatTime(img.created_at)}</div>
+                              {img.content && <div className="text-gray-600 mt-1 line-clamp-2">{img.content}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
