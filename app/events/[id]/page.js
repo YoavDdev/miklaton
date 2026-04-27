@@ -966,22 +966,104 @@ export default function EventDetailPage() {
                     const newLocations = [...eventLocations, location];
                     setEventLocations(newLocations);
                     await saveMapData(newLocations, roadBlocks);
+                    
+                    // Add journal entry
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                      entry_type: 'update', content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${eventId}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: userName, author_role: userRole, entry_type: 'update', 
+                          content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`, 
+                          author_field_status: myFieldStatus 
+                        }),
+                      });
+                    } catch (error) {
+                      console.error('Failed to add journal entry:', error);
+                    }
                   }}
                   onRemoveEventLocation={async (id) => {
+                    const locationToRemove = eventLocations.find(loc => loc.id === id);
                     const newLocations = eventLocations.filter(loc => loc.id !== id);
                     setEventLocations(newLocations);
                     await saveMapData(newLocations, roadBlocks);
+                    
+                    // Add journal entry
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                      entry_type: 'update', content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${eventId}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: userName, author_role: userRole, entry_type: 'update', 
+                          content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`, 
+                          author_field_status: myFieldStatus 
+                        }),
+                      });
+                    } catch (error) {
+                      console.error('Failed to add journal entry:', error);
+                    }
                   }}
                   roadBlocks={roadBlocks}
                   onAddRoadBlock={async (points, note) => {
                     const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
                     setRoadBlocks(newBlocks);
                     await saveMapData(eventLocations, newBlocks);
+                    
+                    // Add journal entry
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                      entry_type: 'update', content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${eventId}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: userName, author_role: userRole, entry_type: 'update', 
+                          content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`, 
+                          author_field_status: myFieldStatus 
+                        }),
+                      });
+                    } catch (error) {
+                      console.error('Failed to add journal entry:', error);
+                    }
                   }}
                   onRemoveRoadBlock={async (id) => {
+                    const blockToRemove = roadBlocks.find(block => block.id === id);
                     const newBlocks = roadBlocks.filter(block => block.id !== id);
                     setRoadBlocks(newBlocks);
                     await saveMapData(eventLocations, newBlocks);
+                    
+                    // Add journal entry
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                      entry_type: 'update', content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${eventId}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: userName, author_role: userRole, entry_type: 'update', 
+                          content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`, 
+                          author_field_status: myFieldStatus 
+                        }),
+                      });
+                    } catch (error) {
+                      console.error('Failed to add journal entry:', error);
+                    }
                   }}
                 />
                 {/* Map usage hint */}
@@ -1252,22 +1334,104 @@ export default function EventDetailPage() {
                 const newLocations = [...eventLocations, location];
                 setEventLocations(newLocations);
                 await saveMapData(newLocations, roadBlocks);
+                
+                // Add journal entry
+                const tempId = `temp-${Date.now()}`;
+                setJournal(prev => [...prev, {
+                  id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                  entry_type: 'update', content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`,
+                  created_at: new Date().toISOString(), _optimistic: true,
+                }]);
+                try {
+                  await fetch(`/api/events/${eventId}/journal`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      author_name: userName, author_role: userRole, entry_type: 'update', 
+                      content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`, 
+                      author_field_status: myFieldStatus 
+                    }),
+                  });
+                } catch (error) {
+                  console.error('Failed to add journal entry:', error);
+                }
               }}
               onRemoveEventLocation={async (id) => {
+                const locationToRemove = eventLocations.find(loc => loc.id === id);
                 const newLocations = eventLocations.filter(loc => loc.id !== id);
                 setEventLocations(newLocations);
                 await saveMapData(newLocations, roadBlocks);
+                
+                // Add journal entry
+                const tempId = `temp-${Date.now()}`;
+                setJournal(prev => [...prev, {
+                  id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                  entry_type: 'update', content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`,
+                  created_at: new Date().toISOString(), _optimistic: true,
+                }]);
+                try {
+                  await fetch(`/api/events/${eventId}/journal`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      author_name: userName, author_role: userRole, entry_type: 'update', 
+                      content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`, 
+                      author_field_status: myFieldStatus 
+                    }),
+                  });
+                } catch (error) {
+                  console.error('Failed to add journal entry:', error);
+                }
               }}
               roadBlocks={roadBlocks}
               onAddRoadBlock={async (points, note) => {
                 const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
                 setRoadBlocks(newBlocks);
                 await saveMapData(eventLocations, newBlocks);
+                
+                // Add journal entry
+                const tempId = `temp-${Date.now()}`;
+                setJournal(prev => [...prev, {
+                  id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                  entry_type: 'update', content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`,
+                  created_at: new Date().toISOString(), _optimistic: true,
+                }]);
+                try {
+                  await fetch(`/api/events/${eventId}/journal`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      author_name: userName, author_role: userRole, entry_type: 'update', 
+                      content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`, 
+                      author_field_status: myFieldStatus 
+                    }),
+                  });
+                } catch (error) {
+                  console.error('Failed to add journal entry:', error);
+                }
               }}
               onRemoveRoadBlock={async (id) => {
+                const blockToRemove = roadBlocks.find(block => block.id === id);
                 const newBlocks = roadBlocks.filter(block => block.id !== id);
                 setRoadBlocks(newBlocks);
                 await saveMapData(eventLocations, newBlocks);
+                
+                // Add journal entry
+                const tempId = `temp-${Date.now()}`;
+                setJournal(prev => [...prev, {
+                  id: tempId, event_id: eventId, author_name: userName, author_role: userRole,
+                  entry_type: 'update', content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`,
+                  created_at: new Date().toISOString(), _optimistic: true,
+                }]);
+                try {
+                  await fetch(`/api/events/${eventId}/journal`, {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                      author_name: userName, author_role: userRole, entry_type: 'update', 
+                      content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`, 
+                      author_field_status: myFieldStatus 
+                    }),
+                  });
+                } catch (error) {
+                  console.error('Failed to add journal entry:', error);
+                }
               }}
             />
             <div className="mt-2 text-[10px] text-blue-700 bg-blue-100 px-2 py-1.5 rounded-lg" dir="rtl">

@@ -537,22 +537,116 @@ export default function LiveJournalPage() {
                   const newLocations = [...eventLocations, location];
                   setEventLocations(newLocations);
                   await supabase.from('emergency_events').update({ event_locations: newLocations, road_blocks: roadBlocks }).eq('id', event.id);
+                  
+                  // Add journal entry
+                  if (participant) {
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: event.id, author_name: participant.display_name,
+                      author_role: participant.department || participant.role || '',
+                      entry_type: 'update', content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${event.id}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: participant.display_name, 
+                          author_role: participant.department || participant.role || undefined, 
+                          entry_type: 'update', 
+                          content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`, 
+                          participant_id: participant.id 
+                        }),
+                      });
+                    } catch {}
+                  }
                 }}
                 onRemoveEventLocation={async (id) => {
+                  const locationToRemove = eventLocations.find(loc => loc.id === id);
                   const newLocations = eventLocations.filter(loc => loc.id !== id);
                   setEventLocations(newLocations);
                   await supabase.from('emergency_events').update({ event_locations: newLocations, road_blocks: roadBlocks }).eq('id', event.id);
+                  
+                  // Add journal entry
+                  if (participant) {
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: event.id, author_name: participant.display_name,
+                      author_role: participant.department || participant.role || '',
+                      entry_type: 'update', content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${event.id}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: participant.display_name, 
+                          author_role: participant.department || participant.role || undefined, 
+                          entry_type: 'update', 
+                          content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`, 
+                          participant_id: participant.id 
+                        }),
+                      });
+                    } catch {}
+                  }
                 }}
                 roadBlocks={roadBlocks}
                 onAddRoadBlock={async (points, note) => {
                   const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
                   setRoadBlocks(newBlocks);
                   await supabase.from('emergency_events').update({ event_locations: eventLocations, road_blocks: newBlocks }).eq('id', event.id);
+                  
+                  // Add journal entry
+                  if (participant) {
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: event.id, author_name: participant.display_name,
+                      author_role: participant.department || participant.role || '',
+                      entry_type: 'update', content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${event.id}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: participant.display_name, 
+                          author_role: participant.department || participant.role || undefined, 
+                          entry_type: 'update', 
+                          content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`, 
+                          participant_id: participant.id 
+                        }),
+                      });
+                    } catch {}
+                  }
                 }}
                 onRemoveRoadBlock={async (id) => {
+                  const blockToRemove = roadBlocks.find(block => block.id === id);
                   const newBlocks = roadBlocks.filter(block => block.id !== id);
                   setRoadBlocks(newBlocks);
                   await supabase.from('emergency_events').update({ event_locations: eventLocations, road_blocks: newBlocks }).eq('id', event.id);
+                  
+                  // Add journal entry
+                  if (participant) {
+                    const tempId = `temp-${Date.now()}`;
+                    setJournal(prev => [...prev, {
+                      id: tempId, event_id: event.id, author_name: participant.display_name,
+                      author_role: participant.department || participant.role || '',
+                      entry_type: 'update', content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`,
+                      created_at: new Date().toISOString(), _optimistic: true,
+                    }]);
+                    try {
+                      await fetch(`/api/events/${event.id}/journal`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ 
+                          author_name: participant.display_name, 
+                          author_role: participant.department || participant.role || undefined, 
+                          entry_type: 'update', 
+                          content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`, 
+                          participant_id: participant.id 
+                        }),
+                      });
+                    } catch {}
+                  }
                 }}
                 className="h-[200px] sm:h-[300px]"
               />
