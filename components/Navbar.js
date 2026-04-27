@@ -183,7 +183,7 @@ export default function Navbar() {
           <div className="flex items-center">
             {/* Logo */}
             <button
-              onClick={() => router.push('/dashboard')}
+              onClick={() => router.push(userConfig.links[0].href)}
               className="flex-shrink-0 flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
               <div className="w-10 h-10 rounded-lg overflow-hidden shadow-md flex-shrink-0">
