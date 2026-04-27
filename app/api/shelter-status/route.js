@@ -1,16 +1,19 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Create Supabase client locally to ensure env vars are available at runtime
+// Create Supabase client at runtime to ensure env vars are available
 const getSupabase = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
   
   if (!supabaseUrl || !supabaseKey) {
+    console.error('Missing Supabase environment variables');
     throw new Error('Missing Supabase environment variables');
   }
   
-  return createClient(supabaseUrl, supabaseKey);
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: { persistSession: false }
+  });
 };
 
 export async function GET() {
