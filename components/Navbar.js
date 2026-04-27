@@ -186,8 +186,12 @@ export default function Navbar() {
               onClick={() => router.push('/dashboard')}
               className="flex-shrink-0 flex items-center gap-2 hover:opacity-80 transition-opacity"
             >
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-lg shadow-md">
-                מ
+              <div className="w-10 h-10 rounded-lg overflow-hidden shadow-md flex-shrink-0">
+                <img 
+                  src="/images/yehud-logo.png" 
+                  alt="לוגו יהוד-מונוסון" 
+                  className="w-full h-full object-cover"
+                />
               </div>
               <span className="hidden sm:block font-bold text-gray-800 text-lg">מקלטון</span>
             </button>
