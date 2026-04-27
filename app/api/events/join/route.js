@@ -83,11 +83,20 @@ export async function POST(request) {
 
     const matchedContact = contacts?.find(c => {
       // Check primary phone
-      if (c.phone && normalizePhone(c.phone) === normalizedPhone) return true;
+      if (c.phone && normalizePhone(c.phone) === normalizedPhone) {
+        console.log('[JOIN] Match found via phone:', c.full_name, normalizePhone(c.phone));
+        return true;
+      }
       // Check mobile phone if exists
-      if (c.mobile && normalizePhone(c.mobile) === normalizedPhone) return true;
+      if (c.mobile && normalizePhone(c.mobile) === normalizedPhone) {
+        console.log('[JOIN] Match found via mobile:', c.full_name, normalizePhone(c.mobile));
+        return true;
+      }
       // Check alternative phone if exists
-      if (c.phone_alt && normalizePhone(c.phone_alt) === normalizedPhone) return true;
+      if (c.phone_alt && normalizePhone(c.phone_alt) === normalizedPhone) {
+        console.log('[JOIN] Match found via phone_alt:', c.full_name, normalizePhone(c.phone_alt));
+        return true;
+      }
       return false;
     });
 
@@ -121,7 +130,15 @@ export async function POST(request) {
 
     // Step 1: Lookup phone
     if (action === 'lookup') {
+      // Debug logging
+      console.log('[JOIN] Lookup attempt:', {
+        normalizedPhone,
+        totalContacts: contacts?.length || 0,
+        matchFound: !!matchedContact,
+      });
+      
       if (matchedContact) {
+        console.log('[JOIN] Contact matched:', matchedContact.full_name);
         return NextResponse.json({
           success: true,
           found: true,
@@ -133,6 +150,7 @@ export async function POST(request) {
           event: { id: event.id, title: event.title, severity: event.severity, status: event.status },
         });
       } else {
+        console.log('[JOIN] No contact match found for phone:', normalizedPhone);
         return NextResponse.json({
           success: true,
           found: false,
