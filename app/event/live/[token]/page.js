@@ -61,6 +61,8 @@ export default function LiveJournalPage() {
   const [imagePreview, setImagePreview] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [showQuickMessages, setShowQuickMessages] = useState(false);
+  const [eventLocations, setEventLocations] = useState([]);
+  const [roadBlocks, setRoadBlocks] = useState([]);
 
   useEffect(() => {
     initPage();
@@ -120,7 +122,11 @@ export default function LiveJournalPage() {
         schema: 'public',
         table: 'emergency_events',
       }, (payload) => {
-        if (payload.new.id === eventId) setEvent(payload.new);
+        if (payload.new.id === eventId) {
+          setEvent(payload.new);
+          setEventLocations(payload.new.event_locations || []);
+          setRoadBlocks(payload.new.road_blocks || []);
+        }
       })
       .on('postgres_changes', {
         event: '*',
@@ -168,6 +174,10 @@ export default function LiveJournalPage() {
       }
 
       setEvent(eventData);
+
+      // Load map data
+      setEventLocations(eventData.event_locations || []);
+      setRoadBlocks(eventData.road_blocks || []);
 
       // Fetch journal and participants
       const [journalRes, participantsRes] = await Promise.all([
@@ -516,8 +526,34 @@ export default function LiveJournalPage() {
               <EventMap
                 journal={journal}
                 onAddMarker={addMapMarker}
+                onDeleteMarker={async (entryId) => {
+                  setJournal(prev => prev.filter(e => e.id !== entryId));
+                  await supabase.from('event_journal').delete().eq('id', entryId);
+                }}
                 isActive={event.status === 'active' && !!participant}
                 shelters={sheltersData}
+                eventLocations={eventLocations}
+                onAddEventLocation={async (location) => {
+                  const newLocations = [...eventLocations, location];
+                  setEventLocations(newLocations);
+                  await supabase.from('emergency_events').update({ event_locations: newLocations, road_blocks: roadBlocks }).eq('id', event.id);
+                }}
+                onRemoveEventLocation={async (id) => {
+                  const newLocations = eventLocations.filter(loc => loc.id !== id);
+                  setEventLocations(newLocations);
+                  await supabase.from('emergency_events').update({ event_locations: newLocations, road_blocks: roadBlocks }).eq('id', event.id);
+                }}
+                roadBlocks={roadBlocks}
+                onAddRoadBlock={async (points, note) => {
+                  const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
+                  setRoadBlocks(newBlocks);
+                  await supabase.from('emergency_events').update({ event_locations: eventLocations, road_blocks: newBlocks }).eq('id', event.id);
+                }}
+                onRemoveRoadBlock={async (id) => {
+                  const newBlocks = roadBlocks.filter(block => block.id !== id);
+                  setRoadBlocks(newBlocks);
+                  await supabase.from('emergency_events').update({ event_locations: eventLocations, road_blocks: newBlocks }).eq('id', event.id);
+                }}
                 className="h-[200px] sm:h-[300px]"
               />
               {/* Map usage hint */}
