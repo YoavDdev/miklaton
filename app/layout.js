@@ -1,4 +1,5 @@
 import './globals.css';
+import ConditionalNavbar from '@/components/ConditionalNavbar';
 
 export const metadata = {
   title: 'מקלטון - מערכת ניהול אירועי חירום',
@@ -17,6 +18,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="he" dir="rtl">
       <body className="antialiased bg-gray-50">
+        <ConditionalNavbar />
         {children}
       </body>
     </html>
