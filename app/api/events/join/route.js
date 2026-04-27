@@ -27,24 +27,29 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Event not found' }, { status: 404 });
     }
 
-    // Normalize phone - handle +972, dashes, spaces, parentheses
+    // Normalize phone - handle +972, dashes, spaces, parentheses, dots
     const normalizePhone = (p) => {
       if (!p) return '';
-      let n = p.replace(/[-\s()]/g, ''); // remove dashes, spaces, parentheses
-      // Convert +972 to 0
-      if (n.startsWith('+972')) n = '0' + n.slice(4);
+      // Remove all non-digit characters
+      let n = p.replace(/[^\d]/g, '');
+      // Convert international format to Israeli format
       if (n.startsWith('972')) n = '0' + n.slice(3);
+      // Ensure it starts with 0
+      if (!n.startsWith('0') && n.length === 9) n = '0' + n;
       return n;
     };
     const normalizedPhone = normalizePhone(phone);
 
-    // Check if already a participant
-    const { data: existingParticipant } = await supabase
+    // Check if already a participant - check all participants and normalize their phones
+    const { data: allParticipants } = await supabase
       .from('event_participants')
       .select('*')
-      .eq('event_id', event.id)
-      .eq('phone', normalizedPhone)
-      .single();
+      .eq('event_id', event.id);
+    
+    const existingParticipant = allParticipants?.find(p => 
+      normalizePhone(p.phone) === normalizedPhone || 
+      normalizePhone(p.guest_phone) === normalizedPhone
+    );
 
     if (existingParticipant) {
       if (action === 'decline') {
@@ -70,14 +75,20 @@ export async function POST(request) {
       });
     }
 
-    // Try to find in contacts
+    // Try to find in contacts - check phone, mobile, and email
     const { data: contacts } = await supabase
       .from('contacts')
       .select('*, departments(name)')
       .eq('active', true);
 
     const matchedContact = contacts?.find(c => {
-      return normalizePhone(c.phone) === normalizedPhone;
+      // Check primary phone
+      if (c.phone && normalizePhone(c.phone) === normalizedPhone) return true;
+      // Check mobile phone if exists
+      if (c.mobile && normalizePhone(c.mobile) === normalizedPhone) return true;
+      // Check alternative phone if exists
+      if (c.phone_alt && normalizePhone(c.phone_alt) === normalizedPhone) return true;
+      return false;
     });
 
     if (action === 'decline') {
