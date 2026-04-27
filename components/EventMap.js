@@ -190,7 +190,9 @@ export default function EventMap({
 
     const map = L.map(mapRef.current, { 
       zoomControl: true,
-      scrollWheelZoom: false  // Disable scroll wheel zoom by default to prevent page scroll confusion
+      scrollWheelZoom: false,
+      dragging: !L.Browser.mobile,  // Disable drag on mobile by default
+      tap: !L.Browser.mobile,       // Disable tap on mobile to allow page scroll
     }).setView([32.0300, 34.8900], 15);
     
     mapInstanceRef.current = map;
@@ -204,7 +206,7 @@ export default function EventMap({
       originalFocus.call(this, { preventScroll: true, ...options });
     };
     
-    // Enable/disable scroll wheel zoom based on mouse position
+    // Enable/disable scroll wheel zoom based on mouse position (desktop)
     const onMouseEnter = () => {
       if (mapInstanceRef.current) mapInstanceRef.current.scrollWheelZoom.enable();
     };
@@ -213,6 +215,31 @@ export default function EventMap({
     };
     container.addEventListener('mouseenter', onMouseEnter);
     container.addEventListener('mouseleave', onMouseLeave);
+
+    // Mobile: enable map interaction only after a deliberate click/tap
+    if (L.Browser.mobile) {
+      let mapActive = false;
+      const activateMap = () => {
+        if (!mapActive) {
+          mapActive = true;
+          map.dragging.enable();
+          map.tap && map.tap.enable();
+          container.style.border = '3px solid #3b82f6';
+        }
+      };
+      const deactivateMap = () => {
+        mapActive = false;
+        map.dragging.disable();
+        map.tap && map.tap.disable();
+        container.style.border = '2px solid #e5e7eb';
+      };
+      container.addEventListener('click', activateMap);
+      container.addEventListener('touchstart', activateMap, { passive: true });
+      // Deactivate when scrolling outside
+      document.addEventListener('scroll', deactivateMap, { passive: true });
+      container._deactivateMap = deactivateMap;
+      container._activateMap = activateMap;
+    }
     
     // Event listener for delete buttons (using event delegation)
     map.on('popupopen', (e) => {
@@ -505,18 +532,12 @@ export default function EventMap({
 
       const marker = L.marker([entry.location_lat, entry.location_lng], { icon });
       
-      // Add delete button only for map_marker type (not location)
-      const deleteButton = isMapMarker && onDeleteMarker 
-        ? `<br/><button class="delete-map-marker" data-marker-id="${entry.id}" style="background: #dc2626; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 8px; width: 100%;">🗑️ מחק סימון</button>`
-        : '';
-      
       marker.bindPopup(`
         <div style="text-align: right; direction: rtl; font-family: sans-serif; min-width: 150px;">
           <strong style="color: #1f2937;">${entry.author_name}</strong>
           <span style="color: #9ca3af; font-size: 11px; margin-right: 6px;">${time}</span>
           <br/>
           <span style="color: #374151; font-size: 13px;">${entry.content || ''}</span>
-          ${deleteButton}
         </div>
       `);
       
@@ -564,10 +585,6 @@ export default function EventMap({
         
         const marker = L.marker([eventLocation.lat, eventLocation.lng], { icon });
         
-        const deleteButton = mode === 'delete' || onRemoveEventLocation 
-          ? `<br/><button class="delete-event-location" data-location-id="${eventLocation.id}" style="background: #dc2626; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 8px; width: 100%;">🗑️ מחק מיקום</button>`
-          : '';
-        
         marker.bindPopup(`
           <div style="text-align: right; direction: rtl; font-family: sans-serif; min-width: 200px;">
             <strong style="color: #ef4444; font-size: 16px;">🚨 מיקום אירוע ${eventLocations.length > 1 ? `#${idx + 1}` : ''}</strong>
@@ -577,7 +594,6 @@ export default function EventMap({
             <a href="https://waze.com/ul?ll=${eventLocation.lat},${eventLocation.lng}&navigate=yes" target="_blank" style="background: #00d4ff; color: white; padding: 8px 16px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: bold;">
               🚗 נווט ב-Waze
             </a>
-            ${deleteButton}
           </div>
         `);
         
@@ -598,7 +614,7 @@ export default function EventMap({
     if (!roadBlocksLayerRef.current) return;
     roadBlocksLayerRef.current.clearLayers();
     
-    // Show permanent road blocks
+    // Show permanent road blocks with labels
     roadBlocks.forEach(block => {
       if (block.points && block.points.length >= 2) {
         const polyline = L.polyline(block.points, {
@@ -607,20 +623,37 @@ export default function EventMap({
           opacity: 0.8,
         });
         
-        const deleteButton = onRemoveRoadBlock 
-          ? `<br/><button class="delete-road-block" data-block-id="${block.id}" style="background: #dc2626; color: white; padding: 6px 12px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; margin-top: 8px; width: 100%;">🗑️ מחק חסימה</button>`
-          : '';
-        
         polyline.bindPopup(`
           <div style="text-align: right; direction: rtl; font-family: sans-serif; min-width: 150px;">
-            <strong style="color: #dc2626;">🚧 חסימת כביש</strong>
-            <br/>
-            <span style="color: #374151; font-size: 12px;">${block.note || 'כביש חסום'}</span>
-            ${deleteButton}
+            <strong style="color: #dc2626;">🚧 ${block.note || 'חסימת כביש'}</strong>
           </div>
         `);
         
         polyline.addTo(roadBlocksLayerRef.current);
+
+        // Add permanent label at midpoint so users can see what it is without clicking
+        const midIdx = Math.floor(block.points.length / 2);
+        const midPoint = block.points[midIdx] || block.points[0];
+        const label = L.marker(midPoint, {
+          icon: L.divIcon({
+            className: 'road-block-label',
+            html: `<div style="
+              background: #dc2626;
+              color: white;
+              padding: 2px 6px;
+              border-radius: 4px;
+              font-size: 10px;
+              font-weight: bold;
+              white-space: nowrap;
+              box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+              border: 1px solid white;
+            ">🚧 ${block.note || 'חסימה'}</div>`,
+            iconSize: [0, 0],
+            iconAnchor: [0, 0],
+          }),
+          interactive: false,
+        });
+        label.addTo(roadBlocksLayerRef.current);
       }
     });
     

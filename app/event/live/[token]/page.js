@@ -559,7 +559,7 @@ export default function LiveJournalPage() {
               {/* Map usage hint */}
               <div className="mt-1.5 flex items-center gap-2 text-xs text-blue-700 bg-blue-100 px-2 py-1.5 rounded-lg" dir="rtl">
                 <span className="text-sm">💡</span>
-                <span className="font-medium text-[11px] sm:text-xs">לחץ על המפה להפעלת זום • גלילה רגילה תזיז את הדף</span>
+                <span className="font-medium text-[11px] sm:text-xs">לחץ על המפה כדי להזיז אותה • גלול למעלה/למטה כדי לראות את הצ׳אט</span>
               </div>
             </div>
           </div>
