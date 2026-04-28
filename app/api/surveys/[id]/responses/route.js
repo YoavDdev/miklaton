@@ -46,6 +46,9 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 });
     }
 
+    console.log(`📊 API: Found ${responses?.length || 0} responses for survey ${surveyId}`);
+    console.log('Response IDs:', responses?.map(r => r.id));
+
     return NextResponse.json({ responses });
   } catch (error) {
     console.error('Error in GET /api/surveys/[id]/responses:', error);
