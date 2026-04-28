@@ -160,7 +160,7 @@ export default function SurveyManager() {
 
   const copyWhatsAppMessage = (survey) => {
     const surveyUrl = `${window.location.origin}/survey/${survey.token}`;
-    const message = `היי! 👋\nנשמח לשמוע את דעתך על השירות שלנו.\nמלא/י סקר קצר (2-3 דקות):\n${surveyUrl}\nתודה! 🙏`;
+    const message = `היי! 👋\nנשמח לשמוע את דעתך על השירות שלנו - מוקד עירוני 106 עיריית יהוד מונוסון.\nמלא/י סקר קצר (2-3 דקות):\n${surveyUrl}\nתודה! 🙏`;
     
     navigator.clipboard.writeText(message);
     toast.success('הודעת WhatsApp הועתקה! 📋');
