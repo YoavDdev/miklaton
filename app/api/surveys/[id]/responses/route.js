@@ -34,6 +34,8 @@ export async function GET(request, { params }) {
 
     const surveyId = params.id;
 
+    console.log('🔍 Fetching responses for survey ID:', surveyId);
+    
     // Get all responses for this survey
     const { data: responses, error } = await supabase
       .from('survey_responses')
@@ -42,12 +44,21 @@ export async function GET(request, { params }) {
       .order('submitted_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching responses:', error);
+      console.error('❌ Error fetching responses:', error);
       return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 });
     }
 
     console.log(`📊 API: Found ${responses?.length || 0} responses for survey ${surveyId}`);
     console.log('Response IDs:', responses?.map(r => r.id));
+    console.log('Full response data:', JSON.stringify(responses, null, 2));
+    
+    // Also check total count in table for debugging
+    const { count, error: countError } = await supabase
+      .from('survey_responses')
+      .select('*', { count: 'exact', head: true })
+      .eq('survey_id', surveyId);
+    
+    console.log(`🔢 Total count in DB for this survey: ${count}`);
 
     return NextResponse.json({ responses });
   } catch (error) {
