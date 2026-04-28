@@ -38,27 +38,9 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Survey is closed' }, { status: 400 });
     }
 
-    // Get client IP for spam prevention
+    // Get client IP for statistics (no blocking)
     const forwarded = request.headers.get('x-forwarded-for');
     const ip = forwarded ? forwarded.split(',')[0] : request.headers.get('x-real-ip') || 'unknown';
-
-    // Check if IP already submitted today
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    
-    const { data: existingResponse } = await supabase
-      .from('survey_responses')
-      .select('id')
-      .eq('survey_id', survey.id)
-      .eq('respondent_ip', ip)
-      .gte('submitted_at', today.toISOString())
-      .limit(1);
-
-    if (existingResponse && existingResponse.length > 0) {
-      return NextResponse.json({ 
-        error: 'כבר מילאת את הסקר היום. תוכל למלא שוב מחר.' 
-      }, { status: 429 });
-    }
 
     // Validate question values (1-4 or null)
     const questions = [q1_courtesy, q2_professional, q3_helpful, q4_problem_solving];
