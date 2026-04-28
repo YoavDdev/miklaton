@@ -2,6 +2,9 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 
+// Disable Next.js caching - always fetch fresh data
+export const dynamic = 'force-dynamic';
+
 // Create Supabase client inside function to ensure env vars are available at runtime
 function getSupabase() {
   return createClient(
