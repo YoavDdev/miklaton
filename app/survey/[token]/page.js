@@ -94,7 +94,7 @@ export default function SurveyPage() {
     
     return (
       <div className="bg-white border-2 border-gray-200 rounded-lg p-4 sm:p-6 hover:border-blue-300 transition-colors">
-        <p className="text-gray-900 font-medium mb-4 leading-relaxed text-base sm:text-lg">{questionText}</p>
+        <p className="text-gray-900 font-medium mb-4 leading-relaxed text-base sm:text-base">{questionText}</p>
         
         <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3">
           {[1, 2, 3, 4].map((num) => (
@@ -112,7 +112,7 @@ export default function SurveyPage() {
                 onChange={() => handleQuestionChange(question, num)}
                 className="sr-only"
               />
-              <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] sm:min-h-[80px] flex flex-col items-center justify-center ${
+              <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] flex flex-col items-center justify-center ${
                 value === num
                   ? 'bg-blue-500 border-blue-500 text-white font-bold'
                   : 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50 active:scale-95'
@@ -136,7 +136,7 @@ export default function SurveyPage() {
               onChange={() => handleQuestionChange(question, null)}
               className="sr-only"
             />
-            <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] sm:min-h-[80px] flex items-center justify-center ${
+            <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] flex items-center justify-center ${
               value === null
                 ? 'bg-gray-500 border-gray-500 text-white font-bold'
                 : 'bg-white border-gray-300 hover:border-gray-400 hover:bg-gray-50 active:scale-95'
