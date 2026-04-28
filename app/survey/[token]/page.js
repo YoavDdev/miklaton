@@ -100,7 +100,7 @@ export default function SurveyPage() {
           {[1, 2, 3, 4].map((num) => (
             <label
               key={num}
-              className={`cursor-pointer ${
+              className={`cursor-pointer sm:flex-1 ${
                 value === num ? 'ring-2 ring-blue-500' : ''
               }`}
             >
@@ -112,7 +112,7 @@ export default function SurveyPage() {
                 onChange={() => handleQuestionChange(question, num)}
                 className="sr-only"
               />
-              <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] flex flex-col items-center justify-center ${
+              <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] sm:min-h-[90px] flex flex-col items-center justify-center ${
                 value === num
                   ? 'bg-blue-500 border-blue-500 text-white font-bold'
                   : 'bg-white border-gray-300 hover:border-blue-400 hover:bg-blue-50 active:scale-95'
@@ -128,7 +128,7 @@ export default function SurveyPage() {
             </label>
           ))}
           
-          <label className="col-span-2 sm:flex-1 sm:min-w-[120px] cursor-pointer">
+          <label className="col-span-2 sm:flex-1 sm:max-w-[180px] cursor-pointer">
             <input
               type="radio"
               name={question}
@@ -136,7 +136,7 @@ export default function SurveyPage() {
               onChange={() => handleQuestionChange(question, null)}
               className="sr-only"
             />
-            <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] flex items-center justify-center ${
+            <div className={`border-2 rounded-lg p-3 sm:p-4 text-center transition-all min-h-[70px] sm:min-h-[90px] flex items-center justify-center ${
               value === null
                 ? 'bg-gray-500 border-gray-500 text-white font-bold'
                 : 'bg-white border-gray-300 hover:border-gray-400 hover:bg-gray-50 active:scale-95'
