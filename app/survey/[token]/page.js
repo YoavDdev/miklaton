@@ -240,17 +240,6 @@ export default function SurveyPage() {
                 <span><strong>משך זמן משוער למילוי: 2–3 דקות</strong></span>
               </li>
             </ul>
-
-            <div className="mt-4 pt-4 border-t-2 border-purple-200">
-              <p className="font-bold text-purple-900 mb-2 text-sm">📊 סולם דירוג:</p>
-              <div className="flex gap-2 sm:gap-3 flex-wrap text-xs sm:text-sm">
-                <span className="px-3 py-1 bg-red-100 text-red-800 rounded-full font-medium">1 - נמוך מאוד</span>
-                <span className="px-3 py-1 bg-orange-100 text-orange-800 rounded-full font-medium">2 - נמוך</span>
-                <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full font-medium">3 - גבוה</span>
-                <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full font-medium">4 - גבוה מאוד</span>
-                <span className="px-3 py-1 bg-gray-100 text-gray-800 rounded-full font-medium">לא רלוונטי / אין דעה</span>
-              </div>
-            </div>
           </div>
         </div>
 
