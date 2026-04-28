@@ -2,14 +2,19 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { verifyToken } from '@/lib/auth';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-);
+// Create Supabase client inside function to ensure env vars are available at runtime
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+}
 
 // GET - Get all responses for a survey (for call center manager)
 export async function GET(request, { params }) {
   try {
+    const supabase = getSupabase();
+    
     const token = request.cookies.get('auth-token')?.value;
     
     if (!token) {
@@ -34,11 +39,9 @@ export async function GET(request, { params }) {
 
     const surveyId = params.id;
 
-    console.log('🔍 Fetching responses for survey ID:', surveyId);
-    console.log('🔑 Using service role key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'YES' : 'NO');
+    console.log('🔍 Survey ID:', surveyId, '| Service key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'YES' : 'NO');
     
     // Get all responses for this survey
-    // Note: Service role key should bypass RLS automatically
     const { data: responses, error } = await supabase
       .from('survey_responses')
       .select('*')
@@ -50,17 +53,7 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 });
     }
 
-    console.log(`📊 API: Found ${responses?.length || 0} responses for survey ${surveyId}`);
-    console.log('Response IDs:', responses?.map(r => r.id));
-    console.log('Full response data:', JSON.stringify(responses, null, 2));
-    
-    // Also check total count in table for debugging
-    const { count, error: countError } = await supabase
-      .from('survey_responses')
-      .select('*', { count: 'exact', head: true })
-      .eq('survey_id', surveyId);
-    
-    console.log(`🔢 Total count in DB for this survey: ${count}`);
+    console.log(`📊 Found ${responses?.length || 0} responses, IDs: ${responses?.map(r => r.id).join(', ')}`);
 
     return NextResponse.json({ responses });
   } catch (error) {
