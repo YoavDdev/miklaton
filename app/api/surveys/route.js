@@ -200,3 +200,63 @@ export async function PUT(request) {
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }
+
+// DELETE - Delete a closed survey
+export async function DELETE(request) {
+  try {
+    const token = request.cookies.get('auth-token')?.value;
+    
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const decoded = verifyToken(token);
+    if (!decoded) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+    }
+
+    // Verify user is call center manager
+    const { data: userData, error: userError } = await supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', decoded.userId)
+      .single();
+
+    if (userError || !userData || userData.role !== 'call_center_manager') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
+    const { id } = await request.json();
+
+    if (!id) {
+      return NextResponse.json({ error: 'Survey ID is required' }, { status: 400 });
+    }
+
+    // Check if survey is closed before deleting
+    const { data: survey } = await supabase
+      .from('surveys')
+      .select('status')
+      .eq('id', id)
+      .single();
+
+    if (survey && survey.status === 'active') {
+      return NextResponse.json({ error: 'Cannot delete active survey. Close it first.' }, { status: 400 });
+    }
+
+    // Delete survey (cascade will delete responses automatically)
+    const { error } = await supabase
+      .from('surveys')
+      .delete()
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error deleting survey:', error);
+      return NextResponse.json({ error: 'Failed to delete survey' }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Error in DELETE /api/surveys:', error);
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
+}

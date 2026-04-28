@@ -112,6 +112,31 @@ export default function SurveyManager() {
     }
   };
 
+  const deleteSurvey = async (surveyId) => {
+    if (!confirm('האם למחוק את הסקר לצמיתות? פעולה זו אינה הפיכה!\n\nכל התשובות שהתקבלו ימחקו גם כן.')) {
+      return;
+    }
+
+    try {
+      const res = await fetch('/api/surveys', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: surveyId })
+      });
+
+      if (res.ok) {
+        toast.success('הסקר נמחק בהצלחה');
+        loadSurveys();
+      } else {
+        toast.error('שגיאה במחיקת סקר');
+      }
+    } catch (error) {
+      console.error('Error deleting survey:', error);
+      toast.error('שגיאה במחיקת סקר');
+    }
+  };
+
   const loadResponses = async (survey) => {
     setSelectedSurvey(survey);
     setShowResponsesModal(true);
@@ -306,12 +331,20 @@ export default function SurveyManager() {
                       🔒 סגור סקר
                     </button>
                   ) : (
-                    <button
-                      onClick={() => reopenSurvey(survey.id)}
-                      className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 active:scale-95 font-medium text-xs sm:text-base"
-                    >
-                      🔓 פתח מחדש
-                    </button>
+                    <>
+                      <button
+                        onClick={() => reopenSurvey(survey.id)}
+                        className="px-3 sm:px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 active:scale-95 font-medium text-xs sm:text-base"
+                      >
+                        🔓 פתח מחדש
+                      </button>
+                      <button
+                        onClick={() => deleteSurvey(survey.id)}
+                        className="px-3 sm:px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 active:scale-95 font-medium text-xs sm:text-base"
+                      >
+                        🗑️ מחק
+                      </button>
+                    </>
                   )}
                 </div>
               </div>
