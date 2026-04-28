@@ -35,8 +35,10 @@ export async function GET(request, { params }) {
     const surveyId = params.id;
 
     console.log('🔍 Fetching responses for survey ID:', surveyId);
+    console.log('🔑 Using service role key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'YES' : 'NO');
     
     // Get all responses for this survey
+    // Note: Service role key should bypass RLS automatically
     const { data: responses, error } = await supabase
       .from('survey_responses')
       .select('*')
