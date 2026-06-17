@@ -101,10 +101,14 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'contact_id required' }, { status: 400 });
     }
 
+    const sanitized = { ...updates };
+    if (sanitized.available_hours_start === '') sanitized.available_hours_start = null;
+    if (sanitized.available_hours_end === '') sanitized.available_hours_end = null;
+
     const { data, error } = await supabase
       .from('call_category_contacts')
       .update({
-        ...updates,
+        ...sanitized,
         updated_at: new Date().toISOString()
       })
       .eq('id', contact_id)
