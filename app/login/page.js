@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { municipalityConfig } from '@/lib/municipality';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -58,15 +59,15 @@ export default function LoginPage() {
         <div className="text-center mb-6 sm:mb-8">
           <div className="mb-3 sm:mb-4 flex justify-center">
             <img 
-              src="/images/yehud-logo.png" 
-              alt="לוגו עיריית יהוד-מונוסון" 
+              src={municipalityConfig.logo} 
+              alt={`לוגו ${municipalityConfig.name}`} 
               className="w-28 h-28 sm:w-32 sm:h-32 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-300"
             />
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 sm:mb-3">מקלטון</h1>
+          <h1 className="text-3xl sm:text-4xl font-bold text-white mb-2 sm:mb-3">{municipalityConfig.systemName}</h1>
           <div className="h-1 w-20 sm:w-24 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full mb-3 sm:mb-4"></div>
-          <p className="text-blue-100 text-sm sm:text-base">מערכת ניהול אירועי חירום</p>
-          <p className="text-blue-200 text-xs sm:text-sm mt-1">מוקד עירוני יהוד-מונוסון</p>
+          <p className="text-blue-100 text-sm sm:text-base">{municipalityConfig.systemSubtitle}</p>
+          <p className="text-blue-200 text-xs sm:text-sm mt-1">{municipalityConfig.name}</p>
         </div>
 
         {error && (

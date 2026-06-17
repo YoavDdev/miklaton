@@ -167,26 +167,20 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 py-4 sm:py-8 px-3 sm:px-6 lg:px-8" dir="rtl">
+    <div className="min-h-screen bg-gray-50" dir="rtl">
       <Toaster position="top-center" />
       
-      <div className="max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="mb-6 sm:mb-8">
-          <button
-            onClick={() => router.back()}
-            className="mb-4 text-blue-600 hover:text-blue-800 font-medium flex items-center gap-2 text-sm sm:text-base"
-          >
-            ← חזרה
-          </button>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">הפרופיל שלי</h1>
-          <p className="text-sm sm:text-base text-gray-600">ניהול פרטים אישיים והגדרות חשבון</p>
+      <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 py-4">
+          <h1 className="text-xl font-bold">👤 הפרופיל שלי</h1>
         </div>
+      </header>
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Main Profile Card */}
         <div className="bg-white rounded-lg sm:rounded-xl shadow-lg mb-4 sm:mb-6 overflow-hidden">
           {/* Header with gradient */}
-          <div className="bg-gradient-to-l from-blue-600 via-blue-700 to-blue-800 text-white p-4 sm:p-6">
+          <div className="bg-gradient-to-l from-slate-700 to-slate-800 text-white p-4 sm:p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-3xl sm:text-4xl">
@@ -194,7 +188,7 @@ export default function ProfilePage() {
                 </div>
                 <div>
                   <h2 className="text-xl sm:text-2xl font-bold">{user?.full_name}</h2>
-                  <p className="text-blue-100 text-sm sm:text-base">{user?.email}</p>
+                  <p className="text-slate-300 text-sm sm:text-base">{user?.email}</p>
                 </div>
               </div>
               <div>

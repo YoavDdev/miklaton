@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { municipalityConfig } from '@/lib/municipality';
 
 export default function Home() {
   const router = useRouter();
@@ -23,15 +24,15 @@ export default function Home() {
           <div className="text-center mb-8 sm:mb-12">
             <div className="mb-4 sm:mb-6 flex justify-center">
               <img 
-                src="/images/yehud-logo.png" 
-                alt="לוגו עיריית יהוד-מונוסון" 
+                src={municipalityConfig.logo} 
+                alt={`לוגו ${municipalityConfig.name}`} 
                 className="w-32 h-32 sm:w-40 sm:h-40 object-contain drop-shadow-2xl hover:scale-105 transition-transform duration-300"
               />
             </div>
-            <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3 sm:mb-4">מקלטון</h1>
+            <h1 className="text-4xl sm:text-5xl font-bold text-white mb-3 sm:mb-4">{municipalityConfig.systemName}</h1>
             <div className="h-1 w-24 sm:w-32 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full mb-4 sm:mb-6"></div>
-            <p className="text-blue-100 text-base sm:text-lg font-medium">מערכת ניהול אירועי חירום</p>
-            <p className="text-blue-200 text-sm sm:text-base mt-2">עיריית יהוד-מונוסון</p>
+            <p className="text-blue-100 text-base sm:text-lg font-medium">{municipalityConfig.systemSubtitle}</p>
+            <p className="text-blue-200 text-sm sm:text-base mt-2">{municipalityConfig.name}</p>
           </div>
 
           {/* Welcome Message */}
@@ -72,7 +73,7 @@ export default function Home() {
         {/* Footer */}
         <div className="text-center mt-6 sm:mt-8">
           <p className="text-blue-200 text-xs sm:text-sm">
-            © {new Date().getFullYear()} מוקד עירוני יהוד-מונוסון
+            © {new Date().getFullYear()} {municipalityConfig.name}
           </p>
           <p className="text-blue-300 text-[10px] sm:text-xs mt-2">
             מערכת מאובטחת ומוצפנת

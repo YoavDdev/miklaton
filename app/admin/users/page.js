@@ -359,7 +359,18 @@ export default function AdminUsersPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 sm:px-6 lg:px-8" dir="rtl">
+    <div className="min-h-screen bg-gray-50" dir="rtl">
+      <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold">👥 ניהול משתמשים</h1>
+          <button
+            onClick={() => setShowCreateModal(true)}
+            className="bg-white/10 hover:bg-white/20 border border-white/20 font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
+          >
+            ➕ צור משתמש חדש
+          </button>
+        </div>
+      </header>
       <Toaster
         position="top-center"
         reverseOrder={false}
@@ -385,20 +396,7 @@ export default function AdminUsersPage() {
           },
         }}
       />
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">ניהול משתמשים</h1>
-            <p className="text-gray-600">אישור, עריכה ואיפוס סיסמאות</p>
-          </div>
-          <button
-            onClick={() => setShowCreateModal(true)}
-            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium flex items-center gap-2 shadow-lg transition-colors"
-          >
-            ➕ צור משתמש חדש
-          </button>
-        </div>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-6">
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">

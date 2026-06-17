@@ -7,6 +7,7 @@ import OnCallManagerNew from '@/components/OnCallManagerNew';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import SurveyManager from '@/components/SurveyManager';
 import CallCategoryManager from '@/components/CallCategoryManager';
+import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
 
 export default function CallCenterManagerPage() {
   const router = useRouter();
@@ -468,6 +469,16 @@ export default function CallCenterManagerPage() {
               >
                 📋 קטגוריות פניות
               </button>
+              <button
+                onClick={() => setActiveTab('whatsapp')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'whatsapp'
+                    ? 'border-pink-600 text-pink-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                📱 WhatsApp כוננויות
+              </button>
             </nav>
           </div>
         </div>
@@ -636,6 +647,11 @@ export default function CallCenterManagerPage() {
         {/* Tab Content - Call Categories */}
         {activeTab === 'call-categories' && (
           <CallCategoryManager />
+        )}
+
+        {/* Tab Content - WhatsApp */}
+        {activeTab === 'whatsapp' && (
+          <WhatsAppDutyLinks />
         )}
 
         {/* Tab Content - Messages & Announcements */}

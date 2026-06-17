@@ -120,24 +120,18 @@ export default function EventsPage() {
 
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
-      {/* Quick Action Bar */}
-      <div className="bg-red-700 text-white shadow-lg">
-        <div className="max-w-5xl mx-auto px-3 sm:px-4 py-3 sm:py-4">
-          <div className="flex items-center justify-between gap-2">
-            <h1 className="text-lg sm:text-2xl font-bold flex items-center gap-2">🚨 יומן אירועים</h1>
-            <button
-              onClick={() => setShowCreate(true)}
-              className="bg-white text-red-700 hover:bg-red-50 font-bold px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg transition-colors flex items-center gap-1 sm:gap-2 shadow text-sm"
-            >
-              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-              </svg>
-              <span className="hidden sm:inline">פתח אירוע חדש</span>
-              <span className="sm:hidden">+ חדש</span>
-            </button>
-          </div>
+      {/* Header */}
+      <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold">🚨 יומן אירועים</h1>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="bg-white/10 hover:bg-white/20 border border-white/20 font-semibold px-4 py-2 rounded-lg transition-colors flex items-center gap-2 text-sm"
+          >
+            + פתח אירוע חדש
+          </button>
         </div>
-      </div>
+      </header>
 
       <main className="max-w-5xl mx-auto px-4 py-6">
         {/* Filter tabs */}

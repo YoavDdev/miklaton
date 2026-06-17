@@ -82,20 +82,12 @@ export default function OnCallPage() {
       `}</style>
 
       {/* Header - Hidden in print */}
-      <header className="bg-purple-600 text-white shadow-lg no-print">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={handleBack}
-              className="bg-purple-700 hover:bg-purple-800 px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
-            >
-              ← חזור
-            </button>
-            <h1 className="text-3xl font-bold">📞 אנשי קשר - רשימת כל המחלקות</h1>
-          </div>
+      <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl no-print">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold">� ספר טלפונים</h1>
           <button
             onClick={handlePrint}
-            className="bg-green-600 hover:bg-green-700 px-6 py-3 rounded-lg font-bold transition-colors flex items-center gap-2"
+            className="bg-white/10 hover:bg-white/20 border border-white/20 px-4 py-2 rounded-lg font-semibold text-sm transition-colors flex items-center gap-2"
           >
             🖨️ הדפס
           </button>
@@ -123,7 +115,7 @@ export default function OnCallPage() {
         ) : (
           <div className="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
           {/* Info Banner */}
-          <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4 no-print">
+          <div className="bg-gradient-to-l from-slate-700 to-slate-800 px-6 py-4 no-print">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 20 20">
@@ -131,7 +123,7 @@ export default function OnCallPage() {
                 </svg>
                 <div className="text-right">
                   <h3 className="text-xl font-bold text-white">רשימת אנשי קשר לפי מחלקה</h3>
-                  <p className="text-sm text-purple-100">📅 {lastUpdated}</p>
+                  <p className="text-sm text-slate-300">📅 {lastUpdated}</p>
                 </div>
               </div>
               <span className="text-white text-lg font-semibold">
@@ -157,11 +149,11 @@ export default function OnCallPage() {
                   dept.contacts.map((contact, contactIdx) => (
                     <tr 
                       key={contact.id} 
-                      className="border-b border-gray-200 hover:bg-purple-50 transition-colors"
+                      className="border-b border-gray-200 hover:bg-slate-50 transition-colors"
                     >
                       {contactIdx === 0 && (
                         <td 
-                          className="px-4 py-3 font-semibold text-gray-900 bg-purple-50 border-l-4 border-purple-500"
+                          className="px-4 py-3 font-semibold text-gray-900 bg-slate-50 border-l-4 border-slate-500"
                           rowSpan={dept.contacts.length}
                         >
                           <div className="flex items-center gap-2">
@@ -174,7 +166,7 @@ export default function OnCallPage() {
                         <span className="font-semibold text-gray-900">{contact.name}</span>
                       </td>
                       <td className="px-4 py-3">
-                        <span className="bg-purple-100 text-purple-700 px-3 py-1 rounded-full text-xs font-semibold">
+                        <span className="bg-slate-100 text-slate-700 px-3 py-1 rounded-full text-xs font-semibold">
                           ⏰ {contact.shift}
                         </span>
                       </td>

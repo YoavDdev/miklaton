@@ -2,34 +2,43 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import sheltersData from '@/data/shelters.json';
-import alertFlowsData from '@/data/alertFlows.json';
-import GeneralNotifications from '@/components/GeneralNotifications';
-import OnCallManagerNew from '@/components/OnCallManagerNew';
-import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
+import { municipalityConfig } from '@/lib/municipality';
 
-const ZONE_LABELS = { A: 'מזרח וצפון', B: 'מרכז', C: 'מערב' };
-const ZONE_COLORS = {
-  A: 'bg-blue-100 text-blue-800',
-  B: 'bg-green-100 text-green-800',
-  C: 'bg-orange-100 text-orange-800',
-};
+const ROLE_VIEWS = [
+  { href: '/operator', label: 'מוקדן', icon: '🎧', color: 'bg-cyan-500 hover:bg-cyan-600', desc: 'מסך עבודה יומיומי' },
+  { href: '/call-center-manager', label: 'מנהל מוקד', icon: '📞', color: 'bg-blue-500 hover:bg-blue-600', desc: 'ניהול מוקדנים ומשימות' },
+  { href: '/sector-manager', label: 'מנהל מכלול', icon: '🏢', color: 'bg-green-500 hover:bg-green-600', desc: 'ניהול כוננויות מכלול' },
+  { href: '/inspector', label: 'פקח', icon: '🔍', color: 'bg-orange-500 hover:bg-orange-600', desc: 'משימות ודיווחי שטח' },
+  { href: '/shelter-manager', label: 'מנהל מקלטים', icon: '🏠', color: 'bg-teal-500 hover:bg-teal-600', desc: 'ניהול מקלטים ציבוריים' },
+  { href: '/ceo', label: 'מנכ"ל', icon: '🎯', color: 'bg-purple-500 hover:bg-purple-600', desc: 'סקירה כללית ודוחות' },
+];
 
 export default function AdminPage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('oncall');
-  const [shelters, setShelters] = useState(sheltersData);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [geocodingStatus, setGeocodingStatus] = useState({});
-  const [inspectionReports, setInspectionReports] = useState([]);
-  const [reportsFilter, setReportsFilter] = useState('all');
-  const [loadingReports, setLoadingReports] = useState(false);
   const [warMode, setWarMode] = useState(null);
   const [warModeLoading, setWarModeLoading] = useState(true);
+  const [adminName, setAdminName] = useState('מנהל מערכת');
+  const [stats, setStats] = useState({ total: null, pending: null, active: null });
 
   useEffect(() => {
     fetchWarMode();
+    fetchStats();
+    setAdminName(localStorage.getItem('full_name') || 'מנהל מערכת');
   }, []);
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/admin/users');
+      if (!res.ok) return;
+      const data = await res.json();
+      const users = data.users || [];
+      setStats({
+        total: users.length,
+        pending: users.filter(u => u.status === 'pending').length,
+        active: users.filter(u => u.status === 'active').length,
+      });
+    } catch {}
+  };
 
   const fetchWarMode = async () => {
     try {
@@ -70,450 +79,129 @@ export default function AdminPage() {
     }
   };
 
-  const fetchReports = async () => {
-    setLoadingReports(true);
-    try {
-      const res = await fetch('/api/inspection');
-      if (res.ok) setInspectionReports(await res.json());
-    } catch { /* silent */ }
-    setLoadingReports(false);
-  };
-
-  const markResolved = async (id) => {
-    await fetch('/api/inspection', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, status: 'resolved' }),
-    });
-    fetchReports();
-  };
-
-  useEffect(() => {
-    if (activeTab === 'inspection') fetchReports();
-  }, [activeTab]);
-
-  useEffect(() => {
-    const shelterOverrides = localStorage.getItem('shelterCoordinateOverrides');
-    if (shelterOverrides) {
-      try {
-        const parsed = JSON.parse(shelterOverrides);
-        const merged = sheltersData.map(shelter => ({
-          ...shelter,
-          ...(parsed[shelter.id] || {})
-        }));
-        setShelters(merged);
-      } catch (e) {
-        console.error('Failed to parse shelter overrides', e);
-      }
-    }
-  }, []);
-
-  const handleLogout = async () => {
-    await fetch('/api/auth/logout', { method: 'POST' });
-    router.push('/login');
-  };
-
-  const geocodeShelter = async (shelter) => {
-    if (shelter.lat !== null && shelter.lng !== null) {
-      alert('למקלט זה כבר יש קואורדינטות');
-      return;
-    }
-
-    setGeocodingStatus({ ...geocodingStatus, [shelter.id]: 'loading' });
-
-    try {
-      const response = await fetch(`/api/geocode?q=${encodeURIComponent(shelter.address)}`);
-      const data = await response.json();
-
-      if (data && data.length > 0) {
-        const result = data[0];
-        const newCoordinates = {
-          lat: parseFloat(result.lat),
-          lng: parseFloat(result.lon)
-        };
-
-        const updatedShelters = shelters.map(s =>
-          s.id === shelter.id ? { ...s, ...newCoordinates } : s
-        );
-        setShelters(updatedShelters);
-
-        const overrides = JSON.parse(localStorage.getItem('shelterCoordinateOverrides') || '{}');
-        overrides[shelter.id] = newCoordinates;
-        localStorage.setItem('shelterCoordinateOverrides', JSON.stringify(overrides));
-
-        setGeocodingStatus({ ...geocodingStatus, [shelter.id]: 'success' });
-      } else {
-        setGeocodingStatus({ ...geocodingStatus, [shelter.id]: 'error' });
-        alert('לא נמצאו תוצאות לכתובת זו');
-      }
-    } catch (error) {
-      setGeocodingStatus({ ...geocodingStatus, [shelter.id]: 'error' });
-      alert('שגיאה בחיפוש קואורדינטות');
-    }
-  };
-
-  const exportShelterOverrides = () => {
-    const overrides = localStorage.getItem('shelterCoordinateOverrides');
-    if (!overrides) {
-      alert('אין שינויים לייצא');
-      return;
-    }
-
-    const blob = new Blob([overrides], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `shelter-coordinates-patch-${Date.now()}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const filteredShelters = shelters.filter(s =>
-    s.name.includes(searchTerm) || s.address.includes(searchTerm)
-  );
-
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-purple-600 text-white shadow-lg">
-        <div className="max-w-7xl mx-auto px-4 py-3">
-          <div className="flex items-center justify-between gap-3">
-            <button
-              onClick={() => router.push('/admin/presentation')}
-              className="px-6 py-3 rounded-xl font-bold text-lg transition-all shadow-lg bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-2 border-yellow-300"
-            >
-              🎬 מצגת למנהלים
-            </button>
-            
-            <div className="flex items-center gap-3">
+    <div className="min-h-screen bg-gray-50" dir="rtl">
+
+      {/* ── Header ── */}
+      <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4">
+          <div className="flex items-center justify-between gap-4">
+
+            {/* Logo + Title */}
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl overflow-hidden shadow-lg flex-shrink-0 bg-white/10 flex items-center justify-center">
+                <img src={municipalityConfig.logo} alt="לוגו" className="w-full h-full object-contain p-0.5" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-bold text-lg sm:text-xl leading-tight">{municipalityConfig.systemName}</span>
+                  <span className="bg-red-500 text-white text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0">מנהל מערכת</span>
+                </div>
+                <p className="text-slate-400 text-xs sm:text-sm truncate">{municipalityConfig.name} · {adminName}</p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="flex items-center gap-2 flex-shrink-0">
               <button
                 onClick={toggleWarMode}
-                className={`px-6 py-3 rounded-xl font-bold text-lg transition-all shadow-lg ${
+                disabled={warModeLoading}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 ${
                   warMode
-                    ? 'bg-red-600 hover:bg-red-700 border-2 border-red-300'
-                    : 'bg-white/20 hover:bg-white/30 border-2 border-white/30'
+                    ? 'bg-red-600 hover:bg-red-700 border-red-400 animate-pulse'
+                    : 'bg-white/10 hover:bg-white/20 border-white/20'
                 }`}
               >
-                {warMode ? '🚨 מצב מלחמה פעיל' : '⚪ מצב רגיל'}
+                {warMode ? '🚨' : '⚪'} <span className="hidden sm:inline">{warMode ? 'מצב מלחמה' : 'מצב רגיל'}</span>
               </button>
-              {warMode && (
-                <span className="text-sm bg-red-500/30 px-3 py-1 rounded-lg border border-red-300">
-                  שלבי מקלטים והתקשרויות ידלגו אוטומטית
-                </span>
-              )}
+              <button
+                onClick={() => router.push('/admin/users')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
+              >
+                👥 <span className="hidden sm:inline">ניהול משתמשים</span>
+              </button>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="max-w-7xl mx-auto px-4 py-8">
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="flex border-b border-gray-200">
-            <button
-              onClick={() => setActiveTab('oncall')}
-              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
-                activeTab === 'oncall'
-                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              ניהול תורנויות
-            </button>
-            <button
-              onClick={() => setActiveTab('shelters')}
-              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
-                activeTab === 'shelters'
-                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              מקלטים
-            </button>
-            <button
-              onClick={() => setActiveTab('notifications')}
-              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
-                activeTab === 'notifications'
-                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              הודעות
-            </button>
-            <button
-              onClick={() => setActiveTab('flows')}
-              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
-                activeTab === 'flows'
-                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              נהלי תפעול
-            </button>
-            <button
-              onClick={() => setActiveTab('whatsapp')}
-              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors ${
-                activeTab === 'whatsapp'
-                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              📱 WhatsApp כוננויות
-            </button>
-            <button
-              onClick={() => setActiveTab('inspection')}
-              className={`flex-1 px-6 py-4 text-lg font-semibold transition-colors relative ${
-                activeTab === 'inspection'
-                  ? 'bg-purple-50 text-purple-700 border-b-2 border-purple-600'
-                  : 'text-gray-600 hover:bg-gray-50'
-              }`}
-            >
-              דיווחי פקחים
-              {inspectionReports.filter(r => r.status === 'open').length > 0 && (
-                <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">
-                  {inspectionReports.filter(r => r.status === 'open').length}
-                </span>
-              )}
-            </button>
+      {/* ── War Mode Banner ── */}
+      {warMode && (
+        <div className="bg-red-600 text-white text-center py-2 px-4 text-sm font-bold">
+          🚨 מצב מלחמה פעיל – שלבי מקלטים והתקשרויות ידלגו אוטומטית
+        </div>
+      )}
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        {/* ── KPI Cards ── */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+          {/* Pending approval */}
+          <button
+            onClick={() => router.push('/admin/users?filter=pending')}
+            className={`rounded-xl p-5 text-right shadow-sm border-2 transition-all hover:shadow-md active:scale-95 ${
+              stats.pending > 0
+                ? 'bg-red-50 border-red-300 hover:bg-red-100'
+                : 'bg-white border-gray-100 hover:bg-gray-50'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-3xl font-bold ${stats.pending > 0 ? 'text-red-600' : 'text-gray-400'}`}>
+                {stats.pending === null ? '...' : stats.pending}
+              </span>
+              <span className="text-2xl">{stats.pending > 0 ? '🔴' : '✅'}</span>
+            </div>
+            <p className={`text-sm font-semibold ${stats.pending > 0 ? 'text-red-700' : 'text-gray-500'}`}>
+              ממתינים לאישור
+            </p>
+            {stats.pending > 0 && (
+              <p className="text-xs text-red-500 mt-1">לחץ לאישור →</p>
+            )}
+          </button>
+
+          {/* Active users */}
+          <div className="bg-white border-2 border-gray-100 rounded-xl p-5 text-right shadow-sm">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-3xl font-bold text-green-600">
+                {stats.active === null ? '...' : stats.active}
+              </span>
+              <span className="text-2xl">👥</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-600">משתמשים פעילים</p>
+          </div>
+
+          {/* System status */}
+          <div className={`rounded-xl p-5 text-right shadow-sm border-2 ${
+            warMode ? 'bg-red-50 border-red-300' : 'bg-green-50 border-green-200'
+          }`}>
+            <div className="flex items-center justify-between mb-2">
+              <span className={`text-lg font-bold ${warMode ? 'text-red-700' : 'text-green-700'}`}>
+                {warMode ? 'מצב מלחמה' : 'תקין'}
+              </span>
+              <span className="text-2xl">{warMode ? '🚨' : '🟢'}</span>
+            </div>
+            <p className="text-sm font-semibold text-gray-600">סטטוס מערכת</p>
+            <p className="text-xs text-gray-400 mt-1">
+              {warMode ? 'מצב חירום פעיל' : 'כל המערכות פועלות'}
+            </p>
           </div>
         </div>
 
-        {activeTab === 'oncall' && (
-          <OnCallManagerNew />
-        )}
-
-        {activeTab === 'shelters' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold text-gray-900">ניהול מקלטים</h2>
-              <button
-                onClick={exportShelterOverrides}
-                className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-              >
-                📥 ייצוא שינויים
-              </button>
-            </div>
-
-            <div className="mb-6">
-              <input
-                type="text"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                placeholder="חיפוש מקלט..."
-                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:border-purple-500 focus:outline-none"
-              />
-            </div>
-
-            <div className="space-y-4">
-              {filteredShelters.map((shelter) => (
-                <div key={shelter.id} className="border-2 border-gray-200 rounded-lg p-4">
-                  <div className="mb-3">
-                    <h3 className="text-lg font-bold text-gray-900">{shelter.name}</h3>
-                    {shelter.number && (
-                      <p className="text-sm text-gray-500">מספר: {shelter.number}</p>
-                    )}
-                  </div>
-
-                  <p className="text-gray-700 mb-2">📍 {shelter.address}</p>
-
-                  {shelter.notes && (
-                    <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded mb-3">
-                      💡 {shelter.notes}
-                    </p>
-                  )}
-
-                  <div className="flex items-center gap-4">
-                    {shelter.lat !== null && shelter.lng !== null ? (
-                      <div className="text-sm text-green-700 bg-green-50 px-3 py-2 rounded">
-                        ✓ קואורדינטות: {shelter.lat.toFixed(4)}, {shelter.lng.toFixed(4)}
-                      </div>
-                    ) : (
-                      <>
-                        <div className="text-sm text-red-700 bg-red-50 px-3 py-2 rounded">
-                          ✗ חסרות קואורדינטות
-                        </div>
-                        <button
-                          onClick={() => geocodeShelter(shelter)}
-                          disabled={geocodingStatus[shelter.id] === 'loading'}
-                          className="bg-purple-600 hover:bg-purple-700 disabled:bg-gray-400 text-white font-semibold px-4 py-2 rounded-lg transition-colors"
-                        >
-                          {geocodingStatus[shelter.id] === 'loading' ? 'מחפש...' : '🔍 מצא קואורדינטות'}
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 p-4 bg-yellow-50 border-r-4 border-yellow-500 rounded">
-              <p className="text-sm text-yellow-800">
-                <strong>הערה:</strong> שינויי קואורדינטות נשמרים ב-localStorage בלבד.
-                לשינויים קבועים, ייצא את השינויים והעתק אותם לקובץ data/shelters.json
-              </p>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'inspection' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-2xl font-bold text-gray-900">דיווחי פקחים</h2>
-              <button
-                onClick={fetchReports}
-                className="bg-purple-600 hover:bg-purple-700 text-white font-semibold px-4 py-2 rounded-lg transition-colors text-sm"
-              >
-                🔄 רענן
-              </button>
-            </div>
-
-            <div className="flex gap-2 mb-5 flex-wrap">
-              {['all', 'open', 'resolved'].map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setReportsFilter(f)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors border ${
-                    reportsFilter === f
-                      ? 'bg-purple-600 text-white border-purple-600'
-                      : 'bg-white text-gray-600 border-gray-300 hover:bg-gray-50'
-                  }`}
-                >
-                  {f === 'all' ? 'הכל' : f === 'open' ? '⚠️ פתוחים' : '✅ טופלו'}
-                  {f === 'all' && ` (${inspectionReports.length})`}
-                  {f === 'open' && ` (${inspectionReports.filter(r => r.status === 'open').length})`}
-                  {f === 'resolved' && ` (${inspectionReports.filter(r => r.status === 'resolved').length})`}
-                </button>
-              ))}
-            </div>
-
-            {loadingReports ? (
-              <div className="text-center py-12 text-gray-500">טוען דיווחים...</div>
-            ) : (
-              <div className="space-y-4">
-                {inspectionReports
-                  .filter(r => reportsFilter === 'all' || r.status === reportsFilter)
-                  .length === 0 ? (
-                  <div className="text-center py-12 text-gray-400">
-                    <div className="text-4xl mb-3">✅</div>
-                    <p className="font-semibold">אין דיווחים</p>
-                  </div>
-                ) : (
-                  inspectionReports
-                    .filter(r => reportsFilter === 'all' || r.status === reportsFilter)
-                    .map((report) => (
-                      <div
-                        key={report.id}
-                        className={`border-2 rounded-lg p-4 transition-all ${
-                          report.status === 'resolved'
-                            ? 'border-gray-200 bg-gray-50 opacity-70'
-                            : 'border-red-200 bg-red-50'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-3 mb-2">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className={`text-xs font-bold px-2 py-1 rounded-full ${ZONE_COLORS[report.zone] || 'bg-gray-100 text-gray-700'}`}>
-                              אזור {report.zone} — {ZONE_LABELS[report.zone] || report.zone}
-                            </span>
-                            <span className="text-xs bg-gray-200 text-gray-700 font-semibold px-2 py-1 rounded-full">
-                              {report.locationType}
-                            </span>
-                            {report.status === 'resolved' && (
-                              <span className="text-xs bg-green-100 text-green-700 font-semibold px-2 py-1 rounded-full">
-                                ✅ טופל
-                              </span>
-                            )}
-                          </div>
-                          <span className="text-xs text-gray-400 shrink-0">
-                            {new Date(report.timestamp).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' })}
-                          </span>
-                        </div>
-
-                        <p className="font-bold text-gray-900 mb-1">{report.locationName}</p>
-                        {report.locationAddress && (
-                          <p className="text-xs text-gray-500 mb-2">📍 {report.locationAddress}</p>
-                        )}
-                        <p className="text-gray-800 text-sm bg-white border border-gray-200 rounded-lg p-3 mb-3">
-                          {report.description}
-                        </p>
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-gray-500">
-                            פקח: <strong>{report.inspectorName}</strong>
-                          </span>
-                          {report.status === 'open' && (
-                            <button
-                              onClick={() => markResolved(report.id)}
-                              className="bg-green-600 hover:bg-green-700 text-white text-xs font-semibold px-4 py-2 rounded-lg transition-colors"
-                            >
-                              ✅ סמן כטופל
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {activeTab === 'notifications' && (
-          <GeneralNotifications />
-        )}
-
-        {activeTab === 'whatsapp' && (
-          <WhatsAppDutyLinks />
-        )}
-
-        {activeTab === 'flows' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <h2 className="text-2xl font-bold text-gray-900 mb-6">נהלי תפעול</h2>
-
-            <div className="space-y-6">
-              {alertFlowsData.map((flow) => (
-                <div key={flow.id} className="border-2 border-gray-200 rounded-lg p-6">
-                  <h3 className="text-xl font-bold text-gray-900 mb-2">{flow.title}</h3>
-                  {flow.description && (
-                    <p className="text-gray-600 mb-4">{flow.description}</p>
-                  )}
-
-                  {flow.steps.length > 0 ? (
-                    <div className="space-y-3">
-                      <p className="font-semibold text-gray-900">
-                        {flow.steps.length} שלבים בנוהל:
-                      </p>
-                      {flow.steps.map((step, index) => (
-                        <div key={step.id} className="bg-gray-50 p-3 rounded">
-                          <div className="flex items-start gap-3">
-                            <span className="font-bold text-purple-600">
-                              {index + 1}.
-                            </span>
-                            <div className="flex-1">
-                              <p className="font-semibold text-gray-900">{step.label}</p>
-                              <p className="text-sm text-gray-600">
-                                סוג: {step.type === 'decision' ? 'החלטה' : 'פעולה'}
-                              </p>
-                              {step.criticalNote && (
-                                <p className="text-sm text-red-700 mt-1">
-                                  ⚠️ {step.criticalNote}
-                                </p>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-gray-500 italic">נוהל זה עדיין לא הוגדר</p>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 p-4 bg-blue-50 border-r-4 border-blue-500 rounded">
-              <p className="text-sm text-blue-800">
-                <strong>הערה:</strong> לעריכת נהלי תפעול, ערוך את הקובץ data/alertFlows.json בריפו
-              </p>
-            </div>
-          </div>
-        )}
+        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">⚡ כניסה מהירה לפי תפקיד</h2>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          {ROLE_VIEWS.map((role) => (
+            <button
+              key={role.href}
+              onClick={() => router.push(role.href)}
+              className={`${role.color} text-white rounded-xl p-3 sm:p-4 text-center transition-all active:scale-95 shadow-md hover:shadow-lg`}
+            >
+              <div className="text-2xl sm:text-3xl mb-1">{role.icon}</div>
+              <div className="text-sm font-bold leading-tight">{role.label}</div>
+              <div className="text-xs opacity-80 mt-0.5 hidden sm:block leading-tight">{role.desc}</div>
+            </button>
+          ))}
+        </div>
       </main>
     </div>
   );

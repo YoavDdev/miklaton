@@ -11,6 +11,9 @@ export default function CallCategoryManager() {
   const [showAddContact, setShowAddContact] = useState(false);
   const [editingContact, setEditingContact] = useState(null); // Contact being edited
   const [editingCategory, setEditingCategory] = useState(null); // Category being edited
+  const [vacationModal, setVacationModal] = useState(null); // { categoryId, contactId, contactName }
+  const [vacationForm, setVacationForm] = useState({ start: '', end: '', reason: 'חופש' });
+  const [savingVacation, setSavingVacation] = useState(false);
   
   // Form states
   const [categoryForm, setCategoryForm] = useState({
@@ -264,62 +267,58 @@ export default function CallCategoryManager() {
     });
   };
 
-  const sendOnVacation = async (categoryId, contactId, contactName) => {
-    const startDate = prompt('תאריך התחלת חופש (YYYY-MM-DD):');
-    if (!startDate) return;
-    
-    const endDate = prompt('תאריך סיום חופש (YYYY-MM-DD):');
-    if (!endDate) return;
-    
-    const reason = prompt('סיבה (אופציונלי):', 'חופש');
-    
+  const returnFromUnavailable = async (categoryId, contactId, contactName) => {
     try {
-      const response = await fetch(`/api/call-categories/${categoryId}/contacts/vacation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contact_id: contactId,
-          vacation_start: startDate,
-          vacation_end: endDate,
-          reason
-        })
+      const res = await fetch(`/api/call-categories/${categoryId}/contacts/unavailable?contact_id=${contactId}`, {
+        method: 'DELETE'
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('✅ כונן נשלח לחופש!');
-        loadCategories();
-      } else {
-        alert('❌ שגיאה: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error sending on vacation:', error);
-      alert('❌ שגיאה בשליחה לחופש');
+      const data = await res.json();
+      if (data.success) loadCategories();
+    } catch (err) {
+      console.error(err);
     }
   };
 
-  const returnFromVacation = async (categoryId, contactId, contactName) => {
-    if (!confirm(`האם להחזיר את ${contactName} מחופש?`)) {
-      return;
-    }
-    
+  const sendOnVacation = (categoryId, contactId, contactName) => {
+    setVacationModal({ categoryId, contactId, contactName });
+    setVacationForm({ start: '', end: '', reason: 'חופש' });
+  };
+
+  const confirmVacation = async () => {
+    if (!vacationModal || !vacationForm.start || !vacationForm.end) return;
+    setSavingVacation(true);
     try {
-      const response = await fetch(`/api/call-categories/${categoryId}/contacts/vacation?contact_id=${contactId}`, {
+      const res = await fetch(`/api/call-categories/${vacationModal.categoryId}/contacts/vacation`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contact_id: vacationModal.contactId,
+          vacation_start: vacationForm.start,
+          vacation_end: vacationForm.end,
+          reason: vacationForm.reason
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setVacationModal(null);
+        loadCategories();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setSavingVacation(false);
+    }
+  };
+
+  const returnFromVacation = async (categoryId, contactId) => {
+    try {
+      const res = await fetch(`/api/call-categories/${categoryId}/contacts/vacation?contact_id=${contactId}`, {
         method: 'DELETE'
       });
-      
-      const data = await response.json();
-      
-      if (data.success) {
-        alert('✅ כונן חזר מחופש!');
-        loadCategories();
-      } else {
-        alert('❌ שגיאה: ' + data.error);
-      }
-    } catch (error) {
-      console.error('Error returning from vacation:', error);
-      alert('❌ שגיאה בהחזרה מחופש');
+      const data = await res.json();
+      if (data.success) loadCategories();
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -420,6 +419,62 @@ export default function CallCategoryManager() {
           נהל את קטגוריות הפניות והכוננים המשויכים לכל קטגוריה
         </p>
       </div>
+
+      {/* ── Vacation Modal ── */}
+      {vacationModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-1">🏖️ חופש – {vacationModal.contactName}</h3>
+            <p className="text-sm text-gray-500 mb-5">הכונן לא יופיע למוקדן בטווח ההגדרה</p>
+            <div className="space-y-3 mb-5">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">מתאריך</label>
+                <input
+                  type="date"
+                  value={vacationForm.start}
+                  onChange={e => setVacationForm({...vacationForm, start: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">עד תאריך</label>
+                <input
+                  type="date"
+                  value={vacationForm.end}
+                  min={vacationForm.start}
+                  onChange={e => setVacationForm({...vacationForm, end: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">סיבה</label>
+                <input
+                  type="text"
+                  value={vacationForm.reason}
+                  onChange={e => setVacationForm({...vacationForm, reason: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="חופש, מחלה..."
+                />
+              </div>
+            </div>
+            <div className="flex gap-3">
+              <button
+                onClick={confirmVacation}
+                disabled={savingVacation || !vacationForm.start || !vacationForm.end}
+                className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 text-white rounded-xl font-bold text-sm transition-all"
+              >
+                🏖️ שלח לחופש
+              </button>
+              <button
+                onClick={() => setVacationModal(null)}
+                className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm"
+              >
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Add/Edit Category Modal */}
       {showAddCategory && (
@@ -726,6 +781,40 @@ export default function CallCategoryManager() {
         </div>
       )}
 
+      {/* ── לא זמינים כרגע ── */}
+      {(() => {
+        const unavailable = categories.flatMap(cat =>
+          (cat.contacts || []).filter(c => c.currently_unavailable).map(c => ({ ...c, categoryId: cat.id, categoryName: cat.name }))
+        );
+        if (unavailable.length === 0) return null;
+        return (
+          <div className="bg-red-50 border-2 border-red-300 rounded-xl p-4">
+            <h3 className="font-bold text-red-800 mb-3">📵 לא זמינים כרגע ({unavailable.length})</h3>
+            <div className="space-y-2">
+              {unavailable.map(c => (
+                <div key={c.id} className="flex items-center justify-between bg-white rounded-lg px-4 py-2 border border-red-200">
+                  <div>
+                    <span className="font-semibold text-gray-900">{c.external_name || c.contact?.name}</span>
+                    <span className="text-sm text-gray-500 mr-2">· {c.categoryName}</span>
+                    {c.unavailable_until && (
+                      <span className="text-xs text-red-600 mr-2">
+                        עד {new Date(c.unavailable_until).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => returnFromUnavailable(c.categoryId, c.id, c.external_name)}
+                    className="px-3 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-semibold"
+                  >
+                    ✅ החזר לזמינות
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Categories List */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {categories.map((category) => (
@@ -809,7 +898,8 @@ export default function CallCategoryManager() {
                                 )}
                                 {contact.currently_unavailable && (
                                   <span className="bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                                    ❌ לא זמין
+                                    📵 לא זמין
+                                    {contact.unavailable_until && ` עד ${new Date(contact.unavailable_until).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}`}
                                   </span>
                                 )}
                               </div>
@@ -838,6 +928,15 @@ export default function CallCategoryManager() {
                               >
                                 ✏️
                               </button>
+                              {contact.currently_unavailable ? (
+                                <button
+                                  onClick={() => returnFromUnavailable(category.id, contact.id, displayName)}
+                                  className="px-2 py-1 bg-green-100 hover:bg-green-200 text-green-700 rounded text-xs"
+                                  title="החזר לזמינות"
+                                >
+                                  ✅
+                                </button>
+                              ) : null}
                               {contact.on_vacation ? (
                                 <button
                                   onClick={() => returnFromVacation(category.id, contact.id, displayName)}

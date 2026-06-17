@@ -12,6 +12,7 @@ import ActiveEventBanner from '@/components/ActiveEventBanner';
 import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
 import DailyUpdatesPanel from '@/components/DailyUpdatesPanel';
+import CallGuide from '@/components/CallGuide';
 import { getMunicipalityId } from '@/lib/municipality';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
@@ -176,16 +177,26 @@ export default function OperatorPage() {
   const incidentFormUrl = process.env.NEXT_PUBLIC_INCIDENT_FORM_URL || '#';
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50" dir="rtl">
       <ActiveEventBanner />
-      {/* War Mode Banner Only */}
-      {warMode && (
-        <div className="bg-red-600 text-white shadow-lg">
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <div className="inline-flex items-center gap-2 bg-red-700 px-4 py-2 rounded-lg text-sm font-bold border-2 border-red-300">
-              🚨 מצב מלחמה פעיל - שלבי מקלטים והתקשרויות ידלגו
-            </div>
+
+      {/* ── Header ── */}
+      <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold">🎧 מוקד חירום</h1>
+          <div className="flex items-center gap-2">
+            {warMode && (
+              <span className="bg-red-600 border-2 border-red-400 animate-pulse text-white text-sm font-bold px-3 py-1.5 rounded-lg">
+                🚨 מצב מלחמה
+              </span>
+            )}
           </div>
+        </div>
+      </header>
+
+      {warMode && (
+        <div className="bg-red-600 text-white text-center py-2 text-sm font-bold">
+          🚨 מצב מלחמה פעיל – שלבי מקלטים והתקשרויות ידלגו אוטומטית
         </div>
       )}
 
@@ -245,27 +256,9 @@ export default function OperatorPage() {
           </div>
         </div>
 
-        {/* Call Guide Button */}
+        {/* Call Guide – inline */}
         <div className="mb-6">
-          <button
-            onClick={() => router.push('/operator/call-guide')}
-            className="w-full bg-gradient-to-l from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl shadow-lg p-6 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="bg-white/20 rounded-full p-3">
-                  <span className="text-3xl">📋</span>
-                </div>
-                <div className="text-right">
-                  <h3 className="text-xl font-bold mb-1">מדריך פניות למוקדן</h3>
-                  <p className="text-indigo-100 text-sm">
-                    למי להתקשר לפי סוג הפנייה • חיפוש מהיר • הוראות ברורות
-                  </p>
-                </div>
-              </div>
-              <div className="text-3xl text-white/80">◀</div>
-            </div>
-          </button>
+          <CallGuide />
         </div>
 
         {/* Daily Updates - NEW */}
@@ -331,20 +324,20 @@ export default function OperatorPage() {
             </div>
 
             {/* Ekron Link - Compact */}
-            <div className="mt-4 bg-gradient-to-r from-purple-600 to-purple-700 rounded-xl shadow-lg p-4">
+            <div className="mt-4 bg-gradient-to-l from-slate-700 to-slate-800 rounded-xl shadow-lg p-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <span className="text-3xl">📞</span>
+                  <span className="text-3xl">�️</span>
                   <div>
                     <p className="font-bold text-white">קריאה מתושב</p>
-                    <p className="text-purple-100 text-sm">טיל / לכוד / פצוע / מידע חירום</p>
+                    <p className="text-slate-300 text-sm">טיל / לכוד / פצוע / מידע חירום</p>
                   </div>
                 </div>
                 <a
                   href={ekronUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="bg-white text-purple-700 hover:bg-purple-50 font-bold py-2 px-5 rounded-lg transition-colors shadow-md"
+                  className="bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold py-2 px-5 rounded-lg transition-colors"
                 >
                   פתח Ekron →
                 </a>
@@ -393,11 +386,11 @@ export default function OperatorPage() {
         <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
           <button
             onClick={() => setShowDutyRoster(!showDutyRoster)}
-            className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 transition-colors"
+            className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-l from-slate-700 to-slate-800 hover:from-slate-600 transition-colors"
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">📅</span>
-              <span className="text-lg font-bold text-white">ניהול כוננויות שבועיות</span>
+              <span className="text-lg font-bold text-white">לוח כוננויות שבועי</span>
             </div>
             <div className="flex items-center gap-3">
               <div
