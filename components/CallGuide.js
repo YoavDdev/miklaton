@@ -60,7 +60,7 @@ export default function CallGuide({ compact = false }) {
 
   // Sync selectedCategory when categories reload (to reflect hidden contacts)
   const openCategory = (cat) => setSelectedCategory(cat);
-  const closeCategory = () => setSelectedCategory(null);
+  const closeCategory = () => { setSelectedCategory(null); setHiddenContacts([]); };
 
   if (loading) {
     return (
@@ -119,8 +119,12 @@ export default function CallGuide({ compact = false }) {
       {/* ── Contact panel (slide-up overlay) ── */}
       {selectedCategory && (() => {
         const cat = selectedCategory;
-        const callableContacts = (cat.contacts || [])
-          .filter(c => !hiddenContacts.includes(c.id) && (c.external_phone || c.contact?.phone));
+        const allCallable = (cat.contacts || [])
+          .filter(c => c.external_phone || c.contact?.phone);
+        const callableContacts = [
+          ...allCallable.filter(c => !hiddenContacts.includes(c.id)),
+          ...allCallable.filter(c => hiddenContacts.includes(c.id)),
+        ];
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
             <div className="absolute inset-0 bg-black/50" onClick={closeCategory} />
@@ -151,38 +155,69 @@ export default function CallGuide({ compact = false }) {
                     <p className="text-sm">אין כוננים זמינים כרגע</p>
                   </div>
                 ) : (
-                  <div className="divide-y divide-gray-100">
+                  <div>
                     {callableContacts.map((contact, idx) => {
                       const name = contact.external_name || contact.contact?.name || 'לא ידוע';
                       const phone = contact.external_phone || contact.contact?.phone;
                       const role = contact.external_role || contact.contact?.role_description;
-                      const isFirst = idx === 0;
-                      return (
-                        <div key={contact.id || idx} className={`px-4 py-3.5 ${isFirst ? 'bg-emerald-50/60' : ''}`}>
-                          <div className="flex items-center justify-between gap-3">
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-0.5">
-                                {isFirst && <span className="text-xs bg-emerald-600 text-white px-1.5 py-0.5 rounded font-bold shrink-0">ראשון</span>}
-                                <span className="font-semibold text-gray-900 text-sm truncate">{name}</span>
-                              </div>
-                              {role && <p className="text-xs text-gray-400">{role}</p>}
-                              {contact.notes_for_operator && <p className="text-xs text-amber-600 mt-0.5">💡 {contact.notes_for_operator}</p>}
+                      const isUnavailable = hiddenContacts.includes(contact.id);
+                      const activeContacts = callableContacts.filter(c => !hiddenContacts.includes(c.id));
+                      const isFirst = !isUnavailable && activeContacts[0]?.id === contact.id;
+
+                      if (isFirst) {
+                        return (
+                          <div key={contact.id || idx} className="bg-emerald-50 border-b-2 border-emerald-200 px-5 py-5">
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="bg-emerald-600 text-white text-xs font-bold px-2.5 py-1 rounded-full">📞 להתקשר עכשיו</span>
                             </div>
-                            <div className="flex items-center gap-1.5 shrink-0">
-                              <a
-                                href={`tel:${phone}`}
-                                className={`text-xs font-bold px-3 py-2 rounded-lg text-white transition-colors ${isFirst ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-700 hover:bg-slate-800'}`}
-                              >
-                                {phone}
+                            <div className="mb-3">
+                              <p className="text-xl font-bold text-gray-900">{name}</p>
+                              {role && <p className="text-sm text-gray-500 mt-0.5">{role}</p>}
+                              {contact.notes_for_operator && <p className="text-sm text-amber-700 mt-1 font-medium">💡 {contact.notes_for_operator}</p>}
+                            </div>
+                            <div className="flex gap-2">
+                              <a href={`tel:${phone}`} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-3 rounded-xl text-base transition-colors">
+                                📞 {phone}
                               </a>
-                              <button onClick={() => copyPhone(phone)} className="w-8 h-8 flex items-center justify-center bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition-colors" title="העתק">
+                              <button onClick={() => copyPhone(phone)} className="w-12 h-12 flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-lg transition-colors" title="העתק">
                                 {copiedPhone === phone ? '✓' : '📋'}
                               </button>
-                              <button onClick={() => markUnavailable(contact.id)} className="w-8 h-8 flex items-center justify-center bg-red-50 hover:bg-red-100 text-red-400 hover:text-red-600 rounded-lg text-sm transition-colors" title="לא ענה">
-                                📵
-                              </button>
                             </div>
+                            <button
+                              onClick={() => markUnavailable(contact.id)}
+                              className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 font-semibold py-2.5 rounded-xl text-sm transition-colors"
+                            >
+                              ❌ לא ענה – עבור לבא בתור
+                            </button>
                           </div>
+                        );
+                      }
+
+                      if (isUnavailable) {
+                        return (
+                          <div key={contact.id || idx} className="px-5 py-3 border-b border-gray-100 bg-gray-50 flex items-center justify-between gap-3 opacity-60">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs bg-red-100 text-red-500 font-semibold px-2 py-0.5 rounded-full shrink-0">לא ענה</span>
+                                <span className="text-sm font-medium text-gray-500 truncate line-through">{name}</span>
+                              </div>
+                              {role && <p className="text-xs text-gray-400 mt-0.5">{role}</p>}
+                            </div>
+                            <span className="text-xs text-gray-400 shrink-0">{phone}</span>
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div key={contact.id || idx} className="px-5 py-3 border-b border-gray-100 opacity-50 flex items-center justify-between gap-3">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs text-gray-400 font-medium shrink-0">שלב {idx + 1}</span>
+                              <span className="text-sm font-medium text-gray-600 truncate">{name}</span>
+                            </div>
+                            {role && <p className="text-xs text-gray-400 mt-0.5 mr-10">{role}</p>}
+                          </div>
+                          <span className="text-xs text-gray-400 shrink-0">{phone}</span>
                         </div>
                       );
                     })}
