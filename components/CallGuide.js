@@ -10,7 +10,7 @@ export default function CallGuide({ compact = false }) {
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [hiddenContacts, setHiddenContacts] = useState([]);
+  const [missedCounts, setMissedCounts] = useState({});
 
   useEffect(() => { loadCategories(); }, []);
 
@@ -54,13 +54,15 @@ export default function CallGuide({ compact = false }) {
     setTimeout(() => setCopiedPhone(null), 2000);
   };
 
+  const MISSED_THRESHOLD = 3;
+
   const markUnavailable = (contactId) => {
-    setHiddenContacts(prev => [...prev, contactId]);
+    setMissedCounts(prev => ({ ...prev, [contactId]: (prev[contactId] || 0) + 1 }));
   };
 
   // Sync selectedCategory when categories reload (to reflect hidden contacts)
   const openCategory = (cat) => setSelectedCategory(cat);
-  const closeCategory = () => { setSelectedCategory(null); setHiddenContacts([]); };
+  const closeCategory = () => { setSelectedCategory(null); setMissedCounts({}); };
 
   if (loading) {
     return (
@@ -97,7 +99,7 @@ export default function CallGuide({ compact = false }) {
       <div className="p-3 pb-4">
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
           {filteredCategories.map(cat => {
-            const visibleCount = (cat.contacts || []).filter(c => !hiddenContacts.includes(c.id) && (c.external_phone || c.contact?.phone)).length;
+            const visibleCount = (cat.contacts || []).filter(c => (c.external_phone || c.contact?.phone)).length;
             return (
               <button
                 key={cat.id}
@@ -122,8 +124,8 @@ export default function CallGuide({ compact = false }) {
         const allCallable = (cat.contacts || [])
           .filter(c => c.external_phone || c.contact?.phone);
         const callableContacts = [
-          ...allCallable.filter(c => !hiddenContacts.includes(c.id)),
-          ...allCallable.filter(c => hiddenContacts.includes(c.id)),
+          ...allCallable.filter(c => (missedCounts[c.id] || 0) < MISSED_THRESHOLD),
+          ...allCallable.filter(c => (missedCounts[c.id] || 0) >= MISSED_THRESHOLD),
         ];
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
@@ -160,8 +162,9 @@ export default function CallGuide({ compact = false }) {
                       const name = contact.external_name || contact.contact?.name || 'לא ידוע';
                       const phone = contact.external_phone || contact.contact?.phone;
                       const role = contact.external_role || contact.contact?.role_description;
-                      const isUnavailable = hiddenContacts.includes(contact.id);
-                      const activeContacts = callableContacts.filter(c => !hiddenContacts.includes(c.id));
+                      const missedCount = missedCounts[contact.id] || 0;
+                      const isUnavailable = missedCount >= MISSED_THRESHOLD;
+                      const activeContacts = callableContacts.filter(c => (missedCounts[c.id] || 0) < MISSED_THRESHOLD);
                       const isFirst = !isUnavailable && activeContacts[0]?.id === contact.id;
 
                       if (isFirst) {
@@ -187,7 +190,9 @@ export default function CallGuide({ compact = false }) {
                               onClick={() => markUnavailable(contact.id)}
                               className="mt-2 w-full flex items-center justify-center gap-2 bg-white border border-red-200 hover:bg-red-50 text-red-600 font-semibold py-2.5 rounded-xl text-sm transition-colors"
                             >
-                              ❌ לא ענה – עבור לבא בתור
+                              {missedCount === 0 && '❌ לא ענה – לחץ 3 פעמים לעבור לבא'}
+                              {missedCount === 1 && '❌ לא ענה (1/3)'}
+                              {missedCount === 2 && '❌ לא ענה (2/3) – לחץ עוד פעם לעבור'}
                             </button>
                           </div>
                         );
