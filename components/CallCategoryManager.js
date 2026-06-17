@@ -14,6 +14,10 @@ export default function CallCategoryManager() {
   const [vacationModal, setVacationModal] = useState(null); // { categoryId, contactId, contactName }
   const [vacationForm, setVacationForm] = useState({ start: '', end: '', reason: 'חופש' });
   const [savingVacation, setSavingVacation] = useState(false);
+  const [phonebookContacts, setPhonebookContacts] = useState([]);
+  const [nameSearch, setNameSearch] = useState('');
+  const [nameSuggestions, setNameSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   
   // Form states
   const [categoryForm, setCategoryForm] = useState({
@@ -45,7 +49,59 @@ export default function CallCategoryManager() {
 
   useEffect(() => {
     loadCategories();
+    loadPhonebook();
   }, []);
+
+  const loadPhonebook = async () => {
+    try {
+      const res = await fetch('/api/contacts');
+      const data = await res.json();
+      if (data.success) setPhonebookContacts(data.data || []);
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleNameSearchChange = (value) => {
+    setNameSearch(value);
+    setContactForm(f => ({ ...f, external_name: value }));
+    if (value.length < 2) { setNameSuggestions([]); setShowSuggestions(false); return; }
+    const matches = phonebookContacts.filter(c =>
+      c.full_name?.toLowerCase().includes(value.toLowerCase())
+    ).slice(0, 6);
+    setNameSuggestions(matches);
+    setShowSuggestions(matches.length > 0);
+  };
+
+  const selectFromPhonebook = (contact) => {
+    setNameSearch(contact.full_name);
+    setContactForm(f => ({
+      ...f,
+      external_name: contact.full_name,
+      external_phone: contact.phone || f.external_phone,
+      external_role: contact.role || f.external_role,
+    }));
+    setShowSuggestions(false);
+  };
+
+  const saveToPhonebook = async () => {
+    if (!contactForm.external_name || !contactForm.external_phone) return;
+    try {
+      const res = await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          full_name: contactForm.external_name,
+          phone: contactForm.external_phone,
+          role: contactForm.external_role || '',
+        })
+      });
+      const data = await res.json();
+      if (data.success) loadPhonebook();
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   const loadCategories = async () => {
     try {
@@ -253,6 +309,9 @@ export default function CallCategoryManager() {
   };
 
   const resetContactForm = () => {
+    setNameSearch('');
+    setNameSuggestions([]);
+    setShowSuggestions(false);
     setContactForm({
       external_name: '',
       external_phone: '',
@@ -582,26 +641,56 @@ export default function CallCategoryManager() {
                 {editingContact ? '✏️ עריכת כונן' : '➕ הוספת כונן'} ב-{selectedCategory.name}
               </h3>
               <form onSubmit={editingContact ? handleUpdateContact : handleAddContact} className="space-y-4">
-                <div>
+                <div className="relative">
                   <label className="block text-sm font-semibold mb-1">שם הכונן *</label>
                   <input
                     type="text"
-                    value={contactForm.external_name}
-                    onChange={(e) => setContactForm({...contactForm, external_name: e.target.value})}
+                    value={nameSearch || contactForm.external_name}
+                    onChange={e => handleNameSearchChange(e.target.value)}
+                    onFocus={() => nameSearch.length >= 2 && setShowSuggestions(nameSuggestions.length > 0)}
+                    onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
                     className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="חפש בספר הטלפונים..."
                     required
                   />
+                  {showSuggestions && (
+                    <div className="absolute z-50 w-full bg-white border border-gray-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
+                      {nameSuggestions.map(c => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => selectFromPhonebook(c)}
+                          className="w-full text-right px-3 py-2.5 hover:bg-blue-50 flex items-center justify-between border-b border-gray-100 last:border-0"
+                        >
+                          <span className="font-semibold text-sm text-gray-900">{c.full_name}</span>
+                          <span className="text-xs text-gray-500">{c.phone}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                
+
                 <div>
                   <label className="block text-sm font-semibold mb-1">טלפון</label>
-                  <input
-                    type="text"
-                    value={contactForm.external_phone}
-                    onChange={(e) => setContactForm({...contactForm, external_phone: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg"
-                    placeholder="050-1234567"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={contactForm.external_phone}
+                      onChange={(e) => setContactForm({...contactForm, external_phone: e.target.value})}
+                      className="flex-1 px-3 py-2 border rounded-lg"
+                      placeholder="050-1234567"
+                    />
+                    {contactForm.external_name && contactForm.external_phone && !phonebookContacts.some(c => c.phone === contactForm.external_phone) && (
+                      <button
+                        type="button"
+                        onClick={saveToPhonebook}
+                        className="px-3 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-xs font-semibold whitespace-nowrap"
+                        title="שמור בספר הטלפונים"
+                      >
+                        💾 שמור בספר
+                      </button>
+                    )}
+                  </div>
                 </div>
                 
                 <div>
