@@ -1,9 +1,18 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
 export default function Home() {
   const router = useRouter();
+
+  useEffect(() => {
+    // Detect Supabase recovery token in hash and redirect to reset-password page
+    const hash = window.location.hash;
+    if (hash && hash.includes('type=recovery')) {
+      router.replace('/reset-password' + hash);
+    }
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-900 via-blue-800 to-purple-900 flex flex-col items-center justify-center p-4 sm:p-6" dir="rtl">

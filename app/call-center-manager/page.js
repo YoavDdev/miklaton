@@ -6,6 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import OnCallManagerNew from '@/components/OnCallManagerNew';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import SurveyManager from '@/components/SurveyManager';
+import CallCategoryManager from '@/components/CallCategoryManager';
 
 export default function CallCenterManagerPage() {
   const router = useRouter();
@@ -428,14 +429,14 @@ export default function CallCenterManagerPage() {
                 📋 משימות פתוחות
               </button>
               <button
-                onClick={() => setActiveTab('shifts')}
+                onClick={() => setActiveTab('emergency-shifts')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
-                  activeTab === 'shifts'
+                  activeTab === 'emergency-shifts'
                     ? 'border-pink-600 text-pink-600'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                🕐 משמרות כוננים
+                🚨 כוננות חירום
               </button>
               <button
                 onClick={() => setActiveTab('messages')}
@@ -456,6 +457,16 @@ export default function CallCenterManagerPage() {
                 }`}
               >
                 📊 סקרים
+              </button>
+              <button
+                onClick={() => setActiveTab('call-categories')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'call-categories'
+                    ? 'border-pink-600 text-pink-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                📋 קטגוריות פניות
               </button>
             </nav>
           </div>
@@ -612,14 +623,19 @@ export default function CallCenterManagerPage() {
           </div>
         )}
 
-        {/* Tab Content - Shifts */}
-        {activeTab === 'shifts' && (
+        {/* Tab Content - Emergency Shifts */}
+        {activeTab === 'emergency-shifts' && (
           <OnCallManagerNew />
         )}
 
         {/* Tab Content - Surveys */}
         {activeTab === 'surveys' && (
           <SurveyManager />
+        )}
+
+        {/* Tab Content - Call Categories */}
+        {activeTab === 'call-categories' && (
+          <CallCategoryManager />
         )}
 
         {/* Tab Content - Messages & Announcements */}

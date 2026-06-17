@@ -11,6 +11,8 @@ import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
+import DailyUpdatesPanel from '@/components/DailyUpdatesPanel';
+import { getMunicipalityId } from '@/lib/municipality';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -241,6 +243,34 @@ export default function OperatorPage() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Call Guide Button */}
+        <div className="mb-6">
+          <button
+            onClick={() => router.push('/operator/call-guide')}
+            className="w-full bg-gradient-to-l from-indigo-500 to-purple-600 hover:from-indigo-600 hover:to-purple-700 text-white rounded-xl shadow-lg p-6 transition-all transform hover:scale-[1.02] active:scale-[0.98]"
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="bg-white/20 rounded-full p-3">
+                  <span className="text-3xl">📋</span>
+                </div>
+                <div className="text-right">
+                  <h3 className="text-xl font-bold mb-1">מדריך פניות למוקדן</h3>
+                  <p className="text-indigo-100 text-sm">
+                    למי להתקשר לפי סוג הפנייה • חיפוש מהיר • הוראות ברורות
+                  </p>
+                </div>
+              </div>
+              <div className="text-3xl text-white/80">◀</div>
+            </div>
+          </button>
+        </div>
+
+        {/* Daily Updates - NEW */}
+        <div className="mb-6">
+          <DailyUpdatesPanel canEdit={true} />
         </div>
 
         {/* Main Action Area - Emergency Response */}
