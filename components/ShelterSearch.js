@@ -232,7 +232,7 @@ export default function ShelterSearch({ compact = false }) {
             {streetSuggestions.slice(0, 4).map((street, index) => (
               <button
                 key={index}
-                onClick={() => handleStreetSelect(street)}
+                onClick={() => selectStreet(street)}
                 className={`w-full text-right px-3 py-2 text-sm hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-0 ${
                   index === selectedIndex ? 'bg-blue-50' : ''
                 }`}
