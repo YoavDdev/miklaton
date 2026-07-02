@@ -23,7 +23,7 @@ function formatDateForDB(date) {
 }
 
 export default function ScreenPage() {
-  const [zoom, setZoom] = useState(2);
+  const [zoom, setZoom] = useState(1.5);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -264,7 +264,7 @@ export default function ScreenPage() {
 
   return (
     <div
-      className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white"
+      className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden"
       dir="rtl"
       style={{ zoom }}
     >
@@ -342,14 +342,14 @@ export default function ScreenPage() {
         </div>
       </header>
 
-      <main className="max-w-screen-2xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <main className="flex-1 max-w-screen-2xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
         
         {/* Left Column - Notifications */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
           
           {/* Urgent Notifications */}
           {urgentNotifs.length > 0 && (
-            <div className="space-y-3">
+            <div className="flex flex-col gap-3 shrink-0">
               {urgentNotifs.map(n => (
                 <div key={n.id} className="bg-red-900/60 border-2 border-red-500 rounded-xl p-5 animate-pulse">
                   <div className="flex items-start gap-3">
@@ -367,12 +367,12 @@ export default function ScreenPage() {
 
           {/* Regular Notifications */}
           {regularNotifs.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center gap-2">
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0">
+              <div className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center gap-2 shrink-0">
                 <span className="text-xl">📢</span>
                 <h2 className="font-bold text-lg">הודעות והנחיות</h2>
               </div>
-              <div className="divide-y divide-white/5">
+              <div className="divide-y divide-white/5 overflow-y-auto">
                 {regularNotifs.map(n => (
                   <div key={n.id} className="px-5 py-4 hover:bg-white/5 transition-colors">
                     <div className="flex items-start justify-between">
@@ -421,11 +421,11 @@ export default function ScreenPage() {
         </div>
 
         {/* Right Column - Security Status */}
-        <div className="space-y-4">
+        <div className="flex flex-col gap-4 min-h-0">
 
           {/* Security Field Status */}
-          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-            <div className="px-5 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2">
+          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0">
+            <div className="px-5 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2 shrink-0">
               <span className="text-xl">🛡️</span>
               <h2 className="font-bold">ביטחון - כרגע בשטח</h2>
               <span className="mr-auto text-xs text-green-400 bg-green-900/50 px-2 py-0.5 rounded-full">
@@ -434,7 +434,7 @@ export default function ScreenPage() {
             </div>
             
             {activeSecurityNow.length > 0 ? (
-              <div className="p-3 space-y-2">
+              <div className="p-3 space-y-2 overflow-y-auto">
                 {activeSecurityNow.map((entry, idx) => (
                   <div key={idx} className="bg-green-900/20 border border-green-800/50 rounded-lg px-4 py-3 flex items-center gap-3">
                     <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shrink-0"></div>
