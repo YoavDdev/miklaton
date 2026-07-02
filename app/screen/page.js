@@ -23,7 +23,7 @@ function formatDateForDB(date) {
 }
 
 export default function ScreenPage() {
-  const [zoom, setZoom] = useState(1);
+  const [zoom, setZoom] = useState(2);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
