@@ -441,8 +441,14 @@ export default function ScreenPage() {
                 ))}
               </div>
             ) : (
-              <div className="p-6 text-center text-gray-500 text-sm">
-                אין נתוני משמרת כרגע
+              <div className="p-6 text-center">
+                <div className="text-3xl mb-2">⚠️</div>
+                <div className="text-red-400 font-bold text-sm mb-1">
+                  לוודא מול מנהל שמשמרות מודכנות
+                </div>
+                <div className="text-gray-500 text-xs">
+                  אין נתוני משמרת כרגע
+                </div>
               </div>
             )}
           </div>
