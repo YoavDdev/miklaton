@@ -13,6 +13,7 @@ import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
 import DailyUpdatesPanel from '@/components/DailyUpdatesPanel';
 import CallGuide from '@/components/CallGuide';
+import SecurityFieldStatus from '@/components/SecurityFieldStatus';
 import { getMunicipalityId } from '@/lib/municipality';
 import alertFlowsData from '@/data/alertFlows.json';
 import sheltersData from '@/data/shelters.json';
@@ -230,6 +231,9 @@ export default function OperatorPage() {
       )}
 
       <main className="max-w-7xl mx-auto px-4 py-6">
+        {/* Security Field Status */}
+        <SecurityFieldStatus />
+
         {/* Collapsible Info Section - Tasks & Notifications */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
           {/* Tasks Summary Card */}

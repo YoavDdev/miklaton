@@ -9,6 +9,7 @@ import ActiveEventBanner from '@/components/ActiveEventBanner';
 import SurveyManager from '@/components/SurveyManager';
 import CallCategoryManager from '@/components/CallCategoryManager';
 import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
+import SecurityFieldStatus from '@/components/SecurityFieldStatus';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -437,6 +438,9 @@ export default function CallCenterManagerPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
+        {/* Security Field Status */}
+        <SecurityFieldStatus />
+
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
