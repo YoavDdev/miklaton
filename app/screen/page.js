@@ -30,6 +30,7 @@ function getIsraelTime(date = new Date()) {
 export default function ScreenPage() {
   const [zoom, setZoom] = useState(1.5);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [timeOffset, setTimeOffset] = useState(0);
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [securityEntries, setSecurityEntries] = useState([]);
@@ -39,12 +40,12 @@ export default function ScreenPage() {
   const [weather, setWeather] = useState(null);
   const [securityDeptId, setSecurityDeptId] = useState(null);
 
-  // Live clock - Israel time
+  // Live clock - Israel time with NTP offset correction
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(getIsraelTime()), 1000);
-    setCurrentTime(getIsraelTime());
+    const timer = setInterval(() => setCurrentTime(getIsraelTime(new Date(Date.now() + timeOffset))), 1000);
+    setCurrentTime(getIsraelTime(new Date(Date.now() + timeOffset)));
     return () => clearInterval(timer);
-  }, []);
+  }, [timeOffset]);
 
   // Read zoom from URL
   useEffect(() => {
@@ -54,6 +55,31 @@ export default function ScreenPage() {
     if (!isNaN(z) && z > 0.5 && z <= 3) {
       setZoom(z);
     }
+  }, []);
+
+  // Sync accurate time from NTP API on mount
+  useEffect(() => {
+    const syncTime = async () => {
+      try {
+        const start = Date.now();
+        const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Jerusalem');
+        const end = Date.now();
+        if (!res.ok) return;
+        const data = await res.json();
+        const serverTime = new Date(data.utc_datetime).getTime();
+        const roundTrip = (end - start) / 2;
+        const estimatedServerNow = serverTime + roundTrip;
+        const offset = estimatedServerNow - end;
+        setTimeOffset(offset);
+      } catch (err) {
+        // Fallback: use browser time
+        setTimeOffset(0);
+      }
+    };
+    syncTime();
+    // Resync every 5 minutes
+    const interval = setInterval(syncTime, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Initial load
