@@ -22,6 +22,11 @@ function formatDateForDB(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+// Get current time in Israel timezone (Asia/Jerusalem) regardless of browser settings
+function getIsraelTime(date = new Date()) {
+  return new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+}
+
 export default function ScreenPage() {
   const [zoom, setZoom] = useState(1.5);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -34,9 +39,10 @@ export default function ScreenPage() {
   const [weather, setWeather] = useState(null);
   const [securityDeptId, setSecurityDeptId] = useState(null);
 
-  // Live clock
+  // Live clock - Israel time
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    const timer = setInterval(() => setCurrentTime(getIsraelTime()), 1000);
+    setCurrentTime(getIsraelTime());
     return () => clearInterval(timer);
   }, []);
 
@@ -291,18 +297,18 @@ export default function ScreenPage() {
       )}
 
       {/* Header - Time & Date */}
-      <header className={`px-6 py-4 border-b ${isCemeteryReminderActive ? 'bg-red-900/40 border-red-500/50' : 'border-white/10'}`}>
-        <div className="max-w-screen-2xl mx-auto flex items-center justify-between">
+      <header className={`px-8 py-4 border-b ${isCemeteryReminderActive ? 'bg-red-900/40 border-red-500/50' : 'border-white/10'}`}>
+        <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className={`text-5xl font-black tracking-tight font-mono ${isCemeteryReminderActive ? 'text-red-400 animate-pulse' : ''}`}>
-              {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jerusalem' })}
             </div>
             <div className="border-r border-white/20 pr-6">
               <div className="text-lg font-bold">
                 יום {DAYS_HEB[currentTime.getDay()]}
               </div>
               <div className="text-sm text-gray-300">
-                {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+                {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jerusalem' })}
               </div>
             </div>
           </div>
@@ -342,7 +348,7 @@ export default function ScreenPage() {
         </div>
       </header>
 
-      <main className="flex-1 max-w-screen-2xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
+      <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
         
         {/* Left Column - Notifications */}
         <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
@@ -381,7 +387,7 @@ export default function ScreenPage() {
                         <p className="text-gray-300 text-sm mt-1">{n.message}</p>
                       </div>
                       <span className="text-xs text-gray-500 whitespace-nowrap mr-4">
-                        {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' })}
                       </span>
                     </div>
                   </div>
