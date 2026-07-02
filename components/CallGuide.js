@@ -156,7 +156,40 @@ export default function CallGuide({ compact = false }) {
                     <span className="text-3xl mb-2">📵</span>
                     <p className="text-sm">אין כוננים זמינים כרגע</p>
                   </div>
+                ) : cat.escalation_type === 'parallel' ? (
+                  // ── PARALLEL MODE: כולם ביחד ──
+                  <div>
+                    <div className="bg-emerald-50 border-b border-emerald-100 px-4 py-2 flex items-center gap-2">
+                      <span className="text-xs bg-emerald-600 text-white font-bold px-2 py-0.5 rounded-full">📢 התקשר לכולם</span>
+                      <span className="text-xs text-emerald-700">{callableContacts.length} כוננים זמינים</span>
+                    </div>
+                    {callableContacts.map((contact, idx) => {
+                      const name = contact.external_name || contact.contact?.name || 'לא ידוע';
+                      const phone = contact.external_phone || contact.contact?.phone;
+                      const role = contact.external_role || contact.contact?.role_description;
+                      return (
+                        <div key={contact.id || idx} className="px-4 py-3 border-b border-gray-100">
+                          <div className="flex items-start justify-between gap-3 mb-2">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-gray-900 text-base">{name}</p>
+                              {role && <p className="text-xs text-gray-500 mt-0.5">{role}</p>}
+                              {contact.notes_for_operator && <p className="text-xs text-amber-700 mt-1 font-medium">💡 {contact.notes_for_operator}</p>}
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <a href={`tel:${phone}`} className="flex-1 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-bold py-2.5 rounded-xl text-sm transition-colors">
+                              📞 {phone}
+                            </a>
+                            <button onClick={() => copyPhone(phone)} className="w-10 h-10 flex items-center justify-center bg-white border border-gray-200 hover:bg-gray-50 rounded-xl text-base transition-colors" title="העתק">
+                              {copiedPhone === phone ? '✓' : '📋'}
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 ) : (
+                  // ── SEQUENTIAL MODE: לפי סדר ──
                   <div>
                     {callableContacts.map((contact, idx) => {
                       const name = contact.external_name || contact.contact?.name || 'לא ידוע';

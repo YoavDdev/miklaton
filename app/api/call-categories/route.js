@@ -34,6 +34,23 @@ export async function GET(request) {
 
     if (catError) throw catError;
 
+    // Fetch shabbat times if filtering by current availability
+    let shabbatTimes = null;
+    if (currentTimeOnly) {
+      try {
+        const shabbatRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/shabbat-times`);
+        const shabbatData = await shabbatRes.json();
+        if (shabbatData.success) {
+          shabbatTimes = {
+            candleLighting: new Date(shabbatData.candleLighting),
+            havdalah: new Date(shabbatData.havdalah),
+          };
+        }
+      } catch (e) {
+        console.error('Failed to fetch shabbat times:', e);
+      }
+    }
+
     // For each category, get contacts, rules, and subcategories
     const categoriesWithDetails = await Promise.all(
       categories.map(async (category) => {
@@ -100,6 +117,27 @@ export async function GET(request) {
                 if (!(currentTime >= startTime && currentTime <= endTime)) {
                   return false;
                 }
+              }
+            }
+
+            // Check shabbat observer - unavailable during shabbat
+            // except 2 hours before candle lighting and 2 hours after havdalah
+            if (contact.shabbat_observer && shabbatTimes) {
+              const { candleLighting, havdalah } = shabbatTimes;
+              const windowBefore = new Date(candleLighting.getTime() - 2 * 60 * 60 * 1000);
+              const windowAfter = new Date(havdalah.getTime() + 2 * 60 * 60 * 1000);
+
+              const isShabbat = now >= candleLighting && now <= havdalah;
+              const isBeforeWindow = now >= windowBefore && now < candleLighting;
+              const isAfterWindow = now > havdalah && now <= windowAfter;
+
+              // During shabbat itself → unavailable (unless in the 2h after window)
+              if (isShabbat && !isAfterWindow) return false;
+              // Outside the 2h-before and 2h-after windows on shabbat day → unavailable
+              if (!isBeforeWindow && !isAfterWindow && !isShabbat) {
+                // Check if it's Friday after candle-lighting window or Saturday before havdalah window
+                const dayOfWeek = now.getDay();
+                if (dayOfWeek === 5 && now >= candleLighting) return false; // Friday after candles
               }
             }
 
@@ -216,7 +254,8 @@ export async function POST(request) {
       warning,
       auto_message,
       additional_info,
-      display_order
+      display_order,
+      escalation_type
     } = body;
 
     if (!municipality_id || !name) {
@@ -238,6 +277,7 @@ export async function POST(request) {
         auto_message,
         additional_info,
         display_order: display_order || 0,
+        escalation_type: escalation_type || 'sequential',
         active: true
       })
       .select()

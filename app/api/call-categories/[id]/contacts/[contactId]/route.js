@@ -28,6 +28,7 @@ export async function PUT(request, { params }) {
         priority_order: body.priority_order,
         contact_type: body.contact_type,
         notes_for_operator: body.notes_for_operator,
+        shabbat_observer: body.shabbat_observer || false,
         updated_at: new Date().toISOString()
       })
       .eq('id', contactId)

@@ -33,7 +33,8 @@ export async function POST(request, { params }) {
       available_hours_end,
       priority_order,
       contact_type,
-      notes_for_operator
+      notes_for_operator,
+      shabbat_observer
     } = body;
 
     if (!escalation_order) {
@@ -57,6 +58,7 @@ export async function POST(request, { params }) {
       priority_order: priority_order || escalation_order,
       contact_type: contact_type || 'escalation',
       notes_for_operator: notes_for_operator || null,
+      shabbat_observer: shabbat_observer || false,
       available_days: available_days?.length > 0 ? available_days : null,
       available_hours_start: available_hours_start || null,
       available_hours_end: available_hours_end || null,

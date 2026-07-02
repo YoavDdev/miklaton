@@ -28,7 +28,8 @@ export default function CallCategoryManager() {
     warning: '',
     auto_message: '',
     additional_info: '',
-    display_order: 0
+    display_order: 0,
+    escalation_type: 'sequential'
   });
 
   const [contactForm, setContactForm] = useState({
@@ -44,7 +45,8 @@ export default function CallCategoryManager() {
     available_hours_end: '',
     priority_order: 1, // Priority within time slot
     contact_type: 'escalation', // 'escalation' or 'notification'
-    notes_for_operator: '' // Special instructions for operator
+    notes_for_operator: '', // Special instructions for operator
+    shabbat_observer: false
   });
 
   useEffect(() => {
@@ -181,7 +183,8 @@ export default function CallCategoryManager() {
       warning: category.warning || '',
       auto_message: category.auto_message || '',
       additional_info: category.additional_info || '',
-      display_order: category.display_order || 0
+      display_order: category.display_order || 0,
+      escalation_type: category.escalation_type || 'sequential'
     });
     
     setEditingCategory(category);
@@ -304,7 +307,8 @@ export default function CallCategoryManager() {
       warning: '',
       auto_message: '',
       additional_info: '',
-      display_order: 0
+      display_order: 0,
+      escalation_type: 'sequential'
     });
   };
 
@@ -322,7 +326,8 @@ export default function CallCategoryManager() {
       is_primary: false,
       available_days: [0,1,2,3,4,5,6],
       available_hours_start: '',
-      available_hours_end: ''
+      available_hours_end: '',
+      shabbat_observer: false
     });
   };
 
@@ -410,7 +415,8 @@ export default function CallCategoryManager() {
       available_hours_end: contact.available_hours_end || '',
       priority_order: contact.priority_order || 1,
       contact_type: contact.contact_type || 'escalation',
-      notes_for_operator: contact.notes_for_operator || ''
+      notes_for_operator: contact.notes_for_operator || '',
+      shabbat_observer: contact.shabbat_observer || false
     });
     
     setShowAddContact(true);
@@ -602,9 +608,41 @@ export default function CallCategoryManager() {
                   <input
                     type="number"
                     value={categoryForm.display_order}
-                    onChange={(e) => setCategoryForm({...categoryForm, display_order: parseInt(e.target.value)})}
+                    onChange={(e) => setCategoryForm({...categoryForm, display_order: parseInt(e.target.value) || 0})}
                     className="w-full px-3 py-2 border rounded-lg"
                   />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold mb-2">סוג הקפצה</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCategoryForm({...categoryForm, escalation_type: 'sequential'})}
+                      className={`px-3 py-3 rounded-lg text-sm font-medium border-2 transition-all flex flex-col items-center gap-1 ${
+                        categoryForm.escalation_type === 'sequential'
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-blue-300'
+                      }`}
+                    >
+                      <span className="text-lg">1️⃣</span>
+                      <span className="font-bold">לפי סדר</span>
+                      <span className="text-xs opacity-75">ראשון → שני → שלישי</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCategoryForm({...categoryForm, escalation_type: 'parallel'})}
+                      className={`px-3 py-3 rounded-lg text-sm font-medium border-2 transition-all flex flex-col items-center gap-1 ${
+                        categoryForm.escalation_type === 'parallel'
+                          ? 'bg-emerald-600 text-white border-emerald-600'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-emerald-300'
+                      }`}
+                    >
+                      <span className="text-lg">📢</span>
+                      <span className="font-bold">כולם ביחד</span>
+                      <span className="text-xs opacity-75">כל הכוננים בו-זמנית</span>
+                    </button>
+                  </div>
                 </div>
                 
                 <div className="flex gap-3 pt-4">
@@ -708,7 +746,7 @@ export default function CallCategoryManager() {
                   <input
                     type="number"
                     value={contactForm.escalation_order}
-                    onChange={(e) => setContactForm({...contactForm, escalation_order: parseInt(e.target.value)})}
+                    onChange={(e) => setContactForm({...contactForm, escalation_order: parseInt(e.target.value) || 1})}
                     className="w-full px-3 py-2 border rounded-lg"
                     min="1"
                     required
@@ -749,6 +787,24 @@ export default function CallCategoryManager() {
                   <label htmlFor="is_primary" className="text-sm font-semibold">
                     כונן ראשי
                   </label>
+                </div>
+
+                <div className={`flex items-start gap-3 p-3 rounded-lg border-2 transition-colors ${contactForm.shabbat_observer ? 'bg-blue-50 border-blue-300' : 'bg-gray-50 border-gray-200'}`}>
+                  <input
+                    type="checkbox"
+                    id="shabbat_observer"
+                    checked={contactForm.shabbat_observer}
+                    onChange={(e) => setContactForm({...contactForm, shabbat_observer: e.target.checked})}
+                    className="w-4 h-4 mt-0.5"
+                  />
+                  <div>
+                    <label htmlFor="shabbat_observer" className="text-sm font-semibold cursor-pointer">
+                      🕍 שומר שבת
+                    </label>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      זמין 2 שעות לפני כניסת שבת ו-2 שעות אחרי יציאת שבת בלבד
+                    </p>
+                  </div>
                 </div>
 
                 {/* Priority and Type Settings */}
@@ -797,29 +853,68 @@ export default function CallCategoryManager() {
                   
                   <div className="mb-3">
                     <label className="block text-sm font-semibold mb-2">ימים בשבוע:</label>
-                    <div className="grid grid-cols-7 gap-2">
-                      {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((day, idx) => (
-                        <button
-                          key={idx}
-                          type="button"
-                          onClick={() => {
-                            const days = [...contactForm.available_days];
-                            if (days.includes(idx)) {
-                              setContactForm({...contactForm, available_days: days.filter(d => d !== idx)});
-                            } else {
-                              setContactForm({...contactForm, available_days: [...days, idx].sort()});
-                            }
-                          }}
-                          className={`px-2 py-1 rounded text-sm font-semibold ${
-                            contactForm.available_days.includes(idx)
-                              ? 'bg-blue-500 text-white'
-                              : 'bg-gray-200 text-gray-600'
-                          }`}
-                        >
-                          {day}
-                        </button>
-                      ))}
-                    </div>
+                    {contactForm.shabbat_observer ? (
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                        <div className="grid grid-cols-7 gap-2 mb-2">
+                          {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((day, idx) => {
+                            const isShabbatDay = idx === 5 || idx === 6;
+                            const isActive = !isShabbatDay && contactForm.available_days.includes(idx);
+                            return (
+                              <button
+                                key={idx}
+                                type="button"
+                                disabled={isShabbatDay}
+                                onClick={() => {
+                                  if (isShabbatDay) return;
+                                  const days = [...contactForm.available_days];
+                                  if (days.includes(idx)) {
+                                    setContactForm({...contactForm, available_days: days.filter(d => d !== idx)});
+                                  } else {
+                                    setContactForm({...contactForm, available_days: [...days, idx].sort()});
+                                  }
+                                }}
+                                className={`px-2 py-1 rounded text-sm font-semibold ${
+                                  isShabbatDay
+                                    ? 'bg-blue-200 text-blue-500 cursor-not-allowed opacity-60'
+                                    : isActive
+                                      ? 'bg-blue-500 text-white'
+                                      : 'bg-gray-200 text-gray-600'
+                                }`}
+                              >
+                                {day}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <p className="text-xs text-blue-700">
+                          🕍 ו׳ ושבת מנוהלים אוטומטית — זמין 2 שעות לפני כניסה ו-2 שעות אחרי יציאה
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-7 gap-2">
+                        {['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'].map((day, idx) => (
+                          <button
+                            key={idx}
+                            type="button"
+                            onClick={() => {
+                              const days = [...contactForm.available_days];
+                              if (days.includes(idx)) {
+                                setContactForm({...contactForm, available_days: days.filter(d => d !== idx)});
+                              } else {
+                                setContactForm({...contactForm, available_days: [...days, idx].sort()});
+                              }
+                            }}
+                            className={`px-2 py-1 rounded text-sm font-semibold ${
+                              contactForm.available_days.includes(idx)
+                                ? 'bg-blue-500 text-white'
+                                : 'bg-gray-200 text-gray-600'
+                            }`}
+                          >
+                            {day}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">

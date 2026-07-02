@@ -28,16 +28,11 @@ export async function GET(request) {
     }
 
     // שליפת פרטי המשתמש
-    console.log('🔍 Fetching profile for userId:', decoded.userId);
     const { data: profile, error } = await supabase
       .from('user_profiles')
       .select('*')
       .eq('id', decoded.userId)
       .single();
-
-    console.log('📋 Profile fetched from DB:', profile);
-    console.log('🎯 department_id from DB:', profile?.department_id);
-    console.log('❌ Error (if any):', error);
 
     if (error || !profile) {
       console.error('Profile fetch error:', error);
