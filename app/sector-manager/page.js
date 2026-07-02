@@ -66,7 +66,8 @@ export default function SectorManagerPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('calendar');
+  const [activeTab, setActiveTab] = useState('contacts');
+  const [warMode, setWarMode] = useState(false);
   const [myDepartment, setMyDepartment] = useState(null);
   const [userDepartments, setUserDepartments] = useState([]);
   const [activeDepartmentId, setActiveDepartmentId] = useState(null);
@@ -199,6 +200,38 @@ export default function SectorManagerPage() {
 
   useEffect(() => {
     checkAuth();
+
+    // Fetch war mode status
+    const fetchWarMode = async () => {
+      try {
+        const res = await fetch('/api/war-mode');
+        const data = await res.json();
+        if (data.success && data.data) {
+          setWarMode(data.data.is_active || false);
+          if (data.data.is_active) setActiveTab('calendar');
+        }
+      } catch (error) {
+        console.error('Failed to fetch war mode:', error);
+      }
+    };
+    fetchWarMode();
+
+    // Subscribe to war mode changes
+    const channel = supabase
+      .channel('war_mode_changes_sm')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'war_mode' },
+        (payload) => {
+          const isActive = payload.new.is_active || false;
+          setWarMode(isActive);
+          if (!isActive) setActiveTab('contacts');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   useEffect(() => {
@@ -805,6 +838,7 @@ export default function SectorManagerPage() {
         <div className="bg-white rounded-lg shadow mb-4 sm:mb-6">
           <div className="border-b border-gray-200 overflow-x-auto">
             <nav className="flex -mb-px min-w-max">
+              {warMode && (
               <button
                 onClick={() => setActiveTab('calendar')}
                 className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -813,8 +847,9 @@ export default function SectorManagerPage() {
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                 }`}
               >
-                � <span className="hidden sm:inline">לוח כוננויות שבועי</span><span className="sm:hidden">לוח כוננויות</span>
+                🚨 <span className="hidden sm:inline">כוננויות חירום שבועי</span><span className="sm:hidden">כוננויות חירום</span>
               </button>
+              )}
               <button
                 onClick={() => setActiveTab('contacts')}
                 className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -829,13 +864,13 @@ export default function SectorManagerPage() {
           </div>
         </div>
 
-        {/* Tab Content - Weekly Calendar */}
-        {activeTab === 'calendar' && (
+        {/* Tab Content - Weekly Calendar - Only in emergency mode */}
+        {warMode && activeTab === 'calendar' && (
           <div className="bg-white rounded-xl shadow-lg overflow-hidden">
             {/* Calendar Header */}
             <div className="p-3 sm:p-4 bg-gradient-to-l from-purple-50 to-blue-50 border-b-2 border-purple-200">
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-                <h2 className="text-lg sm:text-xl font-bold text-gray-900">📅 לוח כוננויות שבועי</h2>
+                <h2 className="text-lg sm:text-xl font-bold text-gray-900">� לוח כוננויות חירום שבועי</h2>
                 
                 {/* Legend */}
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
@@ -1127,8 +1162,8 @@ export default function SectorManagerPage() {
           </div>
         )}
 
-        {/* Tab Content - All Departments On-Call */}
-        {activeTab === 'all-on-call' && (
+        {/* Tab Content - All Departments On-Call - Only in emergency mode */}
+        {warMode && activeTab === 'all-on-call' && (
           <div className="bg-white rounded-lg shadow">
             <div className="p-3 sm:p-6 border-b border-gray-200">
               <div className="mb-3 sm:mb-4">
