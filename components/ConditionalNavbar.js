@@ -6,8 +6,8 @@ import Navbar from './Navbar';
 export default function ConditionalNavbar() {
   const pathname = usePathname();
   
-  // Don't show navbar on home page
-  if (pathname === '/') {
+  // Don't show navbar on home page and screen page
+  if (pathname === '/' || pathname === '/screen') {
     return null;
   }
   

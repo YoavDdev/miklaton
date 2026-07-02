@@ -40,14 +40,35 @@ export default function SecurityFieldStatus() {
       const today = new Date();
       const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
       
-      const res = await fetch(`/api/security-daily-order?department_id=${securityDeptId}&order_date=${dateStr}`);
-      const data = await res.json();
+      // Also fetch yesterday's order for overnight shifts still active
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`;
+
+      const [todayRes, yesterdayRes] = await Promise.all([
+        fetch(`/api/security-daily-order?department_id=${securityDeptId}&order_date=${dateStr}`),
+        fetch(`/api/security-daily-order?department_id=${securityDeptId}&order_date=${yesterdayStr}`)
+      ]);
       
-      if (data.success && data.entries) {
-        setEntries(data.entries);
-      } else {
-        setEntries([]);
+      const todayData = await todayRes.json();
+      const yesterdayData = await yesterdayRes.json();
+      
+      let allEntries = [];
+      if (todayData.success && todayData.entries) {
+        allEntries = [...todayData.entries];
       }
+      // Add yesterday's overnight shifts (where end_time < start_time)
+      if (yesterdayData.success && yesterdayData.entries) {
+        const overnightEntries = yesterdayData.entries.filter(e => {
+          const [sh] = e.start_time.split(':').map(Number);
+          const [eh] = e.end_time.split(':').map(Number);
+          return eh < sh; // overnight shift
+        });
+        // Mark them as from yesterday so we can distinguish
+        allEntries = [...allEntries, ...overnightEntries.map(e => ({ ...e, _fromYesterday: true }))];
+      }
+      
+      setEntries(allEntries);
     } catch (error) {
       console.error('Error fetching daily order:', error);
     } finally {

@@ -1,0 +1,411 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+
+const DAYS_HEB = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+
+function getWeekStart(date) {
+  const d = new Date(date);
+  d.setHours(0, 0, 0, 0);
+  const day = d.getDay();
+  d.setDate(d.getDate() - day);
+  return d;
+}
+
+function formatDateForDB(date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+export default function ScreenPage() {
+  const [currentTime, setCurrentTime] = useState(new Date());
+  const [warMode, setWarMode] = useState(false);
+  const [notifications, setNotifications] = useState([]);
+  const [securityEntries, setSecurityEntries] = useState([]);
+  const [dutyRoster, setDutyRoster] = useState([]);
+  const [contacts, setContacts] = useState([]);
+  const [shabbatTimes, setShabbatTimes] = useState(null);
+  const [securityDeptId, setSecurityDeptId] = useState(null);
+
+  // Live clock
+  useEffect(() => {
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  // Initial load
+  useEffect(() => {
+    fetchAll();
+    const interval = setInterval(fetchAll, 30000); // refresh every 30 seconds
+
+    // Realtime war mode
+    const channel = supabase
+      .channel('screen_war_mode')
+      .on('postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'war_mode' },
+        (payload) => setWarMode(payload.new.is_active || false)
+      )
+      .subscribe();
+
+    // Realtime notifications
+    const notifChannel = supabase
+      .channel('screen_notifications')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'general_notifications' },
+        () => fetchNotifications()
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+      supabase.removeChannel(notifChannel);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (securityDeptId) fetchSecurityStatus();
+  }, [securityDeptId]);
+
+  const fetchAll = async () => {
+    await Promise.all([
+      fetchWarMode(),
+      fetchNotifications(),
+      fetchDepartments(),
+      fetchDutyRoster(),
+      fetchShabbatTimes()
+    ]);
+  };
+
+  const fetchWarMode = async () => {
+    try {
+      const res = await fetch('/api/war-mode');
+      const data = await res.json();
+      if (data.success && data.data) setWarMode(data.data.is_active || false);
+    } catch {}
+  };
+
+  const fetchNotifications = async () => {
+    try {
+      const res = await fetch('/api/notifications');
+      const data = await res.json();
+      setNotifications(data.notifications || []);
+    } catch {}
+  };
+
+  const fetchDepartments = async () => {
+    try {
+      const res = await fetch('/api/departments');
+      const data = await res.json();
+      if (data.success) {
+        const secDept = data.data?.find(d => d.name?.includes('בטחון'));
+        if (secDept) {
+          setSecurityDeptId(secDept.id);
+        }
+      }
+    } catch {}
+  };
+
+  const fetchSecurityStatus = async () => {
+    try {
+      const today = new Date();
+      const todayStr = formatDateForDB(today);
+      const yesterday = new Date(today);
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = formatDateForDB(yesterday);
+
+      const [todayRes, yesterdayRes] = await Promise.all([
+        fetch(`/api/security-daily-order?department_id=${securityDeptId}&order_date=${todayStr}`),
+        fetch(`/api/security-daily-order?department_id=${securityDeptId}&order_date=${yesterdayStr}`)
+      ]);
+
+      const todayData = await todayRes.json();
+      const yesterdayData = await yesterdayRes.json();
+
+      let allEntries = [];
+      if (todayData.success && todayData.entries) {
+        allEntries = [...todayData.entries];
+      }
+      // Add yesterday's overnight shifts still active
+      if (yesterdayData.success && yesterdayData.entries) {
+        const overnightEntries = yesterdayData.entries.filter(e => {
+          const [sh] = e.start_time.split(':').map(Number);
+          const [eh] = e.end_time.split(':').map(Number);
+          return eh < sh;
+        });
+        allEntries = [...allEntries, ...overnightEntries];
+      }
+      setSecurityEntries(allEntries);
+    } catch {}
+  };
+
+  const fetchDutyRoster = async () => {
+    try {
+      const weekStart = formatDateForDB(getWeekStart(new Date()));
+      const [rosterRes, contactsRes] = await Promise.all([
+        fetch(`/api/duty-roster?week_start_date=${weekStart}`),
+        fetch('/api/contacts')
+      ]);
+      const rosterData = await rosterRes.json();
+      const contactsData = await contactsRes.json();
+      if (rosterData.success) setDutyRoster(rosterData.data || []);
+      if (contactsData.success) setContacts(contactsData.data || []);
+    } catch {}
+  };
+
+  const fetchShabbatTimes = async () => {
+    try {
+      // Use Hebcal API for shabbat times
+      const now = new Date();
+      const res = await fetch(`https://www.hebcal.com/shabbat?cfg=json&geonameid=293397&m=50`);
+      const data = await res.json();
+      if (data.items) {
+        const candles = data.items.find(i => i.category === 'candles');
+        const havdalah = data.items.find(i => i.category === 'havdalah');
+        const parasha = data.items.find(i => i.category === 'parashat');
+        setShabbatTimes({
+          candles: candles ? new Date(candles.date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : null,
+          havdalah: havdalah ? new Date(havdalah.date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : null,
+          parasha: parasha?.title || null
+        });
+      }
+    } catch {}
+  };
+
+  // Determine active security entries
+  const now = currentTime;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  const isActive = (startTime, endTime) => {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const [eh, em] = endTime.split(':').map(Number);
+    const start = sh * 60 + sm;
+    let end = eh * 60 + em;
+    if (end < start) return currentMinutes >= start || currentMinutes < end;
+    return currentMinutes >= start && currentMinutes < end;
+  };
+
+  const activeSecurityNow = securityEntries.filter(e => isActive(e.start_time, e.end_time));
+
+  // Today's on-call contacts
+  const todayDay = now.getDay();
+  const todayDuty = dutyRoster.filter(d => d.day_of_week === todayDay);
+  const currentDuty = todayDuty.filter(d => {
+    if (d.start_hour === d.end_hour) return true; // 24h
+    if (d.end_hour < d.start_hour) {
+      return now.getHours() >= d.start_hour || now.getHours() < d.end_hour;
+    }
+    return now.getHours() >= d.start_hour && now.getHours() < d.end_hour;
+  });
+
+  // Urgent notifications first
+  const urgentNotifs = notifications.filter(n => n.type === 'urgent');
+  const regularNotifs = notifications.filter(n => n.type !== 'urgent').slice(0, 5);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white" dir="rtl">
+      
+      {/* War Mode Banner */}
+      {warMode && (
+        <div className="bg-red-600 text-white text-center py-3 text-lg font-black animate-pulse">
+          🚨 מצב חירום פעיל 🚨
+        </div>
+      )}
+
+      {/* Header - Time & Date */}
+      <header className="px-6 py-4 border-b border-white/10">
+        <div className="max-w-screen-2xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-6">
+            <div className="text-5xl font-black tracking-tight font-mono">
+              {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
+            <div className="border-r border-white/20 pr-6">
+              <div className="text-lg font-bold">
+                יום {DAYS_HEB[currentTime.getDay()]}
+              </div>
+              <div className="text-sm text-gray-300">
+                {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
+              </div>
+            </div>
+          </div>
+
+          {/* Shabbat Times */}
+          {shabbatTimes && (
+            <div className="flex items-center gap-4 bg-white/5 rounded-xl px-5 py-3 border border-white/10">
+              <span className="text-2xl">🕯️</span>
+              <div className="text-sm">
+                {shabbatTimes.parasha && <div className="font-bold text-yellow-300">{shabbatTimes.parasha}</div>}
+                <div className="flex gap-3 text-gray-300">
+                  {shabbatTimes.candles && <span>כניסה: <strong className="text-white">{shabbatTimes.candles}</strong></span>}
+                  {shabbatTimes.havdalah && <span>יציאה: <strong className="text-white">{shabbatTimes.havdalah}</strong></span>}
+                </div>
+              </div>
+            </div>
+          )}
+
+          <img src="/images/yehud-logo.png" alt="לוגו" className="h-12 object-contain" />
+        </div>
+      </header>
+
+      <main className="max-w-screen-2xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Column - Notifications */}
+        <div className="lg:col-span-2 space-y-4">
+          
+          {/* Urgent Notifications */}
+          {urgentNotifs.length > 0 && (
+            <div className="space-y-3">
+              {urgentNotifs.map(n => (
+                <div key={n.id} className="bg-red-900/60 border-2 border-red-500 rounded-xl p-5 animate-pulse">
+                  <div className="flex items-start gap-3">
+                    <span className="text-3xl">🚨</span>
+                    <div>
+                      <h3 className="text-xl font-black text-red-100">{n.title}</h3>
+                      <p className="text-red-200 mt-1 text-lg">{n.message}</p>
+                      <p className="text-red-400 text-xs mt-2">{n.author} • {new Date(n.created_at).toLocaleString('he-IL')}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Regular Notifications */}
+          {regularNotifs.length > 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+              <div className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center gap-2">
+                <span className="text-xl">📢</span>
+                <h2 className="font-bold text-lg">הודעות והנחיות</h2>
+              </div>
+              <div className="divide-y divide-white/5">
+                {regularNotifs.map(n => (
+                  <div key={n.id} className="px-5 py-4 hover:bg-white/5 transition-colors">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h4 className="font-bold text-white">{n.title}</h4>
+                        <p className="text-gray-300 text-sm mt-1">{n.message}</p>
+                      </div>
+                      <span className="text-xs text-gray-500 whitespace-nowrap mr-4">
+                        {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Emergency On-Call - visible always but emphasized in war mode */}
+          {warMode && currentDuty.length > 0 && (
+            <div className="bg-red-900/30 border-2 border-red-600 rounded-xl overflow-hidden">
+              <div className="px-5 py-3 bg-red-900/50 border-b border-red-600 flex items-center gap-2">
+                <span className="text-xl">🚨</span>
+                <h2 className="font-bold text-lg text-red-100">כוננים במצב חירום - עכשיו</h2>
+              </div>
+              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {currentDuty.map((duty, idx) => {
+                  const contact = contacts.find(c => c.id === duty.contact_id);
+                  if (!contact) return null;
+                  return (
+                    <div key={idx} className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 flex items-center justify-between">
+                      <div>
+                        <div className="font-bold text-white">{contact.full_name}</div>
+                        <div className="text-xs text-red-300">
+                          {contact.departments?.name} • {String(duty.start_hour).padStart(2,'0')}:00-{String(duty.end_hour).padStart(2,'0')}:00
+                        </div>
+                      </div>
+                      {contact.phone && (
+                        <a href={`tel:${contact.phone}`} className="text-xl">📞</a>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Right Column - Security Status */}
+        <div className="space-y-4">
+          
+          {/* Security Field Status */}
+          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+            <div className="px-5 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2">
+              <span className="text-xl">🛡️</span>
+              <h2 className="font-bold">ביטחון - כרגע בשטח</h2>
+              <span className="mr-auto text-xs text-green-400 bg-green-900/50 px-2 py-0.5 rounded-full">
+                {activeSecurityNow.length} פעילים
+              </span>
+            </div>
+            
+            {activeSecurityNow.length > 0 ? (
+              <div className="p-3 space-y-2">
+                {activeSecurityNow.map((entry, idx) => (
+                  <div key={idx} className="bg-green-900/20 border border-green-800/50 rounded-lg px-4 py-3 flex items-center gap-3">
+                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shrink-0"></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-white text-sm truncate">
+                        {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
+                      </div>
+                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                        <span>{entry.start_time}-{entry.end_time}</span>
+                        <span className="text-green-400">{entry.role_title}</span>
+                      </div>
+                    </div>
+                    {entry.vehicle && (
+                      <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded font-medium">
+                        🚗 {entry.vehicle}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="p-6 text-center text-gray-500 text-sm">
+                אין נתוני משמרת כרגע
+              </div>
+            )}
+          </div>
+
+          {/* On-Call Today - only in emergency mode */}
+          {warMode && todayDuty.length > 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+              <div className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center gap-2">
+                <span className="text-xl">�</span>
+                <h2 className="font-bold">כוננים היום - יום {DAYS_HEB[todayDay]}</h2>
+              </div>
+              <div className="p-3 space-y-1 max-h-[300px] overflow-y-auto">
+                {todayDuty.map((duty, idx) => {
+                  const contact = contacts.find(c => c.id === duty.contact_id);
+                  if (!contact) return null;
+                  const isNow = currentDuty.some(d => d.id === duty.id);
+                  return (
+                    <div key={idx} className={`rounded-lg px-3 py-2 flex items-center justify-between text-sm ${
+                      isNow ? 'bg-blue-900/30 border border-blue-700' : 'bg-white/5'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {isNow && <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>}
+                        <span className="font-medium text-white">{contact.full_name}</span>
+                        <span className="text-xs text-gray-500">{contact.departments?.name}</span>
+                      </div>
+                      <span className="text-xs text-gray-400">
+                        {duty.start_hour === duty.end_hour ? '24 שעות' : 
+                          `${String(duty.start_hour).padStart(2,'0')}:00-${String(duty.end_hour).padStart(2,'0')}:00`
+                        }
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </main>
+    </div>
+  );
+}
