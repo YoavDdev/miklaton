@@ -27,6 +27,9 @@ export async function GET() {
     const { data, error } = await supabase
       .from('general_notifications')
       .select('*')
+      .or('start_date.is.null,start_date.lte.' + new Date().toISOString())
+      .or('end_date.is.null,end_date.gte.' + new Date().toISOString())
+      .or('expires_at.is.null,expires_at.gte.' + new Date().toISOString())
       .order('created_at', { ascending: false });
 
     if (error) throw error;
@@ -55,7 +58,7 @@ export async function POST(request) {
     }
 
     const body = await request.json();
-    const { title, message, type, author } = body;
+    const { title, message, type, author, expires_at, start_date, end_date } = body;
 
     if (!title || !message) {
       return NextResponse.json({ 
@@ -69,7 +72,10 @@ export async function POST(request) {
         title,
         message,
         type: type || 'info',
-        author: author || 'מוקדן'
+        author: author || 'מוקדן',
+        expires_at: expires_at || null,
+        start_date: start_date || null,
+        end_date: end_date || null
       })
       .select()
       .single();

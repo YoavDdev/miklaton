@@ -9,7 +9,6 @@ import ActiveEventBanner from '@/components/ActiveEventBanner';
 import SurveyManager from '@/components/SurveyManager';
 import CallCategoryManager from '@/components/CallCategoryManager';
 import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
-import SecurityFieldStatus from '@/components/SecurityFieldStatus';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -32,6 +31,10 @@ export default function CallCenterManagerPage() {
   const [messageText, setMessageText] = useState('');
   const [messageTitle, setMessageTitle] = useState('');
   const [isImportant, setIsImportant] = useState(false);
+  const [messageExpiryMode, setMessageExpiryMode] = useState('relative'); // 'relative' | 'range'
+  const [messageExpiry, setMessageExpiry] = useState('');
+  const [messageStartDate, setMessageStartDate] = useState('');
+  const [messageEndDate, setMessageEndDate] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
   const [previousMessages, setPreviousMessages] = useState([]);
   const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
@@ -100,12 +103,31 @@ export default function CallCenterManagerPage() {
     }
   }, [sessions, tasks]);
 
+  // Calculate expiry based on selected mode
+  const getExpiryPayload = () => {
+    if (messageExpiryMode === 'range') {
+      return {
+        start_date: messageStartDate ? new Date(messageStartDate).toISOString() : null,
+        end_date: messageEndDate ? new Date(messageEndDate + 'T23:59:59').toISOString() : null,
+        expires_at: null
+      };
+    }
+    if (!messageExpiry) return { start_date: null, end_date: null, expires_at: null };
+    const now = new Date();
+    const [value, unit] = messageExpiry.split('_');
+    const num = parseInt(value, 10);
+    if (unit === 'h') now.setHours(now.getHours() + num);
+    if (unit === 'd') now.setDate(now.getDate() + num);
+    return { start_date: null, end_date: null, expires_at: now.toISOString() };
+  };
+
   // Send message to all operators
   const sendMessageToOperators = async () => {
     if (!messageTitle.trim() || !messageText.trim()) return;
     
     setSendingMessage(true);
     try {
+      const expiry = getExpiryPayload();
       const response = await fetch('/api/notifications', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -113,7 +135,8 @@ export default function CallCenterManagerPage() {
           title: messageTitle,
           message: messageText,
           type: isImportant ? 'urgent' : 'info',
-          author: user?.full_name || 'מנהל מוקד'
+          author: user?.full_name || 'מנהל מוקד',
+          ...expiry
         })
       });
       
@@ -122,6 +145,10 @@ export default function CallCenterManagerPage() {
         setMessageTitle('');
         setMessageText('');
         setIsImportant(false);
+        setMessageExpiry('');
+        setMessageStartDate('');
+        setMessageEndDate('');
+        setMessageExpiryMode('relative');
         // Refresh messages list
         loadPreviousMessages();
       } else {
@@ -438,9 +465,6 @@ export default function CallCenterManagerPage() {
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Security Field Status */}
-        <SecurityFieldStatus />
-
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-white rounded-lg shadow p-6">
@@ -768,7 +792,7 @@ export default function CallCenterManagerPage() {
                     />
                   </div>
                   
-                  <div className="flex items-center gap-4">
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
@@ -778,6 +802,63 @@ export default function CallCenterManagerPage() {
                       />
                       <span className="text-sm font-medium text-gray-700">🔴 הודעה דחופה</span>
                     </label>
+                  </div>
+
+                  {/* Expiry options */}
+                  <div className="bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+                    <div className="text-sm font-semibold text-gray-700 mb-3">⏳ תוקף ההודעה:</div>
+                    <div className="flex flex-wrap gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => setMessageExpiryMode('relative')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium ${messageExpiryMode === 'relative' ? 'bg-pink-600 text-white' : 'bg-white border-2 border-gray-300 text-gray-700'}`}
+                      >
+                        שעות / ימים
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setMessageExpiryMode('range')}
+                        className={`px-3 py-1.5 rounded-lg text-sm font-medium ${messageExpiryMode === 'range' ? 'bg-pink-600 text-white' : 'bg-white border-2 border-gray-300 text-gray-700'}`}
+                      >
+                        טווח תאריכים
+                      </button>
+                    </div>
+
+                    {messageExpiryMode === 'relative' && (
+                      <select
+                        value={messageExpiry}
+                        onChange={(e) => setMessageExpiry(e.target.value)}
+                        className="w-full sm:w-auto px-3 py-1.5 border-2 border-gray-300 rounded-lg text-sm focus:border-pink-500 focus:outline-none"
+                      >
+                        <option value="">ללא תפוגה</option>
+                        <option value="2_h">2 שעות</option>
+                        <option value="4_h">4 שעות</option>
+                        <option value="8_h">8 שעות</option>
+                        <option value="12_h">12 שעות</option>
+                        <option value="1_d">יום אחד</option>
+                        <option value="2_d">יומיים</option>
+                        <option value="3_d">3 ימים</option>
+                        <option value="7_d">שבוע</option>
+                      </select>
+                    )}
+
+                    {messageExpiryMode === 'range' && (
+                      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+                        <input
+                          type="date"
+                          value={messageStartDate}
+                          onChange={(e) => setMessageStartDate(e.target.value)}
+                          className="px-3 py-1.5 border-2 border-gray-300 rounded-lg text-sm focus:border-pink-500 focus:outline-none"
+                        />
+                        <span className="text-gray-500">עד</span>
+                        <input
+                          type="date"
+                          value={messageEndDate}
+                          onChange={(e) => setMessageEndDate(e.target.value)}
+                          className="px-3 py-1.5 border-2 border-gray-300 rounded-lg text-sm focus:border-pink-500 focus:outline-none"
+                        />
+                      </div>
+                    )}
                   </div>
                   
                   <button
@@ -831,6 +912,16 @@ export default function CallCenterManagerPage() {
                         <p className="text-gray-700 mb-2">{msg.message}</p>
                         <div className="text-xs text-gray-500">
                           נשלח על ידי {msg.author} | {new Date(msg.created_at).toLocaleString('he-IL')}
+                          {msg.expires_at && (
+                            <span className="mr-2 text-red-500 font-medium">
+                              ⏳ תוקף עד: {new Date(msg.expires_at).toLocaleString('he-IL')}
+                            </span>
+                          )}
+                          {(msg.start_date || msg.end_date) && (
+                            <span className="mr-2 text-blue-500 font-medium">
+                              📅 {msg.start_date ? new Date(msg.start_date).toLocaleDateString('he-IL') : 'עכשיו'} - {msg.end_date ? new Date(msg.end_date).toLocaleDateString('he-IL') : 'ללא סיום'}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))
