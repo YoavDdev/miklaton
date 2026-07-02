@@ -32,6 +32,7 @@ export default function SecurityWeeklySchedule({ departmentId }) {
   const [shifts, setShifts] = useState([]);
   const [schedule, setSchedule] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [leaveRecords, setLeaveRecords] = useState([]);
 
   // Forms
   const [showStaffForm, setShowStaffForm] = useState(false);
@@ -83,12 +84,14 @@ export default function SecurityWeeklySchedule({ departmentId }) {
       fetchStaff();
       fetchShifts();
       fetchSettings();
+      fetchLeave();
     }
   }, [departmentId]);
 
   useEffect(() => {
     if (departmentId) {
       fetchSchedule();
+      fetchLeave();
     }
   }, [departmentId, currentWeekStart]);
 
@@ -134,6 +137,32 @@ export default function SecurityWeeklySchedule({ departmentId }) {
     } catch (error) {
       console.error('Error fetching settings:', error);
     }
+  };
+
+  const fetchLeave = async () => {
+    try {
+      const res = await fetch(`/api/security-leave?department_id=${departmentId}`);
+      const data = await res.json();
+      if (data.success) setLeaveRecords(data.data || []);
+    } catch (error) {
+      console.error('Error fetching leave:', error);
+    }
+  };
+
+  // Check if a staff member is on leave for a specific date
+  const isStaffOnLeave = (staffId, date) => {
+    const dateStr = formatDateForDB(date);
+    return leaveRecords.some(l => 
+      l.staff_id === staffId && l.start_date <= dateStr && l.end_date >= dateStr
+    );
+  };
+
+  // Get leave info for a staff member on a date
+  const getLeaveInfo = (staffId, date) => {
+    const dateStr = formatDateForDB(date);
+    return leaveRecords.find(l => 
+      l.staff_id === staffId && l.start_date <= dateStr && l.end_date >= dateStr
+    );
   };
 
   // Staff CRUD
@@ -343,6 +372,7 @@ export default function SecurityWeeklySchedule({ departmentId }) {
                   popupRef={popupRef}
                   onAssign={handleAssign}
                   onRemove={handleRemoveAssignment}
+                  isStaffOnLeave={isStaffOnLeave}
                   category="פיקוח"
                 />
               )}
@@ -362,6 +392,7 @@ export default function SecurityWeeklySchedule({ departmentId }) {
                   popupRef={popupRef}
                   onAssign={handleAssign}
                   onRemove={handleRemoveAssignment}
+                  isStaffOnLeave={isStaffOnLeave}
                   category="שיטור"
                 />
               )}
@@ -382,7 +413,13 @@ export default function SecurityWeeklySchedule({ departmentId }) {
 
       {/* Staff Tab */}
       {activeTab === 'staff' && (
-        <div className="bg-white rounded-lg shadow">
+        <div className="space-y-4">
+          {/* Leave Management - on top */}
+          <div className="bg-white rounded-lg shadow">
+            <LeaveManager departmentId={departmentId} staff={staff} leaveRecords={leaveRecords} onRefresh={fetchLeave} />
+          </div>
+
+          <div className="bg-white rounded-lg shadow">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
             <h3 className="font-bold text-gray-900">👥 עובדים</h3>
             <button
@@ -435,25 +472,34 @@ export default function SecurityWeeklySchedule({ departmentId }) {
                     <div className="px-4 py-2 bg-gray-50 text-sm font-bold text-gray-700">
                       {role === 'פיקוח' ? '🔍 פיקוח' : '🚔 שיטור'} ({roleStaff.length})
                     </div>
-                    {roleStaff.map(member => (
-                      <div key={member.id} className="px-4 py-3 flex items-center justify-between hover:bg-gray-50">
-                        <div>
-                          <span className="font-semibold text-gray-900">{member.full_name}</span>
-                          {member.phone && <span className="text-sm text-gray-500 mr-2">📞 {member.phone}</span>}
+                    {roleStaff.map(member => {
+                      const currentLeave = leaveRecords.find(l => l.staff_id === member.id && l.start_date <= formatDateForDB(new Date()) && l.end_date >= formatDateForDB(new Date()));
+                      return (
+                        <div key={member.id} className={`px-4 py-3 flex items-center justify-between hover:bg-gray-50 ${currentLeave ? 'bg-red-50/50' : ''}`}>
+                          <div>
+                            <span className={`font-semibold ${currentLeave ? 'text-red-500' : 'text-gray-900'}`}>{member.full_name}</span>
+                            {member.phone && <span className="text-sm text-gray-500 mr-2">📞 {member.phone}</span>}
+                            {currentLeave && (
+                              <span className="text-xs bg-red-100 text-red-700 px-2 py-0.5 rounded-full mr-2">
+                                🏖️ {currentLeave.reason || 'חופשה'} (עד {new Date(currentLeave.end_date).toLocaleDateString('he-IL')})
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <button onClick={() => { setEditingStaff(member); setStaffForm({ full_name: member.full_name, phone: member.phone || '', role: member.role }); setShowStaffForm(true); }}
+                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded font-semibold">✏️</button>
+                            <button onClick={() => handleDeleteStaff(member.id)}
+                              className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded font-semibold">🗑️</button>
+                          </div>
                         </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => { setEditingStaff(member); setStaffForm({ full_name: member.full_name, phone: member.phone || '', role: member.role }); setShowStaffForm(true); }}
-                            className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded font-semibold">✏️</button>
-                          <button onClick={() => handleDeleteStaff(member.id)}
-                            className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded font-semibold">🗑️</button>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 );
               })
             )}
           </div>
+        </div>
         </div>
       )}
 
@@ -541,7 +587,7 @@ export default function SecurityWeeklySchedule({ departmentId }) {
 }
 
 // ─── Excel-style Schedule Table ───────────────────────────────────────
-function ExcelTable({ title, titleBg, shifts, weekDates, staff, allStaff, getCellAssignments, activeCell, setActiveCell, popupRef, onAssign, onRemove, category }) {
+function ExcelTable({ title, titleBg, shifts, weekDates, staff, allStaff, getCellAssignments, activeCell, setActiveCell, popupRef, onAssign, onRemove, isStaffOnLeave, category }) {
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden border border-gray-200">
       {/* Title bar like the image */}
@@ -603,16 +649,19 @@ function ExcelTable({ title, titleBg, shifts, weekDates, staff, allStaff, getCel
                           </div>
                         ) : (
                           <div className="space-y-0.5">
-                            {entries.map(entry => (
-                              <div key={entry.id} className={`text-[10px] sm:text-xs font-semibold px-1 py-0.5 rounded text-center leading-tight ${
-                                entry.is_backup 
-                                  ? 'text-orange-700' 
-                                  : 'text-gray-900'
-                              }`}>
-                                {entry.staff?.full_name}
-                                {entry.is_backup && <span className="text-[9px] text-orange-600"> (חלופי)</span>}
-                              </div>
-                            ))}
+                            {entries.map(entry => {
+                              const onLeave = entry.staff_id && isStaffOnLeave(entry.staff_id, weekDates[dayIdx]);
+                              return (
+                                <div key={entry.id} className={`text-[10px] sm:text-xs font-semibold px-1 py-0.5 rounded text-center leading-tight ${
+                                  onLeave ? 'text-red-500 line-through bg-red-50' :
+                                  entry.is_backup ? 'text-orange-700' : 'text-gray-900'
+                                }`}>
+                                  {entry.staff?.full_name}
+                                  {onLeave && <span className="text-[9px] text-red-500 no-underline"> 🏖️</span>}
+                                  {entry.is_backup && !onLeave && <span className="text-[9px] text-orange-600"> (חלופי)</span>}
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
                       </div>
@@ -651,24 +700,30 @@ function ExcelTable({ title, titleBg, shifts, weekDates, staff, allStaff, getCel
                               staff.map(member => {
                                 const alreadyHere = entries.some(e => e.staff_id === member.id);
                                 if (alreadyHere) return null;
+                                const onLeave = isStaffOnLeave(member.id, weekDates[dayIdx]);
                                 return (
                                   <div key={member.id} className="border-b border-gray-100 last:border-0">
-                                    <div className="flex items-center justify-between px-2 py-1.5 hover:bg-blue-50">
-                                      <span className="text-xs font-medium text-gray-800">{member.full_name}</span>
-                                      <div className="flex gap-1">
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); onAssign(shift.id, dayIdx, member.id, false); }}
-                                          className="px-2 py-0.5 bg-blue-600 text-white text-[10px] rounded font-bold"
-                                        >
-                                          ראשי
-                                        </button>
-                                        <button
-                                          onClick={(e) => { e.stopPropagation(); onAssign(shift.id, dayIdx, member.id, true); }}
-                                          className="px-2 py-0.5 bg-orange-500 text-white text-[10px] rounded font-bold"
-                                        >
-                                          חלופי
-                                        </button>
-                                      </div>
+                                    <div className={`flex items-center justify-between px-2 py-1.5 ${onLeave ? 'bg-red-50' : 'hover:bg-blue-50'}`}>
+                                      <span className={`text-xs font-medium ${onLeave ? 'text-red-400 line-through' : 'text-gray-800'}`}>
+                                        {member.full_name}
+                                        {onLeave && <span className="text-[9px] text-red-500 no-underline"> 🏖️ חופשה</span>}
+                                      </span>
+                                      {!onLeave && (
+                                        <div className="flex gap-1">
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); onAssign(shift.id, dayIdx, member.id, false); }}
+                                            className="px-2 py-0.5 bg-blue-600 text-white text-[10px] rounded font-bold"
+                                          >
+                                            ראשי
+                                          </button>
+                                          <button
+                                            onClick={(e) => { e.stopPropagation(); onAssign(shift.id, dayIdx, member.id, true); }}
+                                            className="px-2 py-0.5 bg-orange-500 text-white text-[10px] rounded font-bold"
+                                          >
+                                            חלופי
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                   </div>
                                 );
@@ -1410,6 +1465,172 @@ function SettingsTab({ departmentId, settings, onSettingsChange }) {
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Leave Manager ────────────────────────────────────────────────────
+function LeaveManager({ departmentId, staff, leaveRecords, onRefresh }) {
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({ staff_id: '', start_date: '', end_date: '', reason: 'חופשה', notes: '' });
+
+  const handleSubmit = async () => {
+    if (!form.staff_id || !form.start_date || !form.end_date) {
+      toast.error('נא למלא עובד, תאריך התחלה וסיום');
+      return;
+    }
+    try {
+      const res = await fetch('/api/security-leave', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ department_id: departmentId, ...form })
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('חופשה נוספה ✅');
+        setShowForm(false);
+        setForm({ staff_id: '', start_date: '', end_date: '', reason: 'חופשה', notes: '' });
+        onRefresh();
+      } else {
+        toast.error(data.error);
+      }
+    } catch { toast.error('שגיאה בשמירה'); }
+  };
+
+  const handleDelete = async (id) => {
+    if (!confirm('למחוק חופשה זו?')) return;
+    try {
+      const res = await fetch(`/api/security-leave?id=${id}`, { method: 'DELETE' });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('חופשה נמחקה');
+        onRefresh();
+      }
+    } catch { toast.error('שגיאה במחיקה'); }
+  };
+
+  const today = formatDateForDB(new Date());
+  const activeLeaves = leaveRecords.filter(l => l.end_date >= today);
+  const pastLeaves = leaveRecords.filter(l => l.end_date < today);
+
+  return (
+    <div className="border-t-2 border-gray-200 mt-2">
+      <div className="p-4 flex items-center justify-between">
+        <h3 className="font-bold text-gray-900 text-sm">🏖️ ניהול חופשות</h3>
+        <button
+          onClick={() => setShowForm(!showForm)}
+          className="px-3 py-1.5 bg-orange-600 active:bg-orange-700 text-white rounded-lg font-semibold text-xs"
+        >
+          + הוסף חופשה
+        </button>
+      </div>
+
+      {showForm && (
+        <div className="px-4 pb-4">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2">
+              <select
+                value={form.staff_id}
+                onChange={(e) => setForm({ ...form, staff_id: e.target.value })}
+                className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-orange-500 focus:outline-none"
+              >
+                <option value="">-- בחר עובד --</option>
+                {staff.map(s => (
+                  <option key={s.id} value={s.id}>{s.full_name}</option>
+                ))}
+              </select>
+              <input
+                type="date"
+                value={form.start_date}
+                onChange={(e) => setForm({ ...form, start_date: e.target.value })}
+                className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-orange-500 focus:outline-none"
+              />
+              <input
+                type="date"
+                value={form.end_date}
+                onChange={(e) => setForm({ ...form, end_date: e.target.value })}
+                className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-orange-500 focus:outline-none"
+              />
+              <select
+                value={form.reason}
+                onChange={(e) => setForm({ ...form, reason: e.target.value })}
+                className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-orange-500 focus:outline-none"
+              >
+                <option value="חופשה">חופשה</option>
+                <option value="מחלה">מחלה</option>
+                <option value="מילואים">מילואים</option>
+                <option value="אחר">אחר</option>
+              </select>
+              <input
+                type="text"
+                value={form.notes}
+                onChange={(e) => setForm({ ...form, notes: e.target.value })}
+                placeholder="הערות (אופציונלי)"
+                className="px-3 py-2 border-2 border-gray-300 rounded-lg text-sm focus:border-orange-500 focus:outline-none"
+              />
+            </div>
+            <div className="flex gap-2">
+              <button onClick={handleSubmit} className="px-4 py-2 bg-orange-600 text-white rounded-lg font-semibold text-sm">
+                ✅ שמור
+              </button>
+              <button onClick={() => setShowForm(false)} className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-semibold text-sm">
+                ביטול
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Active leaves */}
+      {activeLeaves.length > 0 && (
+        <div className="px-4 pb-3">
+          <div className="text-xs font-bold text-orange-700 mb-1">חופשות פעילות / עתידיות:</div>
+          <div className="space-y-1">
+            {activeLeaves.map(leave => (
+              <div key={leave.id} className="flex items-center justify-between bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">
+                <div className="text-sm">
+                  <span className="font-semibold text-gray-900">{leave.security_staff?.full_name}</span>
+                  <span className="text-gray-500 mr-2">
+                    {new Date(leave.start_date).toLocaleDateString('he-IL')} - {new Date(leave.end_date).toLocaleDateString('he-IL')}
+                  </span>
+                  <span className="text-xs bg-orange-100 text-orange-700 px-1.5 py-0.5 rounded mr-1">{leave.reason}</span>
+                  {leave.notes && <span className="text-xs text-gray-400 mr-1">({leave.notes})</span>}
+                </div>
+                <button onClick={() => handleDelete(leave.id)} className="text-red-400 hover:text-red-600 text-xs font-bold px-2">✕</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Past leaves - collapsed */}
+      {pastLeaves.length > 0 && (
+        <div className="px-4 pb-3">
+          <details className="text-xs">
+            <summary className="font-bold text-gray-400 cursor-pointer">חופשות שהסתיימו ({pastLeaves.length})</summary>
+            <div className="space-y-1 mt-1">
+              {pastLeaves.slice(0, 10).map(leave => (
+                <div key={leave.id} className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded px-2 py-1 opacity-60">
+                  <div className="text-xs">
+                    <span className="font-medium">{leave.security_staff?.full_name}</span>
+                    <span className="text-gray-400 mr-1">
+                      {new Date(leave.start_date).toLocaleDateString('he-IL')} - {new Date(leave.end_date).toLocaleDateString('he-IL')}
+                    </span>
+                    <span className="text-gray-400 mr-1">{leave.reason}</span>
+                  </div>
+                  <button onClick={() => handleDelete(leave.id)} className="text-red-300 hover:text-red-500 text-xs px-1">✕</button>
+                </div>
+              ))}
+            </div>
+          </details>
+        </div>
+      )}
+
+      {activeLeaves.length === 0 && !showForm && (
+        <div className="px-4 pb-4 text-center text-gray-400 text-xs">
+          אין חופשות פעילות כרגע
+        </div>
+      )}
     </div>
   );
 }
