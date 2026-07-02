@@ -35,7 +35,7 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
       setActionCompleted(false);
       addToLog(`התחלת אירוע: ${flow.title}`, now);
       if (warMode) {
-        addToLog('🚨 מצב מלחמה פעיל - מדלג על שלבי מקלטים והתקשרויות');
+        addToLog('🚨 מצב חירום פעיל - מדלג על שלבי מקלטים והתקשרויות');
       }
     }
   }, [flow]);
@@ -164,14 +164,14 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
       
       // Skip steps with skipInWarMode flag when war mode is active
       if (warMode && targetStep?.skipInWarMode) {
-        addToLog(`⏭️ מדלג על שלב: ${targetStep.label} (מצב מלחמה)`);
+        addToLog(`⏭️ מדלג על שלב: ${targetStep.label} (מצב חירום)`);
         // Find the next step and recursively check
         if (targetStep.nextStep) {
           targetStepId = targetStep.nextStep;
           const recursiveCheck = (stepId) => {
             const step = flow?.steps?.find(s => s.id === stepId);
             if (step && warMode && step.skipInWarMode && step.nextStep) {
-              addToLog(`⏭️ מדלג על שלב: ${step.label} (מצב מלחמה)`);
+              addToLog(`⏭️ מדלג על שלב: ${step.label} (מצב חירום)`);
               return recursiveCheck(step.nextStep);
             }
             return stepId;
@@ -183,7 +183,7 @@ export default function FlowRunner({ flow, onEnd, warMode = false }) {
           const recursiveCheck = (stepId) => {
             const step = flow?.steps?.find(s => s.id === stepId);
             if (step && warMode && step.skipInWarMode) {
-              addToLog(`⏭️ מדלג על שלב: ${step.label} (מצב מלחמה)`);
+              addToLog(`⏭️ מדלג על שלב: ${step.label} (מצב חירום)`);
               if (step.nextStep) return recursiveCheck(step.nextStep);
               if (step.yesNext) return recursiveCheck(step.yesNext);
             }

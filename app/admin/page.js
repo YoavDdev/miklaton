@@ -75,7 +75,7 @@ export default function AdminPage() {
       }
     } catch (error) {
       console.error('Failed to toggle war mode:', error);
-      alert('שגיאה בעדכון מצב מלחמה');
+      alert('שגיאה בעדכון מצב חירום');
     }
   };
 
@@ -112,7 +112,7 @@ export default function AdminPage() {
                     : 'bg-white/10 hover:bg-white/20 border-white/20'
                 }`}
               >
-                {warMode ? '🚨' : '⚪'} <span className="hidden sm:inline">{warMode ? 'מצב מלחמה' : 'מצב רגיל'}</span>
+                {warMode ? '🚨' : '⚪'} <span className="hidden sm:inline">{warMode ? 'מצב חירום' : 'מצב רגיל'}</span>
               </button>
               <button
                 onClick={() => router.push('/admin/departments')}
@@ -134,7 +134,7 @@ export default function AdminPage() {
       {/* ── War Mode Banner ── */}
       {warMode && (
         <div className="bg-red-600 text-white text-center py-2 px-4 text-sm font-bold">
-          🚨 מצב מלחמה פעיל – שלבי מקלטים והתקשרויות ידלגו אוטומטית
+          🚨 מצב חירום פעיל – שלבי מקלטים והתקשרויות ידלגו אוטומטית
         </div>
       )}
 
@@ -183,7 +183,7 @@ export default function AdminPage() {
           }`}>
             <div className="flex items-center justify-between mb-2">
               <span className={`text-lg font-bold ${warMode ? 'text-red-700' : 'text-green-700'}`}>
-                {warMode ? 'מצב מלחמה' : 'תקין'}
+                {warMode ? 'מצב חירום' : 'תקין'}
               </span>
               <span className="text-2xl">{warMode ? '🚨' : '🟢'}</span>
             </div>

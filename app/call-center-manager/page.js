@@ -2,12 +2,18 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { createClient } from '@supabase/supabase-js';
 import toast, { Toaster } from 'react-hot-toast';
 import OnCallManagerNew from '@/components/OnCallManagerNew';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import SurveyManager from '@/components/SurveyManager';
 import CallCategoryManager from '@/components/CallCategoryManager';
 import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function CallCenterManagerPage() {
   const router = useRouter();
@@ -28,13 +34,43 @@ export default function CallCenterManagerPage() {
   const [sendingMessage, setSendingMessage] = useState(false);
   const [previousMessages, setPreviousMessages] = useState([]);
   const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
+  const [warMode, setWarMode] = useState(false);
 
   useEffect(() => {
     checkAuth();
     loadData();
     loadPreviousMessages();
     const interval = setInterval(loadSessions, 10000); // רענון כל 10 שניות
-    return () => clearInterval(interval);
+
+    // Fetch war mode status
+    const fetchWarMode = async () => {
+      try {
+        const res = await fetch('/api/war-mode');
+        const data = await res.json();
+        if (data.success && data.data) {
+          setWarMode(data.data.is_active || false);
+        }
+      } catch (error) {
+        console.error('Failed to fetch war mode:', error);
+      }
+    };
+    fetchWarMode();
+
+    // Subscribe to war mode changes
+    const channel = supabase
+      .channel('war_mode_changes_ccm')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'war_mode' },
+        (payload) => {
+          setWarMode(payload.new.is_active || false);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      clearInterval(interval);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   // עדכון operators כאשר sessions או tasks משתנים
@@ -359,6 +395,45 @@ export default function CallCenterManagerPage() {
     <div className="min-h-screen bg-gray-50" dir="rtl">
       <Toaster position="top-center" />
       <ActiveEventBanner />
+
+      {/* Header with war mode toggle */}
+      <header className="bg-gradient-to-l from-pink-800 to-pink-900 text-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
+          <h1 className="text-xl font-bold">📋 ניהול מוקד</h1>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={async () => {
+                const username = localStorage.getItem('username') || 'מנהל מוקד';
+                const newMode = !warMode;
+                try {
+                  const res = await fetch('/api/war-mode', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ is_active: newMode, updated_by: username })
+                  });
+                  const data = await res.json();
+                  if (data.success) setWarMode(newMode);
+                } catch (error) {
+                  toast.error('שגיאה בעדכון מצב חירום');
+                }
+              }}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 ${
+                warMode
+                  ? 'bg-red-600 hover:bg-red-700 border-red-400 text-white animate-pulse'
+                  : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
+              }`}
+            >
+              {warMode ? '🚨 מצב חירום' : '⚪ מצב רגיל'}
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {warMode && (
+        <div className="bg-red-600 text-white text-center py-2 text-sm font-bold">
+          🚨 מצב חירום פעיל – שלבי מקלטים והתקשרויות ידלגו אוטומטית
+        </div>
+      )}
 
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         

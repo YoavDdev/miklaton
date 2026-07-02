@@ -152,6 +152,30 @@ export default function OperatorPage() {
     };
   }, []);
 
+  const toggleWarMode = async () => {
+    const username = localStorage.getItem('username') || 'מוקדן';
+    const newMode = !warMode;
+    
+    try {
+      const res = await fetch('/api/war-mode', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          is_active: newMode,
+          updated_by: username
+        })
+      });
+      
+      const data = await res.json();
+      if (data.success) {
+        setWarMode(newMode);
+      }
+    } catch (error) {
+      console.error('Failed to toggle war mode:', error);
+      alert('שגיאה בעדכון מצב חירום');
+    }
+  };
+
   const handleLogout = async () => {
     await fetch('/api/auth/logout', { method: 'POST' });
     router.push('/login');
@@ -185,18 +209,23 @@ export default function OperatorPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold">🎧 מוקד חירום</h1>
           <div className="flex items-center gap-2">
-            {warMode && (
-              <span className="bg-red-600 border-2 border-red-400 animate-pulse text-white text-sm font-bold px-3 py-1.5 rounded-lg">
-                🚨 מצב מלחמה
-              </span>
-            )}
+            <button
+              onClick={toggleWarMode}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 ${
+                warMode
+                  ? 'bg-red-600 hover:bg-red-700 border-red-400 text-white animate-pulse'
+                  : 'bg-white/10 hover:bg-white/20 border-white/20 text-white'
+              }`}
+            >
+              {warMode ? '🚨 מצב חירום' : '⚪ מצב רגיל'}
+            </button>
           </div>
         </div>
       </header>
 
       {warMode && (
         <div className="bg-red-600 text-white text-center py-2 text-sm font-bold">
-          🚨 מצב מלחמה פעיל – שלבי מקלטים והתקשרויות ידלגו אוטומטית
+          🚨 מצב חירום פעיל – שלבי מקלטים והתקשרויות ידלגו אוטומטית
         </div>
       )}
 
@@ -266,7 +295,8 @@ export default function OperatorPage() {
           <DailyUpdatesPanel canEdit={true} />
         </div>
 
-        {/* Main Action Area - Emergency Response */}
+        {/* Main Action Area - Emergency Response - Only visible in emergency mode */}
+        {warMode && (
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
           {/* Emergency Event Panel */}
           <div className="xl:col-span-2">
@@ -357,6 +387,7 @@ export default function OperatorPage() {
             </div>
           </div>
         </div>
+        )}
 
         {/* Shelter Management - Collapsible */}
         <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
@@ -382,7 +413,8 @@ export default function OperatorPage() {
           )}
         </div>
 
-        {/* Weekly Duty Roster - Collapsible */}
+        {/* Weekly Duty Roster - Collapsible - Only in emergency mode */}
+        {warMode && (
         <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6">
           <button
             onClick={() => setShowDutyRoster(!showDutyRoster)}
@@ -390,7 +422,7 @@ export default function OperatorPage() {
           >
             <div className="flex items-center gap-3">
               <span className="text-2xl">📅</span>
-              <span className="text-lg font-bold text-white">לוח כוננויות שבועי</span>
+              <span className="text-lg font-bold text-white">🚨 לוח כוננויות חירום שבועי</span>
             </div>
             <div className="flex items-center gap-3">
               <div
@@ -422,6 +454,7 @@ export default function OperatorPage() {
             </div>
           )}
         </div>
+        )}
       </main>
     </div>
   );
