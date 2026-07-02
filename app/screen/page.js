@@ -23,6 +23,7 @@ function formatDateForDB(date) {
 }
 
 export default function ScreenPage() {
+  const [zoom, setZoom] = useState(1);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -37,6 +38,16 @@ export default function ScreenPage() {
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Read zoom from URL
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const z = parseFloat(params.get('zoom'));
+    if (!isNaN(z) && z > 0.5 && z <= 3) {
+      setZoom(z);
+    }
   }, []);
 
   // Initial load
@@ -252,7 +263,11 @@ export default function ScreenPage() {
   const regularNotifs = notifications.filter(n => n.type !== 'urgent').slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white" dir="rtl">
+    <div
+      className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white"
+      dir="rtl"
+      style={{ zoom }}
+    >
       
       {/* War Mode Banner */}
       {warMode && (
