@@ -57,28 +57,42 @@ export default function ScreenPage() {
     }
   }, []);
 
-  // Sync accurate time from NTP API on mount
+  // Sync accurate time from server API on mount
   useEffect(() => {
     const syncTime = async () => {
       try {
         const start = Date.now();
-        const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Jerusalem');
+        const res = await fetch('/api/time', { cache: 'no-store' });
         const end = Date.now();
-        if (!res.ok) return;
+        if (!res.ok) throw new Error('Server time failed');
         const data = await res.json();
-        const serverTime = new Date(data.utc_datetime).getTime();
+        const serverTime = data.timestamp;
         const roundTrip = (end - start) / 2;
         const estimatedServerNow = serverTime + roundTrip;
         const offset = estimatedServerNow - end;
         setTimeOffset(offset);
       } catch (err) {
-        // Fallback: use browser time
-        setTimeOffset(0);
+        // Fallback to external NTP API
+        try {
+          const start = Date.now();
+          const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Jerusalem', { cache: 'no-store' });
+          const end = Date.now();
+          if (!res.ok) throw new Error('WorldTime API failed');
+          const data = await res.json();
+          const serverTime = new Date(data.utc_datetime).getTime();
+          const roundTrip = (end - start) / 2;
+          const estimatedServerNow = serverTime + roundTrip;
+          const offset = estimatedServerNow - end;
+          setTimeOffset(offset);
+        } catch (err2) {
+          // Fallback: use browser time
+          setTimeOffset(0);
+        }
       }
     };
     syncTime();
-    // Resync every 5 minutes
-    const interval = setInterval(syncTime, 5 * 60 * 1000);
+    // Resync every 1 minute to maintain accuracy
+    const interval = setInterval(syncTime, 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
