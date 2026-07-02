@@ -815,32 +815,53 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
     const dayEntries = schedule.filter(s => s.day_of_week === dayOfWeek);
     
     if (dayEntries.length === 0) {
-      setEntries([]);
+      toast('אין שיבוצים בסידור השבועי ליום זה');
       return;
     }
 
-    const newEntries = dayEntries.map((entry, idx) => {
+    const merged = [...entries];
+    let added = 0;
+
+    dayEntries.forEach((entry) => {
       const shift = shifts.find(s => s.id === entry.shift_id);
       const staffMember = staff.find(s => s.id === entry.staff_id);
       const category = shift?.category || staffMember?.role || 'פיקוח';
-      
-      return {
-        id: `new-${idx}`,
-        staff_id: entry.staff_id,
-        staff_name: staffMember?.full_name || '',
-        category,
-        role_title: category === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני',
-        vehicle: '',
-        start_time: shift?.start_time || '07:00',
-        end_time: shift?.end_time || '15:00',
-        is_backup: entry.is_backup || false,
-        tasks: [],
-        special_notes: '',
-        display_order: idx
-      };
+      const startTime = shift?.start_time || '07:00';
+      const endTime = shift?.end_time || '15:00';
+
+      // Check if this assignment already exists
+      const alreadyExists = merged.some(e => 
+        e.staff_id === entry.staff_id && 
+        e.start_time === startTime && 
+        e.end_time === endTime
+      );
+
+      if (!alreadyExists) {
+        merged.push({
+          id: `new-${Date.now()}-${added}`,
+          staff_id: entry.staff_id,
+          staff_name: staffMember?.full_name || '',
+          category,
+          role_title: category === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני',
+          vehicle: '',
+          start_time: startTime,
+          end_time: endTime,
+          is_backup: entry.is_backup || false,
+          tasks: [],
+          special_notes: '',
+          display_order: merged.length
+        });
+        added++;
+      }
     });
 
-    setEntries(newEntries);
+    setEntries(merged);
+    setSaved(false);
+    if (added > 0) {
+      toast.success(`נוספו ${added} שיבוצים מהסידור השבועי ✅`);
+    } else {
+      toast('כל השיבוצים כבר קיימים בפקודת היום');
+    }
   };
 
   const addEntry = (category = 'פיקוח') => {
@@ -1010,6 +1031,9 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
             <span className="text-sm font-semibold text-gray-600">יום {dayName}</span>
           </div>
           <div className="flex gap-2">
+            <button onClick={pullFromWeeklySchedule} className="px-4 py-2 bg-orange-600 active:bg-orange-700 text-white rounded-lg font-semibold text-sm">
+              📥 משוך מסידור שבועי
+            </button>
             <button onClick={saveOrder} className={`px-4 py-2 rounded-lg font-semibold text-sm ${saved ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white active:bg-blue-700'}`}>
               {saved ? '✅ נשמר' : '💾 שמור'}
             </button>

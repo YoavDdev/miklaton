@@ -30,6 +30,7 @@ export default function ScreenPage() {
   const [dutyRoster, setDutyRoster] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [shabbatTimes, setShabbatTimes] = useState(null);
+  const [weather, setWeather] = useState(null);
   const [securityDeptId, setSecurityDeptId] = useState(null);
 
   // Live clock
@@ -78,7 +79,8 @@ export default function ScreenPage() {
       fetchNotifications(),
       fetchDepartments(),
       fetchDutyRoster(),
-      fetchShabbatTimes()
+      fetchShabbatTimes(),
+      fetchWeather()
     ]);
   };
 
@@ -160,26 +162,68 @@ export default function ScreenPage() {
 
   const fetchShabbatTimes = async () => {
     try {
-      // Use Hebcal API for shabbat times
-      const now = new Date();
-      const res = await fetch(`https://www.hebcal.com/shabbat?cfg=json&geonameid=293397&m=50`);
+      // Use Hebcal API for shabbat times in Hebrew
+      const res = await fetch(`https://www.hebcal.com/shabbat?cfg=json&geonameid=293397&m=50&lg=h`);
       const data = await res.json();
       if (data.items) {
         const candles = data.items.find(i => i.category === 'candles');
         const havdalah = data.items.find(i => i.category === 'havdalah');
         const parasha = data.items.find(i => i.category === 'parashat');
         setShabbatTimes({
+          date: candles ? new Date(candles.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' }) : null,
           candles: candles ? new Date(candles.date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : null,
           havdalah: havdalah ? new Date(havdalah.date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : null,
-          parasha: parasha?.title || null
+          parasha: parasha?.hebrew || parasha?.title || null
         });
       }
     } catch {}
   };
 
+  const fetchWeather = async () => {
+    try {
+      // Open-Meteo free weather API for Yehud area, Israel
+      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=32.0333&longitude=34.8833&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=Asia/Jerusalem&forecast_days=1`);
+      const data = await res.json();
+      if (data.current) {
+        setWeather(data.current);
+      }
+    } catch {}
+  };
+
+  const getWeatherInfo = (code) => {
+    // WMO Weather interpretation codes
+    const map = {
+      0: { label: 'בהיר', icon: '☀️' },
+      1: { label: 'בהיר בעיקר', icon: '🌤️' },
+      2: { label: 'מעונן חלקית', icon: '⛅' },
+      3: { label: 'מעונן', icon: '☁️' },
+      45: { label: 'ערפל', icon: '🌫️' },
+      48: { label: 'ערפל', icon: '🌫️' },
+      51: { label: 'טפטוף קל', icon: '🌦️' },
+      53: { label: 'טפטוף', icon: '🌦️' },
+      55: { label: 'טפטוף כבד', icon: '🌧️' },
+      61: { label: 'גשם קל', icon: '🌧️' },
+      63: { label: 'גשם', icon: '🌧️' },
+      65: { label: 'גשם כבד', icon: '🌧️' },
+      71: { label: 'שלג קל', icon: '🌨️' },
+      73: { label: 'שלג', icon: '🌨️' },
+      75: { label: 'שלג כבד', icon: '❄️' },
+      80: { label: 'ממטרים', icon: '🌦️' },
+      81: { label: 'ממטרים', icon: '🌧️' },
+      82: { label: 'ממטרים כבדים', icon: '🌧️' },
+      95: { label: 'סופת רעמים', icon: '⛈️' },
+      96: { label: 'סופת רעמים', icon: '⛈️' },
+      99: { label: 'סופת רעמים', icon: '⛈️' }
+    };
+    return map[code] || { label: 'לא ידוע', icon: '❓' };
+  };
+
   // Determine active security entries
   const now = currentTime;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
+
+  // Daily cemetery gate reminder: 19:00-19:30
+  const isCemeteryReminderActive = now.getHours() === 19 && now.getMinutes() < 30;
 
   const isActive = (startTime, endTime) => {
     const [sh, sm] = startTime.split(':').map(Number);
@@ -217,11 +261,25 @@ export default function ScreenPage() {
         </div>
       )}
 
+      {/* Daily Cemetery Gate Reminder */}
+      {isCemeteryReminderActive && (
+        <div className="bg-red-700 text-white text-center py-4 border-b-4 border-red-500 animate-pulse">
+          <div className="text-2xl font-black flex items-center justify-center gap-3">
+            <span>🪦</span>
+            <span>לוודא ששער בית העלמין סגור!</span>
+            <span>🪦</span>
+          </div>
+          <div className="text-sm text-red-200 mt-1">
+            תזכורת יומית בין 19:00 ל-19:30
+          </div>
+        </div>
+      )}
+
       {/* Header - Time & Date */}
-      <header className="px-6 py-4 border-b border-white/10">
+      <header className={`px-6 py-4 border-b ${isCemeteryReminderActive ? 'bg-red-900/40 border-red-500/50' : 'border-white/10'}`}>
         <div className="max-w-screen-2xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-6">
-            <div className="text-5xl font-black tracking-tight font-mono">
+            <div className={`text-5xl font-black tracking-tight font-mono ${isCemeteryReminderActive ? 'text-red-400 animate-pulse' : ''}`}>
               {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
             <div className="border-r border-white/20 pr-6">
@@ -234,12 +292,31 @@ export default function ScreenPage() {
             </div>
           </div>
 
-          {/* Shabbat Times */}
+          {/* Weather - in the middle */}
+          {weather && (
+            <div className="flex items-center gap-4 bg-blue-900/30 rounded-xl px-5 py-3 border border-blue-500/30">
+              <span className="text-4xl">{getWeatherInfo(weather.weather_code).icon}</span>
+              <div className="text-sm">
+                <div className="font-bold text-white text-lg">{Math.round(weather.temperature_2m)}°</div>
+                <div className="text-blue-200">{getWeatherInfo(weather.weather_code).label}</div>
+              </div>
+              <div className="text-xs text-blue-300 border-r border-blue-500/30 pr-3 mr-2">
+                <div>תחושה: {Math.round(weather.apparent_temperature)}°</div>
+                <div>לחות: {weather.relative_humidity_2m}%</div>
+                <div>רוח: {weather.wind_speed_10m} קמ"ש</div>
+              </div>
+            </div>
+          )}
+
+          {/* Shabbat Times - on the left side */}
           {shabbatTimes && (
             <div className="flex items-center gap-4 bg-white/5 rounded-xl px-5 py-3 border border-white/10">
               <span className="text-2xl">🕯️</span>
               <div className="text-sm">
                 {shabbatTimes.parasha && <div className="font-bold text-yellow-300">{shabbatTimes.parasha}</div>}
+                <div className="text-xs text-gray-400 mb-1">
+                  {shabbatTimes.date && <span>תאריך: {shabbatTimes.date}</span>}
+                </div>
                 <div className="flex gap-3 text-gray-300">
                   {shabbatTimes.candles && <span>כניסה: <strong className="text-white">{shabbatTimes.candles}</strong></span>}
                   {shabbatTimes.havdalah && <span>יציאה: <strong className="text-white">{shabbatTimes.havdalah}</strong></span>}
@@ -247,8 +324,6 @@ export default function ScreenPage() {
               </div>
             </div>
           )}
-
-          <img src="/images/yehud-logo.png" alt="לוגו" className="h-12 object-contain" />
         </div>
       </header>
 
@@ -332,7 +407,7 @@ export default function ScreenPage() {
 
         {/* Right Column - Security Status */}
         <div className="space-y-4">
-          
+
           {/* Security Field Status */}
           <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
             <div className="px-5 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2">
