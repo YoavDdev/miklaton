@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@supabase/supabase-js';
 import toast, { Toaster } from 'react-hot-toast';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
+import SecurityWeeklySchedule from '@/components/SecurityWeeklySchedule';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -860,9 +861,26 @@ export default function SectorManagerPage() {
               >
                 � אנשי קשר - המכלול שלי
               </button>
+              {myDepartment?.name?.includes('בטחון') && (
+              <button
+                onClick={() => setActiveTab('work-schedule')}
+                className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                  activeTab === 'work-schedule'
+                    ? 'border-blue-600 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                📋 <span className="hidden sm:inline">סידור עבודה שבועי</span><span className="sm:hidden">סידור עבודה</span>
+              </button>
+              )}
             </nav>
           </div>
         </div>
+
+        {/* Tab Content - Security Work Schedule */}
+        {activeTab === 'work-schedule' && myDepartment?.name?.includes('בטחון') && (
+          <SecurityWeeklySchedule departmentId={activeDepartmentId || user?.department_id} />
+        )}
 
         {/* Tab Content - Weekly Calendar - Only in emergency mode */}
         {warMode && activeTab === 'calendar' && (
