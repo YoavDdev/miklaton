@@ -22,15 +22,9 @@ function formatDateForDB(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
-// Get current time in Israel timezone (Asia/Jerusalem) regardless of browser settings
-function getIsraelTime(date = new Date()) {
-  return new Date(date.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
-}
-
 export default function ScreenPage() {
   const [zoom, setZoom] = useState(1.5);
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [timeOffset, setTimeOffset] = useState(0);
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [securityEntries, setSecurityEntries] = useState([]);
@@ -40,12 +34,11 @@ export default function ScreenPage() {
   const [weather, setWeather] = useState(null);
   const [securityDeptId, setSecurityDeptId] = useState(null);
 
-  // Live clock - Israel time with NTP offset correction
+  // Live clock
   useEffect(() => {
-    const timer = setInterval(() => setCurrentTime(getIsraelTime(new Date(Date.now() + timeOffset))), 1000);
-    setCurrentTime(getIsraelTime(new Date(Date.now() + timeOffset)));
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
-  }, [timeOffset]);
+  }, []);
 
   // Read zoom from URL
   useEffect(() => {
@@ -55,45 +48,6 @@ export default function ScreenPage() {
     if (!isNaN(z) && z > 0.5 && z <= 3) {
       setZoom(z);
     }
-  }, []);
-
-  // Sync accurate time from server API on mount
-  useEffect(() => {
-    const syncTime = async () => {
-      try {
-        const start = Date.now();
-        const res = await fetch('/api/time', { cache: 'no-store' });
-        const end = Date.now();
-        if (!res.ok) throw new Error('Server time failed');
-        const data = await res.json();
-        const serverTime = data.timestamp;
-        const roundTrip = (end - start) / 2;
-        const estimatedServerNow = serverTime + roundTrip;
-        const offset = estimatedServerNow - end;
-        setTimeOffset(offset);
-      } catch (err) {
-        // Fallback to external NTP API
-        try {
-          const start = Date.now();
-          const res = await fetch('https://worldtimeapi.org/api/timezone/Asia/Jerusalem', { cache: 'no-store' });
-          const end = Date.now();
-          if (!res.ok) throw new Error('WorldTime API failed');
-          const data = await res.json();
-          const serverTime = new Date(data.utc_datetime).getTime();
-          const roundTrip = (end - start) / 2;
-          const estimatedServerNow = serverTime + roundTrip;
-          const offset = estimatedServerNow - end;
-          setTimeOffset(offset);
-        } catch (err2) {
-          // Fallback: use browser time
-          setTimeOffset(0);
-        }
-      }
-    };
-    syncTime();
-    // Resync every 1 minute to maintain accuracy
-    const interval = setInterval(syncTime, 60 * 1000);
-    return () => clearInterval(interval);
   }, []);
 
   // Initial load
@@ -341,14 +295,14 @@ export default function ScreenPage() {
         <div className="w-full flex items-center justify-between">
           <div className="flex items-center gap-6">
             <div className={`text-5xl font-black tracking-tight font-mono ${isCemeteryReminderActive ? 'text-red-400 animate-pulse' : ''}`}>
-              {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Jerusalem' })}
+              {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
             </div>
             <div className="border-r border-white/20 pr-6">
               <div className="text-lg font-bold">
                 יום {DAYS_HEB[currentTime.getDay()]}
               </div>
               <div className="text-sm text-gray-300">
-                {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Asia/Jerusalem' })}
+                {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
             </div>
           </div>
@@ -427,7 +381,7 @@ export default function ScreenPage() {
                         <p className="text-gray-300 text-sm mt-1">{n.message}</p>
                       </div>
                       <span className="text-xs text-gray-500 whitespace-nowrap mr-4">
-                        {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jerusalem' })}
+                        {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                   </div>
