@@ -767,50 +767,6 @@ export default function SectorManagerPage() {
 
       <main className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         
-        {/* Stats Cards - Enhanced */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-6 mb-6 sm:mb-8">
-          <div className="bg-gradient-to-br from-green-500 to-green-600 text-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-6 transform active:scale-95 sm:hover:scale-105 transition-transform">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div>
-                <p className="text-xs sm:text-sm text-green-100 mb-1">אנשי קשר במכלול</p>
-                <p className="text-2xl sm:text-4xl font-bold">{contacts.length}</p>
-              </div>
-              <div className="text-3xl sm:text-5xl opacity-80">👥</div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-blue-500 to-blue-600 text-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-6 transform active:scale-95 sm:hover:scale-105 transition-transform">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div>
-                <p className="text-xs sm:text-sm text-blue-100 mb-1">משמרות שבועיות</p>
-                <p className="text-2xl sm:text-4xl font-bold">{dutyRoster.length}</p>
-              </div>
-              <div className="text-3xl sm:text-5xl opacity-80">📅</div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-orange-500 to-orange-600 text-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-6 transform active:scale-95 sm:hover:scale-105 transition-transform">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div>
-                <p className="text-xs sm:text-sm text-orange-100 mb-1">כוננים היום</p>
-                <p className="text-2xl sm:text-4xl font-bold">
-                  {dutyRoster.filter(d => d.day_of_week === new Date().getDay()).length}
-                </p>
-              </div>
-              <div className="text-3xl sm:text-5xl opacity-80">⏰</div>
-            </div>
-          </div>
-          
-          <div className="bg-gradient-to-br from-purple-500 to-purple-600 text-white rounded-lg sm:rounded-xl shadow-lg p-3 sm:p-6 transform active:scale-95 sm:hover:scale-105 transition-transform">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-              <div>
-                <p className="text-xs sm:text-sm text-purple-100 mb-1">ימים ממולאים</p>
-                <p className="text-2xl sm:text-4xl font-bold">{completionStatus.filled}/7</p>
-              </div>
-              <div className="text-3xl sm:text-5xl opacity-80">✅</div>
-            </div>
-          </div>
-        </div>
 
         {/* Department Switcher - For users with multiple departments */}
         {userDepartments.length > 1 && (
