@@ -115,6 +115,12 @@ export default function AdminPage() {
                 {warMode ? '🚨' : '⚪'} <span className="hidden sm:inline">{warMode ? 'מצב מלחמה' : 'מצב רגיל'}</span>
               </button>
               <button
+                onClick={() => router.push('/admin/departments')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
+              >
+                🏢 <span className="hidden sm:inline">מכלולים</span>
+              </button>
+              <button
                 onClick={() => router.push('/admin/users')}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
               >
