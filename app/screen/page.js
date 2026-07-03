@@ -31,6 +31,7 @@ export default function ScreenPage() {
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [securityEntries, setSecurityEntries] = useState([]);
+  const [lastSecurityUpdate, setLastSecurityUpdate] = useState(null);
   const [dutyRoster, setDutyRoster] = useState([]);
   const [contacts, setContacts] = useState([]);
   const [shabbatTimes, setShabbatTimes] = useState(null);
@@ -193,6 +194,7 @@ export default function ScreenPage() {
       });
       
       setSecurityEntries(deduped);
+      setLastSecurityUpdate(new Date());
     } catch {}
   };
 
@@ -521,6 +523,11 @@ export default function ScreenPage() {
             <div className="px-5 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2 shrink-0">
               <span className="text-xl">🛡️</span>
               <h2 className="font-bold">ביטחון - כרגע בשטח</h2>
+              {lastSecurityUpdate && (
+                <span className="text-[10px] text-white/40" title="עדכון אחרון">
+                  עודכן {lastSecurityUpdate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              )}
               <span className="mr-auto text-xs text-green-400 bg-green-900/50 px-2 py-0.5 rounded-full">
                 {activeSecurityNow.length} פעילים
               </span>
