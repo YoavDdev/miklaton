@@ -38,13 +38,18 @@ export async function GET(request) {
     let shabbatTimes = null;
     if (currentTimeOnly) {
       try {
-        const shabbatRes = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/api/shabbat-times`);
+        // Fetch directly from Hebcal API
+        const shabbatRes = await fetch('https://www.hebcal.com/shabbat?cfg=json&geonameid=293397&m=50');
         const shabbatData = await shabbatRes.json();
-        if (shabbatData.success) {
-          shabbatTimes = {
-            candleLighting: new Date(shabbatData.candleLighting),
-            havdalah: new Date(shabbatData.havdalah),
-          };
+        if (shabbatData.items) {
+          const candles = shabbatData.items.find(i => i.category === 'candles');
+          const havdalah = shabbatData.items.find(i => i.category === 'havdalah');
+          if (candles && havdalah) {
+            shabbatTimes = {
+              candleLighting: new Date(candles.date),
+              havdalah: new Date(havdalah.date),
+            };
+          }
         }
       } catch (e) {
         console.error('Failed to fetch shabbat times:', e);
@@ -120,24 +125,15 @@ export async function GET(request) {
               }
             }
 
-            // Check shabbat observer - unavailable during shabbat
-            // except 2 hours before candle lighting and 2 hours after havdalah
+            // Check shabbat observer - unavailable from 2h before candles until 2h after havdalah
             if (contact.shabbat_observer && shabbatTimes) {
               const { candleLighting, havdalah } = shabbatTimes;
-              const windowBefore = new Date(candleLighting.getTime() - 2 * 60 * 60 * 1000);
-              const windowAfter = new Date(havdalah.getTime() + 2 * 60 * 60 * 1000);
-
-              const isShabbat = now >= candleLighting && now <= havdalah;
-              const isBeforeWindow = now >= windowBefore && now < candleLighting;
-              const isAfterWindow = now > havdalah && now <= windowAfter;
-
-              // During shabbat itself → unavailable (unless in the 2h after window)
-              if (isShabbat && !isAfterWindow) return false;
-              // Outside the 2h-before and 2h-after windows on shabbat day → unavailable
-              if (!isBeforeWindow && !isAfterWindow && !isShabbat) {
-                // Check if it's Friday after candle-lighting window or Saturday before havdalah window
-                const dayOfWeek = now.getDay();
-                if (dayOfWeek === 5 && now >= candleLighting) return false; // Friday after candles
+              const shabbatStart = new Date(candleLighting.getTime() - 2 * 60 * 60 * 1000);
+              const shabbatEnd = new Date(havdalah.getTime() + 2 * 60 * 60 * 1000);
+              
+              // If current time is within Shabbat window, contact is unavailable
+              if (now >= shabbatStart && now <= shabbatEnd) {
+                return false;
               }
             }
 
