@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import EmergencyHotlineBar from '@/components/EmergencyHotlineBar';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -377,6 +378,8 @@ export default function ScreenPage() {
           )}
         </div>
       </header>
+
+      <EmergencyHotlineBar />
 
       <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
         
