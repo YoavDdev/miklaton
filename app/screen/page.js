@@ -158,9 +158,10 @@ export default function ScreenPage() {
 
       let allEntries = [];
       if (todayData.success && todayData.entries) {
-        allEntries = [...todayData.entries];
+        // Mark today's entries
+        allEntries = [...todayData.entries.map(e => ({ ...e, _fromToday: true }))];
       }
-      // Add yesterday's overnight shifts that are still active or already ended
+      // Add yesterday's overnight shifts that are still active
       if (yesterdayData.success && yesterdayData.entries) {
         const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
         const overnightEntries = yesterdayData.entries.filter(e => {
@@ -168,10 +169,9 @@ export default function ScreenPage() {
           const [eh, em] = e.end_time.split(':').map(Number);
           const start = sh * 60 + sm;
           const end = eh * 60 + em;
-          // Only include if it actually spans midnight and either still active this morning
-          // or already ended today but not yet restarted for the new shift
+          // Only include overnight shifts (end < start) that haven't ended yet
           if (end >= start) return false;
-          return currentMinutes < end || currentMinutes < start;
+          return currentMinutes < end;
         });
         allEntries = [...allEntries, ...overnightEntries.map(e => ({ ...e, _fromYesterday: true }))];
       }
@@ -276,16 +276,28 @@ export default function ScreenPage() {
   // Daily cemetery gate reminder: 19:00-19:30
   const isCemeteryReminderActive = now.getHours() === 19 && now.getMinutes() < 30;
 
-  const isActive = (startTime, endTime) => {
+  const isActive = (startTime, endTime, fromYesterday = false) => {
     const [sh, sm] = startTime.split(':').map(Number);
     const [eh, em] = endTime.split(':').map(Number);
     const start = sh * 60 + sm;
     let end = eh * 60 + em;
-    if (end < start) return currentMinutes >= start || currentMinutes < end;
+    
+    // Handle overnight shifts (e.g., 18:00 - 03:00)
+    if (end < start) {
+      if (fromYesterday) {
+        // Shift started yesterday - only active if we haven't passed end time yet
+        return currentMinutes < end;
+      } else {
+        // Shift starts today - only active if we've passed start time
+        return currentMinutes >= start;
+      }
+    }
+    
+    // Regular shift - active if between start and end
     return currentMinutes >= start && currentMinutes < end;
   };
 
-  const activeSecurityNow = securityEntries.filter(e => isActive(e.start_time, e.end_time));
+  const activeSecurityNow = securityEntries.filter(e => isActive(e.start_time, e.end_time, e._fromYesterday));
 
   // Shabbat window: 2 hours before candle lighting until 2 hours after havdalah
   const isShabbatRestricted = (() => {
