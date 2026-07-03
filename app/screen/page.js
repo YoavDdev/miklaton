@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import EmergencyHotlineBar from '@/components/EmergencyHotlineBar';
+import WeatherAlertBar from '@/components/WeatherAlertBar';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -229,11 +230,10 @@ export default function ScreenPage() {
 
   const fetchWeather = async () => {
     try {
-      // Open-Meteo free weather API for Yehud area, Israel
-      const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=32.0333&longitude=34.8833&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m&timezone=Asia/Jerusalem&forecast_days=1`);
+      const res = await fetch('/api/weather');
       const data = await res.json();
-      if (data.current) {
-        setWeather(data.current);
+      if (data.success && data.current) {
+        setWeather({ current: data.current, daily: data.daily || [], alerts: data.alerts || [] });
       }
     } catch {}
   };
@@ -346,17 +346,40 @@ export default function ScreenPage() {
 
           {/* Weather - in the middle */}
           {weather && (
-            <div className="flex items-center gap-4 bg-blue-900/30 rounded-xl px-5 py-3 border border-blue-500/30">
-              <span className="text-4xl">{getWeatherInfo(weather.weather_code).icon}</span>
-              <div className="text-sm">
-                <div className="font-bold text-white text-lg">{Math.round(weather.temperature_2m)}°</div>
-                <div className="text-blue-200">{getWeatherInfo(weather.weather_code).label}</div>
+            <div className={`flex items-center gap-5 rounded-xl px-5 py-2 border ${weather.alerts?.length > 0 ? 'bg-red-900/30 border-red-500/50' : 'bg-slate-800/50 border-slate-600/30'}`}>
+              <div className="flex items-center gap-3">
+                <span className="text-4xl">{getWeatherInfo(weather.current.weather_code).icon}</span>
+                <div>
+                  <div className="font-black text-white text-2xl">{Math.round(weather.current.temperature_2m)}°</div>
+                  <div className={weather.alerts?.length > 0 ? 'text-red-200 text-sm' : 'text-slate-300 text-sm'}>{getWeatherInfo(weather.current.weather_code).label}</div>
+                </div>
               </div>
-              <div className="text-xs text-blue-300 border-r border-blue-500/30 pr-3 mr-2">
-                <div>תחושה: {Math.round(weather.apparent_temperature)}°</div>
-                <div>לחות: {weather.relative_humidity_2m}%</div>
-                <div>רוח: {weather.wind_speed_10m} קמ"ש</div>
+
+              <div className={`text-xs border-r pr-4 mr-2 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
+                <div>תחושה {Math.round(weather.current.apparent_temperature)}°</div>
+                <div>לחות {weather.current.relative_humidity_2m}%</div>
+                <div>רוח {Math.round(weather.current.wind_speed_10m)} קמ"ש</div>
               </div>
+
+              <div className={`flex items-center gap-4 text-xs border-r pr-4 mr-2 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
+                {weather.daily?.slice(1, 4).map((d, i) => {
+                  const dayName = ['מחר', 'מחרתיים', 'עוד 3'][i];
+                  return (
+                    <div key={i} className="text-center">
+                      <div className="font-bold">{dayName}</div>
+                      <div className="text-lg">{getWeatherInfo(d.code).icon}</div>
+                      <div>{Math.round(d.max)}°/{Math.round(d.min)}°</div>
+                      {d.rain > 5 && <div className="text-blue-300">{Math.round(d.rain)} מ"מ</div>}
+                    </div>
+                  );
+                })}
+              </div>
+
+              {weather.alerts?.length > 0 && (
+                <div className="text-sm text-red-100 font-bold">
+                  {weather.alerts.map((a, i) => <div key={i}>⚠️ {a.text}</div>)}
+                </div>
+              )}
             </div>
           )}
 
@@ -380,6 +403,8 @@ export default function ScreenPage() {
       </header>
 
       <EmergencyHotlineBar />
+
+      <WeatherAlertBar alerts={weather?.alerts} />
 
       <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
         
