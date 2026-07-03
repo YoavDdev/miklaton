@@ -73,10 +73,22 @@ export default function ScreenPage() {
       )
       .subscribe();
 
+    // Realtime security daily order
+    const securityChannel = supabase
+      .channel('screen_security_daily_order')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'security_daily_order_entries' },
+        () => {
+          if (securityDeptId) fetchSecurityStatus();
+        }
+      )
+      .subscribe();
+
     return () => {
       clearInterval(interval);
       supabase.removeChannel(channel);
       supabase.removeChannel(notifChannel);
+      supabase.removeChannel(securityChannel);
     };
   }, []);
 
@@ -91,7 +103,8 @@ export default function ScreenPage() {
       fetchDepartments(),
       fetchDutyRoster(),
       fetchShabbatTimes(),
-      fetchWeather()
+      fetchWeather(),
+      securityDeptId ? fetchSecurityStatus() : Promise.resolve()
     ]);
   };
 

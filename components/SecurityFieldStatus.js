@@ -1,6 +1,12 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
 
 export default function SecurityFieldStatus() {
   const [entries, setEntries] = useState([]);
@@ -16,7 +22,20 @@ export default function SecurityFieldStatus() {
       fetchTodayOrder();
       // Refresh every 60 seconds
       const interval = setInterval(fetchTodayOrder, 60000);
-      return () => clearInterval(interval);
+      
+      // Realtime updates for security daily order
+      const channel = supabase
+        .channel('security_field_status')
+        .on('postgres_changes',
+          { event: '*', schema: 'public', table: 'security_daily_order_entries' },
+          () => fetchTodayOrder()
+        )
+        .subscribe();
+      
+      return () => {
+        clearInterval(interval);
+        supabase.removeChannel(channel);
+      };
     }
   }, [securityDeptId]);
 
