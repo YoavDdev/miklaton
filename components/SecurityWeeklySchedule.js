@@ -765,11 +765,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
   const vehicles = settings?.vehicles?.length > 0 ? settings.vehicles : FALLBACK_VEHICLES;
   const tasksPikuach = settings?.tasks_pikuach?.length > 0 ? settings.tasks_pikuach : FALLBACK_TASKS_PIKUACH;
   const tasksShitur = settings?.tasks_shitur?.length > 0 ? settings.tasks_shitur : FALLBACK_TASKS_SHITUR;
-  const [selectedDate, setSelectedDate] = useState(() => {
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    return formatDateForDB(tomorrow);
-  });
+  const [selectedDate, setSelectedDate] = useState(() => formatDateForDB(new Date()));
   const [entries, setEntries] = useState([]);
   const [generalNotes, setGeneralNotes] = useState('');
   const [signoffMessage, setSignoffMessage] = useState('יום טוב לכולם, סעו בזהירות, שמרו על עצמכם');
@@ -1020,15 +1016,32 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
       {/* Date selector + actions */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <label className="font-bold text-gray-700 text-sm">📅 תאריך:</label>
-            <input
-              type="date"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none text-sm font-semibold"
-            />
-            <span className="text-sm font-semibold text-gray-600">יום {dayName}</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const d = new Date(selectedDate + 'T00:00:00');
+                d.setDate(d.getDate() - 1);
+                setSelectedDate(formatDateForDB(d));
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-lg"
+            >›</button>
+            <div className="flex flex-col items-center min-w-[130px]">
+              <span className="font-bold text-gray-800 text-sm">{`יום ${dayName}, ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`}</span>
+              {formatDateForDB(new Date()) === selectedDate && (
+                <span className="text-[10px] text-blue-500 font-semibold">היום</span>
+              )}
+              {(() => { const t = new Date(); t.setDate(t.getDate()+1); return formatDateForDB(t) === selectedDate; })() && (
+                <span className="text-[10px] text-orange-500 font-semibold">מחר</span>
+              )}
+            </div>
+            <button
+              onClick={() => {
+                const d = new Date(selectedDate + 'T00:00:00');
+                d.setDate(d.getDate() + 1);
+                setSelectedDate(formatDateForDB(d));
+              }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-lg"
+            >‹</button>
           </div>
           <div className="flex gap-2">
             <button onClick={pullFromWeeklySchedule} className="px-4 py-2 bg-orange-600 active:bg-orange-700 text-white rounded-lg font-semibold text-sm">
