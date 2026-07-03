@@ -173,12 +173,19 @@ export default function ScreenPage() {
         allEntries = [...allEntries, ...overnightEntries.map(e => ({ ...e, _fromYesterday: true }))];
       }
       
-      // Remove duplicate entries (same staff, times, category, role)
-      const seen = new Set();
-      const deduped = allEntries.filter(e => {
-        const key = `${e.staff_id}|${e.start_time}|${e.end_time}|${e.category}|${e.role_title}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
+      // If same staff has same category and start time from weekly schedule and daily order,
+      // prefer the daily order override (the one with earlier end time)
+      const deduped = allEntries.filter((e, index, self) => {
+        const duplicates = self.filter(item =>
+          item.staff_id === e.staff_id &&
+          item.category === e.category &&
+          item.start_time === e.start_time
+        );
+        if (duplicates.length > 1) {
+          const toMinutes = (time) => time.split(':').map(Number).reduce((h, m) => h * 60 + m, 0);
+          const minEnd = Math.min(...duplicates.map(d => toMinutes(d.end_time)));
+          return toMinutes(e.end_time) === minEnd;
+        }
         return true;
       });
       
