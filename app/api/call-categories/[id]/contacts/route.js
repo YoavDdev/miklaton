@@ -7,6 +7,23 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+async function syncShabbatObserverToContacts(supabase, name, phone, isObserver) {
+  if (!name || !phone) return;
+  try {
+    const normalizedPhone = phone.replace(/\D/g, '');
+    const { data: matches } = await supabase
+      .from('contacts')
+      .select('id, phone')
+      .ilike('full_name', name.trim());
+    const contact = matches?.find(c => c.phone.replace(/\D/g, '') === normalizedPhone);
+    if (contact) {
+      await supabase.from('contacts').update({ shabbat_observer: !!isObserver }).eq('id', contact.id);
+    }
+  } catch (err) {
+    console.error('Failed to sync shabbat_observer to contacts:', err);
+  }
+}
+
 // POST - Add contact to category
 export async function POST(request, { params }) {
   try {
@@ -72,6 +89,8 @@ export async function POST(request, { params }) {
 
     if (error) throw error;
 
+    await syncShabbatObserverToContacts(supabase, external_name, external_phone, shabbat_observer);
+
     return NextResponse.json({
       success: true,
       message: 'כונן נוסף לקטגוריה בהצלחה',
@@ -107,6 +126,12 @@ export async function PUT(request, { params }) {
     if (sanitized.available_hours_start === '') sanitized.available_hours_start = null;
     if (sanitized.available_hours_end === '') sanitized.available_hours_end = null;
 
+    const { data: existing } = await supabase
+      .from('call_category_contacts')
+      .select('external_name, external_phone')
+      .eq('id', contact_id)
+      .single();
+
     const { data, error } = await supabase
       .from('call_category_contacts')
       .update({
@@ -118,6 +143,10 @@ export async function PUT(request, { params }) {
       .single();
 
     if (error) throw error;
+
+    if (typeof sanitized.shabbat_observer === 'boolean') {
+      await syncShabbatObserverToContacts(supabase, existing?.external_name, existing?.external_phone, sanitized.shabbat_observer);
+    }
 
     return NextResponse.json({
       success: true,

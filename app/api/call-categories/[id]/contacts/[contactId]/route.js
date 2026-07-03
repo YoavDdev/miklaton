@@ -6,11 +6,29 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+async function syncShabbatObserverToContacts(supabase, name, phone, isObserver) {
+  if (!name || !phone) return;
+  try {
+    const normalizedPhone = phone.replace(/\D/g, '');
+    const { data: matches } = await supabase
+      .from('contacts')
+      .select('id, phone')
+      .ilike('full_name', name.trim());
+    const contact = matches?.find(c => c.phone.replace(/\D/g, '') === normalizedPhone);
+    if (contact) {
+      await supabase.from('contacts').update({ shabbat_observer: !!isObserver }).eq('id', contact.id);
+    }
+  } catch (err) {
+    console.error('Failed to sync shabbat_observer to contacts:', err);
+  }
+}
+
 // PUT - Update contact
 export async function PUT(request, { params }) {
   try {
     const { id: categoryId, contactId } = params;
     const body = await request.json();
+    const shabbatObserver = body.shabbat_observer || false;
 
     const { error } = await supabase
       .from('call_category_contacts')
@@ -28,13 +46,15 @@ export async function PUT(request, { params }) {
         priority_order: body.priority_order,
         contact_type: body.contact_type,
         notes_for_operator: body.notes_for_operator,
-        shabbat_observer: body.shabbat_observer || false,
+        shabbat_observer: shabbatObserver,
         updated_at: new Date().toISOString()
       })
       .eq('id', contactId)
       .eq('call_category_id', categoryId);
 
     if (error) throw error;
+
+    await syncShabbatObserverToContacts(supabase, body.external_name, body.external_phone, shabbatObserver);
 
     return NextResponse.json({ success: true });
   } catch (error) {

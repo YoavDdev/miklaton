@@ -223,6 +223,8 @@ export default function ScreenPage() {
           date: candles ? new Date(candles.date).toLocaleDateString('he-IL', { day: 'numeric', month: 'long' }) : null,
           candles: candles ? new Date(candles.date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : null,
           havdalah: havdalah ? new Date(havdalah.date).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' }) : null,
+          candleDate: candles ? new Date(candles.date) : null,
+          havdalahDate: havdalah ? new Date(havdalah.date) : null,
           parasha: parasha?.hebrew || parasha?.title || null
         });
       }
@@ -285,9 +287,22 @@ export default function ScreenPage() {
 
   const activeSecurityNow = securityEntries.filter(e => isActive(e.start_time, e.end_time));
 
+  // Shabbat window: 2 hours before candle lighting until 2 hours after havdalah
+  const isShabbatRestricted = (() => {
+    if (!shabbatTimes?.candleDate || !shabbatTimes?.havdalahDate) return false;
+    const start = new Date(shabbatTimes.candleDate.getTime() - 2 * 60 * 60 * 1000);
+    const end = new Date(shabbatTimes.havdalahDate.getTime() + 2 * 60 * 60 * 1000);
+    return now >= start && now <= end;
+  })();
+
   // Today's on-call contacts
   const todayDay = now.getDay();
-  const todayDuty = dutyRoster.filter(d => d.day_of_week === todayDay);
+  const todayDuty = dutyRoster.filter(d => {
+    if (d.day_of_week !== todayDay) return false;
+    const contact = contacts.find(c => c.id === d.contact_id);
+    if (isShabbatRestricted && contact?.shabbat_observer) return false;
+    return true;
+  });
   const currentDuty = todayDuty.filter(d => {
     if (d.start_hour === d.end_hour) return true; // 24h
     if (d.end_hour < d.start_hour) {
