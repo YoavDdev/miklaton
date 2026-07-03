@@ -74,7 +74,8 @@ export default function SecurityFieldStatus() {
       
       let allEntries = [];
       if (todayData.success && todayData.entries) {
-        allEntries = [...todayData.entries];
+        // Mark today's entries
+        allEntries = [...todayData.entries.map(e => ({ ...e, _fromToday: true }))];
       }
       // Add yesterday's overnight shifts that are still active now
       if (yesterdayData.success && yesterdayData.entries) {
@@ -84,10 +85,9 @@ export default function SecurityFieldStatus() {
           const [eh, em] = e.end_time.split(':').map(Number);
           const start = sh * 60 + sm;
           const end = eh * 60 + em;
-          // Only include if it actually spans midnight and either still active this morning
-          // or already ended today but not yet restarted for the new shift
+          // Only include overnight shifts (end < start) that haven't ended yet
           if (end >= start) return false;
-          return currentMinutes < end || currentMinutes < start;
+          return currentMinutes < end;
         });
         // Mark them as from yesterday so we can distinguish
         allEntries = [...allEntries, ...overnightEntries.map(e => ({ ...e, _fromYesterday: true }))];
@@ -118,7 +118,7 @@ export default function SecurityFieldStatus() {
   };
 
   // Determine if a worker is currently active based on their shift time
-  const isCurrentlyActive = (startTime, endTime) => {
+  const isCurrentlyActive = (startTime, endTime, fromYesterday = false) => {
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     
@@ -128,12 +128,18 @@ export default function SecurityFieldStatus() {
     const startMinutes = startH * 60 + startM;
     let endMinutes = endH * 60 + endM;
     
-    // Handle overnight shifts (e.g., 21:00 - 05:00)
+    // Handle overnight shifts (e.g., 18:00 - 03:00)
     if (endMinutes < startMinutes) {
-      // If current time is after start OR before end
-      return currentMinutes >= startMinutes || currentMinutes < endMinutes;
+      if (fromYesterday) {
+        // Shift started yesterday - only active if we haven't passed end time yet
+        return currentMinutes < endMinutes;
+      } else {
+        // Shift starts today - only active if we've passed start time
+        return currentMinutes >= startMinutes;
+      }
     }
     
+    // Regular shift - active if between start and end
     return currentMinutes >= startMinutes && currentMinutes < endMinutes;
   };
 
@@ -176,7 +182,7 @@ export default function SecurityFieldStatus() {
     return null; // Don't show anything if no security dept or no daily order
   }
 
-  const activeEntries = entries.filter(e => isCurrentlyActive(e.start_time, e.end_time));
+  const activeEntries = entries.filter(e => isCurrentlyActive(e.start_time, e.end_time, e._fromYesterday));
   const finishedEntries = entries.filter(e => hasEnded(e.start_time, e.end_time, e._fromYesterday));
 
   return (
