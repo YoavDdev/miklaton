@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import EmergencyHotlineBar from '@/components/EmergencyHotlineBar';
 import WeatherAlertBar from '@/components/WeatherAlertBar';
+import AutoRefresh from '@/components/AutoRefresh';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -305,7 +306,8 @@ export default function ScreenPage() {
       dir="rtl"
       style={{ zoom }}
     >
-      
+      <AutoRefresh />
+
       {/* War Mode Banner */}
       {warMode && (
         <div className="bg-red-600 text-white text-center py-3 text-lg font-black animate-pulse">
