@@ -793,8 +793,10 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
           tasks: e.tasks || []
         })));
       } else {
-        // Try to pull from weekly schedule
-        pullFromWeeklySchedule();
+        // No order found for this date - clear entries
+        setGeneralNotes('');
+        setSignoffMessage('יום טוב לכולם, סעו בזהירות, שמרו על עצמכם');
+        setEntries([]);
       }
     } catch (error) {
       console.error('Error loading daily order:', error);
@@ -1020,24 +1022,30 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
             <button
               onClick={() => {
                 const d = new Date(selectedDate + 'T00:00:00');
-                d.setDate(d.getDate() - 1);
+                d.setDate(d.getDate() + 1);
                 setSelectedDate(formatDateForDB(d));
               }}
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-lg"
             >›</button>
-            <div className="flex flex-col items-center min-w-[130px]">
+            <div className="flex flex-col items-center min-w-[160px]">
               <span className="font-bold text-gray-800 text-sm">{`יום ${dayName}, ${date.getDate()}/${date.getMonth() + 1}/${date.getFullYear()}`}</span>
-              {formatDateForDB(new Date()) === selectedDate && (
-                <span className="text-[10px] text-blue-500 font-semibold">היום</span>
-              )}
-              {(() => { const t = new Date(); t.setDate(t.getDate()+1); return formatDateForDB(t) === selectedDate; })() && (
-                <span className="text-[10px] text-orange-500 font-semibold">מחר</span>
-              )}
+              <div className="flex items-center gap-2">
+                {formatDateForDB(new Date()) === selectedDate && (
+                  <span className="text-[10px] text-blue-500 font-semibold">היום</span>
+                )}
+                {(() => { const t = new Date(); t.setDate(t.getDate()+1); return formatDateForDB(t) === selectedDate; })() && (
+                  <span className="text-[10px] text-orange-500 font-semibold">מחר</span>
+                )}
+                <button
+                  onClick={() => setSelectedDate(formatDateForDB(new Date()))}
+                  className="text-[10px] text-gray-400 hover:text-blue-500 underline"
+                >חזר להיום</button>
+              </div>
             </div>
             <button
               onClick={() => {
                 const d = new Date(selectedDate + 'T00:00:00');
-                d.setDate(d.getDate() + 1);
+                d.setDate(d.getDate() - 1);
                 setSelectedDate(formatDateForDB(d));
               }}
               className="w-8 h-8 flex items-center justify-center rounded-lg bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold text-lg"
