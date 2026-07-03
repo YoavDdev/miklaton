@@ -57,12 +57,17 @@ export default function SecurityFieldStatus() {
       if (todayData.success && todayData.entries) {
         allEntries = [...todayData.entries];
       }
-      // Add yesterday's overnight shifts (where end_time < start_time)
+      // Add yesterday's overnight shifts that are still active now
       if (yesterdayData.success && yesterdayData.entries) {
+        const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
         const overnightEntries = yesterdayData.entries.filter(e => {
-          const [sh] = e.start_time.split(':').map(Number);
-          const [eh] = e.end_time.split(':').map(Number);
-          return eh < sh; // overnight shift
+          const [sh, sm] = e.start_time.split(':').map(Number);
+          const [eh, em] = e.end_time.split(':').map(Number);
+          const start = sh * 60 + sm;
+          const end = eh * 60 + em;
+          // Only include if it actually spans midnight and is still active OR already ended
+          if (end >= start) return false;
+          return currentMinutes < end || currentMinutes >= start;
         });
         // Mark them as from yesterday so we can distinguish
         allEntries = [...allEntries, ...overnightEntries.map(e => ({ ...e, _fromYesterday: true }))];
@@ -97,7 +102,7 @@ export default function SecurityFieldStatus() {
   };
 
   // Check if shift already ended today
-  const hasEnded = (startTime, endTime) => {
+  const hasEnded = (startTime, endTime, fromYesterday = false) => {
     const now = new Date();
     const currentMinutes = now.getHours() * 60 + now.getMinutes();
     
@@ -107,9 +112,14 @@ export default function SecurityFieldStatus() {
     const startMinutes = startH * 60 + startM;
     let endMinutes = endH * 60 + endM;
     
-    // Overnight shift - hasn't ended yet today if we're before end time
+    // Overnight shift from yesterday - it ended this morning if current time is past the end time
+    if (fromYesterday && endMinutes < startMinutes) {
+      return currentMinutes >= endMinutes;
+    }
+    
+    // Regular overnight shift (started today) - hasn't ended yet if we're before midnight or before end time
     if (endMinutes < startMinutes) {
-      return false; // overnight shifts are considered "will end tomorrow"
+      return false;
     }
     
     return currentMinutes >= endMinutes && currentMinutes >= startMinutes;
@@ -129,7 +139,7 @@ export default function SecurityFieldStatus() {
   }
 
   const activeEntries = entries.filter(e => isCurrentlyActive(e.start_time, e.end_time));
-  const finishedEntries = entries.filter(e => hasEnded(e.start_time, e.end_time));
+  const finishedEntries = entries.filter(e => hasEnded(e.start_time, e.end_time, e._fromYesterday));
 
   return (
     <div className="bg-white rounded-xl shadow-lg overflow-hidden mb-6 border border-gray-100">

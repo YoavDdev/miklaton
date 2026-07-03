@@ -144,14 +144,19 @@ export default function ScreenPage() {
       if (todayData.success && todayData.entries) {
         allEntries = [...todayData.entries];
       }
-      // Add yesterday's overnight shifts still active
+      // Add yesterday's overnight shifts that are still active or already ended
       if (yesterdayData.success && yesterdayData.entries) {
+        const currentMinutes = new Date().getHours() * 60 + new Date().getMinutes();
         const overnightEntries = yesterdayData.entries.filter(e => {
-          const [sh] = e.start_time.split(':').map(Number);
-          const [eh] = e.end_time.split(':').map(Number);
-          return eh < sh;
+          const [sh, sm] = e.start_time.split(':').map(Number);
+          const [eh, em] = e.end_time.split(':').map(Number);
+          const start = sh * 60 + sm;
+          const end = eh * 60 + em;
+          // Only include if it actually spans midnight and is still active OR already ended
+          if (end >= start) return false;
+          return currentMinutes < end || currentMinutes >= start;
         });
-        allEntries = [...allEntries, ...overnightEntries];
+        allEntries = [...allEntries, ...overnightEntries.map(e => ({ ...e, _fromYesterday: true }))];
       }
       setSecurityEntries(allEntries);
     } catch {}
