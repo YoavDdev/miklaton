@@ -84,15 +84,25 @@ export default function SecurityFieldStatus() {
           const [eh, em] = e.end_time.split(':').map(Number);
           const start = sh * 60 + sm;
           const end = eh * 60 + em;
-          // Only include if it actually spans midnight and is still active OR already ended
+          // Only include if it actually spans midnight and either still active this morning
+          // or already ended today but not yet restarted for the new shift
           if (end >= start) return false;
-          return currentMinutes < end || currentMinutes >= start;
+          return currentMinutes < end || currentMinutes < start;
         });
         // Mark them as from yesterday so we can distinguish
         allEntries = [...allEntries, ...overnightEntries.map(e => ({ ...e, _fromYesterday: true }))];
       }
       
-      setEntries(allEntries);
+      // Remove duplicate entries (same staff, times, category, role)
+      const seen = new Set();
+      const deduped = allEntries.filter(e => {
+        const key = `${e.staff_id}|${e.start_time}|${e.end_time}|${e.category}|${e.role_title}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      
+      setEntries(deduped);
     } catch (error) {
       console.error('Error fetching daily order:', error);
     } finally {
