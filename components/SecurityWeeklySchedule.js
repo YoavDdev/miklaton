@@ -826,6 +826,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
       const category = shift?.category || staffMember?.role || 'פיקוח';
       const startTime = shift?.start_time || '07:00';
       const endTime = shift?.end_time || '15:00';
+      const defaultTasks = category === 'שיטור' ? [...tasksShitur] : [...tasksPikuach];
 
       // Check if this assignment already exists
       const alreadyExists = merged.some(e => 
@@ -845,7 +846,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
           start_time: startTime,
           end_time: endTime,
           is_backup: entry.is_backup || false,
-          tasks: [],
+          tasks: defaultTasks,
           special_notes: '',
           display_order: merged.length
         });
@@ -863,6 +864,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
   };
 
   const addEntry = (category = 'פיקוח') => {
+    const defaultTasks = category === 'שיטור' ? [...tasksShitur] : [...tasksPikuach];
     setEntries([...entries, {
       id: `new-${Date.now()}`,
       staff_id: null,
@@ -873,7 +875,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
       start_time: '07:00',
       end_time: '15:00',
       is_backup: false,
-      tasks: [],
+      tasks: defaultTasks,
       special_notes: '',
       display_order: entries.length
     }]);
@@ -1223,13 +1225,15 @@ function DailyEntryCard({ entry, idx, staff, vehicles, availableTasks, onUpdate,
 
           {/* Times */}
           <div className="flex items-center gap-1">
-            <input type="time" value={entry.start_time}
+            <input type="text" value={entry.start_time}
               onChange={(e) => onUpdate(idx, 'start_time', e.target.value)}
-              className="px-1 py-1.5 border-2 border-gray-200 rounded text-xs w-full focus:border-blue-500 focus:outline-none" />
+              placeholder="07:00"
+              className="px-1 py-1.5 border-2 border-gray-200 rounded text-xs w-16 focus:border-blue-500 focus:outline-none text-center" />
             <span className="text-xs text-gray-400">-</span>
-            <input type="time" value={entry.end_time}
+            <input type="text" value={entry.end_time}
               onChange={(e) => onUpdate(idx, 'end_time', e.target.value)}
-              className="px-1 py-1.5 border-2 border-gray-200 rounded text-xs w-full focus:border-blue-500 focus:outline-none" />
+              placeholder="15:00"
+              className="px-1 py-1.5 border-2 border-gray-200 rounded text-xs w-16 focus:border-blue-500 focus:outline-none text-center" />
           </div>
 
           {/* Backup toggle + delete */}
