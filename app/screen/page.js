@@ -450,7 +450,7 @@ export default function ScreenPage() {
                   <div className="flex items-start gap-3">
                     <span className="text-3xl">🚨</span>
                     <div>
-                      <h3 className="text-xl font-black text-red-100">{n.title}</h3>
+                      <h3 className="text-xl text-red-100">{n.title}</h3>
                       <p className="text-red-200 mt-1 text-lg">{n.message}</p>
                       <p className="text-red-400 text-xs mt-2">{n.author} • {new Date(n.created_at).toLocaleString('he-IL')}</p>
                     </div>
@@ -472,7 +472,7 @@ export default function ScreenPage() {
                   <div key={n.id} className="px-5 py-4 hover:bg-white/5 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h4 className="font-bold text-white">{n.title}</h4>
+                        <h4 className="text-white">{n.title}</h4>
                         <p className="text-gray-300 text-sm mt-1">{n.message}</p>
                       </div>
                       <span className="text-xs text-gray-500 whitespace-nowrap mr-4">
