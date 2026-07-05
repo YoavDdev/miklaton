@@ -275,8 +275,8 @@ export default function ScreenPage() {
   const now = currentTime;
   const currentMinutes = now.getHours() * 60 + now.getMinutes();
 
-  // Daily cemetery gate reminder: 19:00-19:30
-  const isCemeteryReminderActive = now.getHours() === 19 && now.getMinutes() < 30;
+  // Daily cemetery gate reminder: 19:00-19:10
+  const isCemeteryReminderActive = now.getHours() === 19 && now.getMinutes() < 10;
 
   const isActive = (startTime, endTime, fromYesterday = false) => {
     const [sh, sm] = startTime.split(':').map(Number);
@@ -353,7 +353,7 @@ export default function ScreenPage() {
             <span>🪦</span>
           </div>
           <div className="text-sm text-red-200 mt-1">
-            תזכורת יומית בין 19:00 ל-19:30
+            תזכורת יומית בין 19:00 ל-19:10
           </div>
         </div>
       )}
