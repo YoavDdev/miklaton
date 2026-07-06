@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import EmergencyHotlineBar from '@/components/EmergencyHotlineBar';
 import WeatherAlertBar from '@/components/WeatherAlertBar';
@@ -44,6 +44,38 @@ export default function ScreenPage() {
     return () => clearInterval(timer);
   }, []);
 
+  // Date change detector - refresh when new day starts
+  useEffect(() => {
+    let lastDate = formatDateForDB(new Date());
+    
+    const checkDateChange = () => {
+      const currentDate = formatDateForDB(new Date());
+      if (currentDate !== lastDate) {
+        console.log('New day detected! Refreshing all data...', lastDate, '->', currentDate);
+        lastDate = currentDate;
+        fetchAll();
+      }
+    };
+
+    // Check every 30 seconds (more aggressive for multi-screen setup)
+    const dateChecker = setInterval(checkDateChange, 30000);
+    return () => clearInterval(dateChecker);
+  }, []);
+
+  // Page Visibility: refresh when tab becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        console.log('Screen became visible - refreshing data');
+        fetchAll();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
+
+
   // Read zoom from URL
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -57,7 +89,7 @@ export default function ScreenPage() {
   // Initial load
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 30000); // refresh every 30 seconds
+    const interval = setInterval(fetchAll, 10000); // refresh every 10 seconds for control room
 
     // Realtime war mode
     const channel = supabase
@@ -119,6 +151,8 @@ export default function ScreenPage() {
       fetchWeather(),
       securityDeptId ? fetchSecurityStatus() : Promise.resolve()
     ]);
+    // Update timestamp to show screen is actively checking
+    setLastSecurityUpdate(new Date());
   };
 
   const fetchWarMode = async () => {
@@ -203,7 +237,6 @@ export default function ScreenPage() {
       });
       
       setSecurityEntries(deduped);
-      setLastSecurityUpdate(new Date());
     } catch {}
   };
 
@@ -533,8 +566,8 @@ export default function ScreenPage() {
               <span className="text-xl">🛡️</span>
               <h2 className="font-bold">ביטחון - כרגע בשטח</h2>
               {lastSecurityUpdate && (
-                <span className="text-[10px] text-white/40" title="עדכון אחרון">
-                  עודכן {lastSecurityUpdate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                <span className="text-[10px] text-white/40" title="בדיקה אחרונה">
+                  נבדק לאחרונה: {lastSecurityUpdate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                 </span>
               )}
               <span className="mr-auto text-xs text-green-400 bg-green-900/50 px-2 py-0.5 rounded-full">
