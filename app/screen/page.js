@@ -428,7 +428,7 @@ export default function ScreenPage() {
   const getStatusInfo = (statusType, customNote = '') => {
     const statusMap = {
       break: { icon: '☕', label: 'בהפסקה', color: 'orange' },
-      custom: { icon: '�', label: customNote || 'סטטוס מיוחד', color: 'blue' }
+      custom: { icon: '⚡', label: customNote || 'סטטוס מיוחד', color: 'purple' }
     };
     return statusMap[statusType] || statusMap.break;
   };
@@ -907,7 +907,7 @@ export default function ScreenPage() {
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setStatusModal({ open: false, staffId: null, staffName: null })}>
           <div className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
-              <span>📋</span>
+              <span>⚡</span>
               סטטוס מיוחד - {statusModal.staffName}
             </h2>
             
