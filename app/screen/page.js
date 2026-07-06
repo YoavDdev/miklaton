@@ -89,7 +89,7 @@ export default function ScreenPage() {
   // Initial load
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 10000); // refresh every 10 seconds for control room
+    const interval = setInterval(fetchAll, 30000); // refresh every 30 seconds (optimized for 8-screen setup)
 
     // Realtime war mode
     const channel = supabase
