@@ -710,17 +710,36 @@ export default function ScreenPage() {
 
           {/* Security Field Status */}
           <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0">
-            <div className="px-5 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2 shrink-0">
-              <span className="text-xl">🛡️</span>
-              <h2 className="font-bold">ביטחון - כרגע בשטח</h2>
-              {lastSecurityUpdate && (
-                <span className="text-[10px] text-white/40" title="בדיקה אחרונה">
-                  נבדק לאחרונה: {lastSecurityUpdate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              )}
-              <span className="mr-auto text-xs text-green-400 bg-green-900/50 px-2 py-0.5 rounded-full">
-                {activeSecurityNow.length} פעילים
-              </span>
+            <div className="px-5 py-3.5 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-3 shrink-0">
+              <span className="text-2xl">🛡️</span>
+              <div className="flex-1">
+                <h2 className="font-bold text-lg">ביטחון - כרגע בשטח</h2>
+                {lastSecurityUpdate && (
+                  <span className="text-[10px] text-white/40" title="בדיקה אחרונה">
+                    נבדק לאחרונה: {lastSecurityUpdate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+              </div>
+              <div className="flex gap-2">
+                {(() => {
+                  const patrolCount = activeSecurityNow.filter(e => e.role_title && e.role_title.includes('שיטור')).length;
+                  const inspectorCount = activeSecurityNow.length - patrolCount;
+                  return (
+                    <>
+                      {inspectorCount > 0 && (
+                        <span className="text-xs bg-emerald-800/60 text-emerald-200 px-2.5 py-1 rounded-full font-medium">
+                          👮 {inspectorCount}
+                        </span>
+                      )}
+                      {patrolCount > 0 && (
+                        <span className="text-xs bg-indigo-800/60 text-indigo-200 px-2.5 py-1 rounded-full font-medium">
+                          🚓 {patrolCount}
+                        </span>
+                      )}
+                    </>
+                  );
+                })()}
+              </div>
             </div>
             
             {activeSecurityNow.length > 0 ? (
@@ -731,12 +750,24 @@ export default function ScreenPage() {
                   const breakTime = hasStatus ? getBreakTimeRemaining(entry.staff_id) : null;
                   const statusInfo = hasStatus ? getStatusInfo(statusData.type, statusData.note) : null;
                   
+                  // Determine if inspector or patrol based on role
+                  const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
+                  const isInspector = !isPatrol;
+                  
                   const colorClasses = {
                     orange: 'bg-orange-900/30 border-2 border-orange-600/70 hover:bg-orange-900/40 text-orange-400',
                     blue: 'bg-blue-900/30 border-2 border-blue-600/70 hover:bg-blue-900/40 text-blue-400',
                     red: 'bg-red-900/30 border-2 border-red-600/70 hover:bg-red-900/40 text-red-400',
                     purple: 'bg-purple-900/30 border-2 border-purple-600/70 hover:bg-purple-900/40 text-purple-400'
                   };
+                  
+                  // Base colors for normal state
+                  const baseColors = isPatrol
+                    ? 'bg-indigo-900/20 border border-indigo-700/50 hover:bg-indigo-900/30'
+                    : 'bg-emerald-900/20 border border-emerald-700/50 hover:bg-emerald-900/30';
+                  
+                  const baseDotColor = isPatrol ? 'bg-indigo-400' : 'bg-emerald-400';
+                  const baseRoleColor = isPatrol ? 'text-indigo-300' : 'text-emerald-300';
                   
                   return (
                     <div 
@@ -751,10 +782,10 @@ export default function ScreenPage() {
                           staffName: entry.staff_name || entry.staff?.full_name 
                         });
                       }}
-                      className={`rounded-lg px-4 py-3 cursor-pointer transition-all ${
+                      className={`rounded-xl px-4 py-3 cursor-pointer transition-all shadow-sm ${
                         hasStatus 
                           ? colorClasses[statusInfo.color]
-                          : 'bg-green-900/20 border border-green-800/50 hover:bg-green-900/30'
+                          : baseColors
                       }`}
                     >
                       <div className="flex items-start gap-3">
@@ -763,10 +794,10 @@ export default function ScreenPage() {
                             ? statusInfo.color === 'orange' ? 'bg-orange-500' :
                               statusInfo.color === 'blue' ? 'bg-blue-500' :
                               statusInfo.color === 'red' ? 'bg-red-500' : 'bg-purple-500'
-                            : 'bg-green-500 animate-pulse'
+                            : `${baseDotColor} animate-pulse shadow-lg`
                         }`}></div>
                         <div className="flex-1 min-w-0">
-                          <div className="font-bold text-white text-sm truncate flex items-center gap-2">
+                          <div className="font-bold text-white text-base truncate flex items-center gap-2">
                             {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
                             {hasStatus && breakTime && (
                               <span className={`text-xs font-mono ${
@@ -778,11 +809,11 @@ export default function ScreenPage() {
                               </span>
                             )}
                           </div>
-                          <div className="text-xs text-gray-400 flex items-center gap-2">
-                            <span>{entry.start_time}-{entry.end_time}</span>
+                          <div className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
+                            <span className="text-gray-300">{entry.start_time}-{entry.end_time}</span>
                             {!hasStatus && (
-                              <span className="text-green-400">
-                                {entry.role_title}
+                              <span className={`font-medium ${baseRoleColor}`}>
+                                {isPatrol ? '🚓' : '👮'} {entry.role_title}
                               </span>
                             )}
                           </div>
@@ -796,20 +827,28 @@ export default function ScreenPage() {
                             </div>
                           )}
                         </div>
-                        {entry.vehicle && !hasStatus && (
-                          <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded font-medium shrink-0">
-                            🚗 {entry.vehicle}
-                          </span>
-                        )}
-                        {hasStatus && (
-                          <span className={`text-xs px-2 py-1 rounded font-medium shrink-0 ${
-                            statusInfo.color === 'orange' ? 'bg-orange-900/50 text-orange-300' :
-                            statusInfo.color === 'blue' ? 'bg-blue-900/50 text-blue-300' :
-                            statusInfo.color === 'red' ? 'bg-red-900/50 text-red-300' : 'bg-purple-900/50 text-purple-300'
-                          }`}>
-                            {statusInfo.label}
-                          </span>
-                        )}
+                        <div className="flex flex-col gap-1 items-end shrink-0">
+                          {entry.vehicle && (
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium shadow-sm ${
+                              hasStatus 
+                                ? 'bg-gray-700/50 text-gray-300'
+                                : isPatrol 
+                                  ? 'bg-indigo-800/50 text-indigo-200' 
+                                  : 'bg-emerald-800/50 text-emerald-200'
+                            }`}>
+                              🚗 {entry.vehicle}
+                            </span>
+                          )}
+                          {hasStatus && (
+                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium shadow-sm ${
+                              statusInfo.color === 'orange' ? 'bg-orange-800/60 text-orange-200' :
+                              statusInfo.color === 'blue' ? 'bg-blue-800/60 text-blue-200' :
+                              statusInfo.color === 'red' ? 'bg-red-800/60 text-red-200' : 'bg-purple-800/60 text-purple-200'
+                            }`}>
+                              {statusInfo.icon}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
