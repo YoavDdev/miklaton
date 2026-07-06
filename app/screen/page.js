@@ -57,8 +57,8 @@ export default function ScreenPage() {
       }
     };
 
-    // Check every 30 seconds (more aggressive for multi-screen setup)
-    const dateChecker = setInterval(checkDateChange, 30000);
+    // Check every 60 seconds (aligned with main refresh)
+    const dateChecker = setInterval(checkDateChange, 60000);
     return () => clearInterval(dateChecker);
   }, []);
 
@@ -89,7 +89,7 @@ export default function ScreenPage() {
   // Initial load
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 30000); // refresh every 30 seconds (optimized for 8-screen setup)
+    const interval = setInterval(fetchAll, 60000); // refresh every 1 minute (free tier optimized for 8-screen setup)
 
     // Realtime war mode
     const channel = supabase
