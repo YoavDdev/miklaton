@@ -39,6 +39,7 @@ export default function ScreenPage() {
   const [securityDeptId, setSecurityDeptId] = useState(null);
   const [staffOnBreak, setStaffOnBreak] = useState({}); // { staff_id: { startTime: timestamp, duration: 30 } }
   const [statusModal, setStatusModal] = useState({ open: false, staffId: null, staffName: null });
+  const [timingMode, setTimingMode] = useState('immediate');
 
   // Live clock
   useEffect(() => {
@@ -80,9 +81,24 @@ export default function ScreenPage() {
       setStaffOnBreak(prev => {
         const updated = { ...prev };
         let changed = false;
-        Object.entries(updated).forEach(([staffId, breakData]) => {
-          const elapsed = now - breakData.startTime;
-          if (elapsed >= breakData.duration * 60 * 1000) {
+        Object.entries(updated).forEach(([staffId, statusData]) => {
+          let shouldRemove = false;
+          
+          // Scheduled status
+          if (statusData.isScheduled) {
+            if (now > statusData.scheduledEnd) {
+              shouldRemove = true;
+            }
+          } 
+          // Immediate status
+          else if (statusData.startTime && statusData.duration) {
+            const elapsed = now - statusData.startTime;
+            if (elapsed >= statusData.duration * 60 * 1000) {
+              shouldRemove = true;
+            }
+          }
+          
+          if (shouldRemove) {
             delete updated[staffId];
             changed = true;
           }
@@ -356,20 +372,49 @@ export default function ScreenPage() {
   const setStaffStatus = (staffId, statusData) => {
     setStaffOnBreak(prev => ({
       ...prev,
-      [staffId]: {
-        type: statusData.type,
-        startTime: Date.now(),
-        duration: statusData.duration,
-        note: statusData.note || ''
-      }
+      [staffId]: statusData
     }));
+  };
+
+  const isStatusActive = (statusData) => {
+    if (!statusData) return false;
+    
+    const now = Date.now();
+    
+    // Scheduled status
+    if (statusData.isScheduled) {
+      return now >= statusData.scheduledStart && now <= statusData.scheduledEnd;
+    }
+    
+    // Immediate status
+    if (statusData.startTime && statusData.duration) {
+      const elapsed = now - statusData.startTime;
+      const totalDuration = statusData.duration * 60 * 1000;
+      return elapsed < totalDuration;
+    }
+    
+    return false;
   };
 
   const getBreakTimeRemaining = (staffId) => {
     const breakData = staffOnBreak[staffId];
     if (!breakData) return null;
     
-    const elapsed = Date.now() - breakData.startTime;
+    const now = Date.now();
+    
+    // Scheduled status
+    if (breakData.isScheduled) {
+      if (now < breakData.scheduledStart || now > breakData.scheduledEnd) {
+        return null; // Not in time range yet or already passed
+      }
+      const remaining = breakData.scheduledEnd - now;
+      const minutes = Math.floor(remaining / 60000);
+      const seconds = Math.floor((remaining % 60000) / 1000);
+      return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+    }
+    
+    // Immediate status
+    const elapsed = now - breakData.startTime;
     const remaining = breakData.duration * 60 * 1000 - elapsed;
     
     if (remaining <= 0) return null;
@@ -682,7 +727,7 @@ export default function ScreenPage() {
               <div className="p-3 space-y-2 overflow-y-auto">
                 {activeSecurityNow.map((entry, idx) => {
                   const statusData = staffOnBreak[entry.staff_id];
-                  const hasStatus = !!statusData;
+                  const hasStatus = statusData && isStatusActive(statusData);
                   const breakTime = hasStatus ? getBreakTimeRemaining(entry.staff_id) : null;
                   const statusInfo = hasStatus ? getStatusInfo(statusData.type, statusData.note) : null;
                   
@@ -699,6 +744,7 @@ export default function ScreenPage() {
                       onClick={() => toggleStaffBreak(entry.staff_id)}
                       onContextMenu={(e) => {
                         e.preventDefault();
+                        setTimingMode('immediate'); // Reset to immediate mode
                         setStatusModal({ 
                           open: true, 
                           staffId: entry.staff_id, 
@@ -829,8 +875,7 @@ export default function ScreenPage() {
             <form onSubmit={(e) => {
               e.preventDefault();
               const formData = new FormData(e.target);
-              const hours = parseInt(formData.get('hours') || '0');
-              const minutes = parseInt(formData.get('minutes') || '30');
+              const timing = formData.get('timing');
               const note = formData.get('note') || '';
               
               if (!note.trim()) {
@@ -838,12 +883,47 @@ export default function ScreenPage() {
                 return;
               }
               
-              setStaffStatus(statusModal.staffId, {
+              let statusData = {
                 type: 'custom',
-                duration: hours * 60 + minutes,
                 note
-              });
+              };
               
+              if (timing === 'immediate') {
+                const hours = parseInt(formData.get('hours') || '0');
+                const minutes = parseInt(formData.get('minutes') || '30');
+                statusData.startTime = Date.now();
+                statusData.duration = hours * 60 + minutes;
+              } else {
+                // Future scheduled
+                const startTime = formData.get('start_time');
+                const endTime = formData.get('end_time');
+                
+                if (!startTime || !endTime) {
+                  alert('נא להזין שעות התחלה וסיום');
+                  return;
+                }
+                
+                const [startH, startM] = startTime.split(':').map(Number);
+                const [endH, endM] = endTime.split(':').map(Number);
+                
+                const now = new Date();
+                const start = new Date(now);
+                start.setHours(startH, startM, 0, 0);
+                
+                const end = new Date(now);
+                end.setHours(endH, endM, 0, 0);
+                
+                // If end time is before start, it means next day
+                if (end <= start) {
+                  end.setDate(end.getDate() + 1);
+                }
+                
+                statusData.scheduledStart = start.getTime();
+                statusData.scheduledEnd = end.getTime();
+                statusData.isScheduled = true;
+              }
+              
+              setStaffStatus(statusModal.staffId, statusData);
               setStatusModal({ open: false, staffId: null, staffName: null });
             }}>
               {/* Note */}
@@ -861,8 +941,43 @@ export default function ScreenPage() {
                 <p className="text-xs text-gray-500 mt-1">מקסימום 50 תווים</p>
               </div>
 
-              {/* Duration */}
-              <div className="mb-6">
+              {/* Timing Selection */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">מתי</label>
+                <div className="flex gap-2">
+                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 bg-green-900/20 border-2 rounded-lg cursor-pointer hover:bg-green-900/30 transition ${
+                    timingMode === 'immediate' ? 'border-green-500 bg-green-900/40' : 'border-green-700/50'
+                  }`}>
+                    <input 
+                      type="radio" 
+                      name="timing" 
+                      value="immediate" 
+                      checked={timingMode === 'immediate'}
+                      onChange={(e) => setTimingMode(e.target.value)}
+                      className="w-4 h-4" 
+                    />
+                    <span className="text-white font-medium text-sm">⚡ מיידי</span>
+                  </label>
+                  
+                  <label className={`flex-1 flex items-center justify-center gap-2 p-3 bg-purple-900/20 border-2 rounded-lg cursor-pointer hover:bg-purple-900/30 transition ${
+                    timingMode === 'scheduled' ? 'border-purple-500 bg-purple-900/40' : 'border-purple-700/50'
+                  }`}>
+                    <input 
+                      type="radio" 
+                      name="timing" 
+                      value="scheduled" 
+                      checked={timingMode === 'scheduled'}
+                      onChange={(e) => setTimingMode(e.target.value)}
+                      className="w-4 h-4" 
+                    />
+                    <span className="text-white font-medium text-sm">⏰ מתוזמן</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Immediate Duration */}
+              {timingMode === 'immediate' && (
+                <div className="mb-6">
                 <label className="block text-sm font-medium text-gray-300 mb-2">משך זמן</label>
                 <div className="flex gap-3 items-center">
                   <div className="flex-1">
@@ -891,7 +1006,35 @@ export default function ScreenPage() {
                     <p className="text-xs text-gray-500 mt-1 text-center">דקות</p>
                   </div>
                 </div>
-              </div>
+                </div>
+              )}
+
+              {/* Scheduled Time Range */}
+              {timingMode === 'scheduled' && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">טווח זמנים</label>
+                  <div className="flex gap-3 items-center">
+                    <div className="flex-1">
+                      <input 
+                        type="time" 
+                        name="start_time"
+                        className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                      />
+                      <p className="text-xs text-gray-500 mt-1 text-center">התחלה</p>
+                    </div>
+                    <span className="text-gray-500 text-xl">←</span>
+                    <div className="flex-1">
+                      <input 
+                        type="time" 
+                        name="end_time"
+                        className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-purple-500 focus:outline-none"
+                      />
+                      <p className="text-xs text-gray-500 mt-1 text-center">סיום</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-purple-400 mt-2">💡 הסטטוס יופעל רק בטווח הזמנים שנבחר</p>
+                </div>
+              )}
 
               {/* Buttons */}
               <div className="flex gap-3">
