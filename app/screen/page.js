@@ -37,11 +37,60 @@ export default function ScreenPage() {
   const [shabbatTimes, setShabbatTimes] = useState(null);
   const [weather, setWeather] = useState(null);
   const [securityDeptId, setSecurityDeptId] = useState(null);
+  const [staffOnBreak, setStaffOnBreak] = useState({}); // { staff_id: { startTime: timestamp, duration: 30 } }
+  const [statusModal, setStatusModal] = useState({ open: false, staffId: null, staffName: null });
 
   // Live clock
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Load breaks from localStorage on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('security_staff_breaks');
+      if (saved) {
+        const breaks = JSON.parse(saved);
+        // Clean expired breaks
+        const now = Date.now();
+        const active = {};
+        Object.entries(breaks).forEach(([staffId, breakData]) => {
+          const elapsed = now - breakData.startTime;
+          if (elapsed < breakData.duration * 60 * 1000) {
+            active[staffId] = breakData;
+          }
+        });
+        setStaffOnBreak(active);
+      }
+    } catch {}
+  }, []);
+
+  // Save breaks to localStorage whenever they change
+  useEffect(() => {
+    try {
+      localStorage.setItem('security_staff_breaks', JSON.stringify(staffOnBreak));
+    } catch {}
+  }, [staffOnBreak]);
+
+  // Auto-cleanup expired breaks every 10 seconds
+  useEffect(() => {
+    const cleanup = setInterval(() => {
+      const now = Date.now();
+      setStaffOnBreak(prev => {
+        const updated = { ...prev };
+        let changed = false;
+        Object.entries(updated).forEach(([staffId, breakData]) => {
+          const elapsed = now - breakData.startTime;
+          if (elapsed >= breakData.duration * 60 * 1000) {
+            delete updated[staffId];
+            changed = true;
+          }
+        });
+        return changed ? updated : prev;
+      });
+    }, 10000);
+    return () => clearInterval(cleanup);
   }, []);
 
   // Date change detector - refresh when new day starts
@@ -283,6 +332,60 @@ export default function ScreenPage() {
         setWeather({ current: data.current, daily: data.daily || [], alerts: data.alerts || [] });
       }
     } catch {}
+  };
+
+  const toggleStaffBreak = (staffId) => {
+    setStaffOnBreak(prev => {
+      const updated = { ...prev };
+      if (updated[staffId]) {
+        // End break
+        delete updated[staffId];
+      } else {
+        // Start 30-minute break
+        updated[staffId] = {
+          type: 'break',
+          startTime: Date.now(),
+          duration: 30,
+          note: ''
+        };
+      }
+      return updated;
+    });
+  };
+
+  const setStaffStatus = (staffId, statusData) => {
+    setStaffOnBreak(prev => ({
+      ...prev,
+      [staffId]: {
+        type: statusData.type,
+        startTime: Date.now(),
+        duration: statusData.duration,
+        note: statusData.note || ''
+      }
+    }));
+  };
+
+  const getBreakTimeRemaining = (staffId) => {
+    const breakData = staffOnBreak[staffId];
+    if (!breakData) return null;
+    
+    const elapsed = Date.now() - breakData.startTime;
+    const remaining = breakData.duration * 60 * 1000 - elapsed;
+    
+    if (remaining <= 0) return null;
+    
+    const minutes = Math.floor(remaining / 60000);
+    const seconds = Math.floor((remaining % 60000) / 1000);
+    
+    return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+  };
+
+  const getStatusInfo = (statusType, customNote = '') => {
+    const statusMap = {
+      break: { icon: '☕', label: 'בהפסקה', color: 'orange' },
+      custom: { icon: '�', label: customNote || 'סטטוס מיוחד', color: 'blue' }
+    };
+    return statusMap[statusType] || statusMap.break;
   };
 
   const getWeatherInfo = (code) => {
@@ -577,25 +680,94 @@ export default function ScreenPage() {
             
             {activeSecurityNow.length > 0 ? (
               <div className="p-3 space-y-2 overflow-y-auto">
-                {activeSecurityNow.map((entry, idx) => (
-                  <div key={idx} className="bg-green-900/20 border border-green-800/50 rounded-lg px-4 py-3 flex items-center gap-3">
-                    <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse shrink-0"></div>
-                    <div className="flex-1 min-w-0">
-                      <div className="font-bold text-white text-sm truncate">
-                        {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
-                      </div>
-                      <div className="text-xs text-gray-400 flex items-center gap-2">
-                        <span>{entry.start_time}-{entry.end_time}</span>
-                        <span className="text-green-400">{entry.role_title}</span>
+                {activeSecurityNow.map((entry, idx) => {
+                  const statusData = staffOnBreak[entry.staff_id];
+                  const hasStatus = !!statusData;
+                  const breakTime = hasStatus ? getBreakTimeRemaining(entry.staff_id) : null;
+                  const statusInfo = hasStatus ? getStatusInfo(statusData.type, statusData.note) : null;
+                  
+                  const colorClasses = {
+                    orange: 'bg-orange-900/30 border-2 border-orange-600/70 hover:bg-orange-900/40 text-orange-400',
+                    blue: 'bg-blue-900/30 border-2 border-blue-600/70 hover:bg-blue-900/40 text-blue-400',
+                    red: 'bg-red-900/30 border-2 border-red-600/70 hover:bg-red-900/40 text-red-400',
+                    purple: 'bg-purple-900/30 border-2 border-purple-600/70 hover:bg-purple-900/40 text-purple-400'
+                  };
+                  
+                  return (
+                    <div 
+                      key={idx} 
+                      onClick={() => toggleStaffBreak(entry.staff_id)}
+                      onContextMenu={(e) => {
+                        e.preventDefault();
+                        setStatusModal({ 
+                          open: true, 
+                          staffId: entry.staff_id, 
+                          staffName: entry.staff_name || entry.staff?.full_name 
+                        });
+                      }}
+                      className={`rounded-lg px-4 py-3 cursor-pointer transition-all ${
+                        hasStatus 
+                          ? colorClasses[statusInfo.color]
+                          : 'bg-green-900/20 border border-green-800/50 hover:bg-green-900/30'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className={`w-3 h-3 rounded-full shrink-0 mt-1 ${
+                          hasStatus 
+                            ? statusInfo.color === 'orange' ? 'bg-orange-500' :
+                              statusInfo.color === 'blue' ? 'bg-blue-500' :
+                              statusInfo.color === 'red' ? 'bg-red-500' : 'bg-purple-500'
+                            : 'bg-green-500 animate-pulse'
+                        }`}></div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-bold text-white text-sm truncate flex items-center gap-2">
+                            {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
+                            {hasStatus && breakTime && (
+                              <span className={`text-xs font-mono ${
+                                statusInfo.color === 'orange' ? 'text-orange-400' :
+                                statusInfo.color === 'blue' ? 'text-blue-400' :
+                                statusInfo.color === 'red' ? 'text-red-400' : 'text-purple-400'
+                              }`}>
+                                {statusInfo.icon} {breakTime}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-xs text-gray-400 flex items-center gap-2">
+                            <span>{entry.start_time}-{entry.end_time}</span>
+                            {!hasStatus && (
+                              <span className="text-green-400">
+                                {entry.role_title}
+                              </span>
+                            )}
+                          </div>
+                          {hasStatus && (
+                            <div className={`text-xs mt-1 font-medium ${
+                              statusInfo.color === 'orange' ? 'text-orange-300' :
+                              statusInfo.color === 'blue' ? 'text-blue-300' :
+                              statusInfo.color === 'red' ? 'text-red-300' : 'text-purple-300'
+                            }`}>
+                              {statusInfo.icon} {statusInfo.label}
+                            </div>
+                          )}
+                        </div>
+                        {entry.vehicle && !hasStatus && (
+                          <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded font-medium shrink-0">
+                            🚗 {entry.vehicle}
+                          </span>
+                        )}
+                        {hasStatus && (
+                          <span className={`text-xs px-2 py-1 rounded font-medium shrink-0 ${
+                            statusInfo.color === 'orange' ? 'bg-orange-900/50 text-orange-300' :
+                            statusInfo.color === 'blue' ? 'bg-blue-900/50 text-blue-300' :
+                            statusInfo.color === 'red' ? 'bg-red-900/50 text-red-300' : 'bg-purple-900/50 text-purple-300'
+                          }`}>
+                            {statusInfo.label}
+                          </span>
+                        )}
                       </div>
                     </div>
-                    {entry.vehicle && (
-                      <span className="text-xs bg-green-900/50 text-green-300 px-2 py-1 rounded font-medium">
-                        🚗 {entry.vehicle}
-                      </span>
-                    )}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <div className="p-6 text-center">
@@ -644,6 +816,103 @@ export default function ScreenPage() {
           )}
         </div>
       </main>
+
+      {/* Status Modal */}
+      {statusModal.open && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setStatusModal({ open: false, staffId: null, staffName: null })}>
+          <div className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+              <span>📋</span>
+              סטטוס מיוחד - {statusModal.staffName}
+            </h2>
+            
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const hours = parseInt(formData.get('hours') || '0');
+              const minutes = parseInt(formData.get('minutes') || '30');
+              const note = formData.get('note') || '';
+              
+              if (!note.trim()) {
+                alert('נא להזין תיאור סטטוס');
+                return;
+              }
+              
+              setStaffStatus(statusModal.staffId, {
+                type: 'custom',
+                duration: hours * 60 + minutes,
+                note
+              });
+              
+              setStatusModal({ open: false, staffId: null, staffName: null });
+            }}>
+              {/* Note */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">תיאור הסטטוס</label>
+                <input 
+                  type="text" 
+                  name="note" 
+                  placeholder='לדוגמה: "עם לוכד - זמין רק לכלבים"'
+                  maxLength="50"
+                  autoFocus
+                  required
+                  className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none text-sm"
+                />
+                <p className="text-xs text-gray-500 mt-1">מקסימום 50 תווים</p>
+              </div>
+
+              {/* Duration */}
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-300 mb-2">משך זמן</label>
+                <div className="flex gap-3 items-center">
+                  <div className="flex-1">
+                    <input 
+                      type="number" 
+                      name="hours" 
+                      min="0" 
+                      max="8" 
+                      defaultValue="0"
+                      placeholder="שעות"
+                      className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none text-center"
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-center">שעות</p>
+                  </div>
+                  <span className="text-gray-500 text-xl">:</span>
+                  <div className="flex-1">
+                    <input 
+                      type="number" 
+                      name="minutes" 
+                      min="0" 
+                      max="59" 
+                      defaultValue="30"
+                      placeholder="דקות"
+                      className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none text-center"
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-center">דקות</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button 
+                  type="button"
+                  onClick={() => setStatusModal({ open: false, staffId: null, staffName: null })}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition"
+                >
+                  ביטול
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg font-medium transition"
+                >
+                  אישור
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
