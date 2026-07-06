@@ -627,10 +627,10 @@ export default function ScreenPage() {
 
       <WeatherAlertBar alerts={weather?.alerts} />
 
-      <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0">
+      <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0 overflow-hidden">
         
         {/* Left Column - Notifications */}
-        <div className="lg:col-span-2 flex flex-col gap-4 min-h-0">
+        <div className="lg:col-span-2 flex flex-col gap-4 min-h-0 overflow-hidden">
           
           {/* Urgent Notifications */}
           {urgentNotifs.length > 0 && (
@@ -652,12 +652,12 @@ export default function ScreenPage() {
 
           {/* Regular Notifications */}
           {regularNotifs.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0">
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0 max-h-[400px]">
               <div className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center gap-2 shrink-0">
                 <span className="text-xl">📢</span>
                 <h2 className="font-bold text-lg">הודעות והנחיות</h2>
               </div>
-              <div className="divide-y divide-white/5 overflow-y-auto">
+              <div className="divide-y divide-white/5 overflow-y-auto flex-1">
                 {regularNotifs.map(n => (
                   <div key={n.id} className="px-5 py-4 hover:bg-white/5 transition-colors">
                     <div className="flex items-start justify-between">
@@ -706,10 +706,10 @@ export default function ScreenPage() {
         </div>
 
         {/* Right Column - Security Status */}
-        <div className="flex flex-col gap-4 min-h-0">
+        <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
 
           {/* Security Field Status */}
-          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0">
+          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0 max-h-[700px]">
             <div className="px-5 py-3.5 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-3 shrink-0">
               <span className="text-2xl">🛡️</span>
               <div className="flex-1">
@@ -743,7 +743,7 @@ export default function ScreenPage() {
             </div>
             
             {activeSecurityNow.length > 0 ? (
-              <div className="p-3 space-y-2 overflow-y-auto">
+              <div className="p-3 space-y-2 overflow-y-auto flex-1 max-h-[600px]">
                 {activeSecurityNow.map((entry, idx) => {
                   const statusData = staffOnBreak[entry.staff_id];
                   const hasStatus = statusData && isStatusActive(statusData);
@@ -874,7 +874,7 @@ export default function ScreenPage() {
                 <span className="text-xl">�</span>
                 <h2 className="font-bold">כוננים היום - יום {DAYS_HEB[todayDay]}</h2>
               </div>
-              <div className="p-3 space-y-1 max-h-[300px] overflow-y-auto">
+              <div className="p-3 space-y-1 max-h-[250px] overflow-y-auto">
                 {todayDuty.map((duty, idx) => {
                   const contact = contacts.find(c => c.id === duty.contact_id);
                   if (!contact) return null;
