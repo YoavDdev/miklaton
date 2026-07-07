@@ -371,11 +371,12 @@ export default function ScreenPage() {
 
   const fetchVacations = async () => {
     try {
-      // Priority: URL param → localStorage → env var (never falls back to 'yehud' string)
+      // Priority: URL param → localStorage → env var → hardcoded fallback
       const urlParams = new URLSearchParams(window.location.search);
       const municipalityId = urlParams.get('municipality_id') 
         || localStorage.getItem('municipality_id') 
-        || process.env.NEXT_PUBLIC_MUNICIPALITY_ID;
+        || process.env.NEXT_PUBLIC_MUNICIPALITY_ID
+        || '023b5984-7097-4f03-a8dd-7ef7e29a4bc4';
       const res = await fetch(`/api/vacations?municipality_id=${municipalityId}`);
       const data = await res.json();
       if (data.success) {
