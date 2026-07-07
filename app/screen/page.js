@@ -143,13 +143,18 @@ export default function ScreenPage() {
   }, []);
 
 
-  // Read zoom from URL
+  // Read zoom and municipality_id from URL, save to localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const params = new URLSearchParams(window.location.search);
     const z = parseFloat(params.get('zoom'));
     if (!isNaN(z) && z > 0.5 && z <= 3) {
       setZoom(z);
+    }
+    // If municipality_id is in URL, save it to localStorage so all API calls use the correct ID
+    const mid = params.get('municipality_id');
+    if (mid) {
+      localStorage.setItem('municipality_id', mid);
     }
   }, []);
 
@@ -365,7 +370,9 @@ export default function ScreenPage() {
 
   const fetchVacations = async () => {
     try {
-      const municipalityId = getMunicipalityId();
+      // Prefer URL param over localStorage (fixes multi-screen municipality mismatch)
+      const urlParams = new URLSearchParams(window.location.search);
+      const municipalityId = urlParams.get('municipality_id') || getMunicipalityId();
       const res = await fetch(`/api/vacations?municipality_id=${municipalityId}`);
       const data = await res.json();
       if (data.success) {
@@ -679,7 +686,7 @@ export default function ScreenPage() {
             <button
               onClick={() => fetchAll()}
               className="ml-2 text-xs bg-orange-700/50 hover:bg-orange-600/50 text-orange-200 px-2 py-1 rounded transition-colors"
-              title="רענן נתונים"
+              title={`רענן נתונים | ID: ${typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('municipality_id') || getMunicipalityId()) : ''}`}
             >
               🔄
             </button>
