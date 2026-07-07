@@ -968,8 +968,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
 
     msgPikuach.forEach(entry => {
       const name = entry.staff_name || 'לא שובץ';
-      const vehicleStr = entry.vehicle ? ` (${entry.is_backup ? '*חלופי*' : ''}${entry.vehicle && entry.vehicle !== 'חלופי' ? `*${entry.vehicle}*` : ''})`.replace('()', '') : (entry.is_backup ? ' (*חלופי*)' : '');
-      msg += `${name} | ${entry.role_title}${vehicleStr}\n`;
+      msg += `${name} | ${entry.role_title}\n`;
       msg += `${entry.start_time} עד ${entry.end_time}\n`;
       if (entry.vehicle && entry.vehicle !== 'חלופי') {
         msg += `*${entry.vehicle}*\n`;
