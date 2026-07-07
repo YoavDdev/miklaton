@@ -686,7 +686,7 @@ export default function ScreenPage() {
             <button
               onClick={() => fetchAll()}
               className="ml-2 text-xs bg-orange-700/50 hover:bg-orange-600/50 text-orange-200 px-2 py-1 rounded transition-colors"
-              title={`רענן נתונים | ID: ${typeof window !== 'undefined' ? (new URLSearchParams(window.location.search).get('municipality_id') || getMunicipalityId()) : ''}`}
+              title="רענן נתונים"
             >
               🔄
             </button>
