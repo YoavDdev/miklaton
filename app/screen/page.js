@@ -371,9 +371,11 @@ export default function ScreenPage() {
 
   const fetchVacations = async () => {
     try {
-      // Prefer URL param over localStorage (fixes multi-screen municipality mismatch)
+      // Priority: URL param → localStorage → env var (never falls back to 'yehud' string)
       const urlParams = new URLSearchParams(window.location.search);
-      const municipalityId = urlParams.get('municipality_id') || getMunicipalityId();
+      const municipalityId = urlParams.get('municipality_id') 
+        || localStorage.getItem('municipality_id') 
+        || process.env.NEXT_PUBLIC_MUNICIPALITY_ID;
       const res = await fetch(`/api/vacations?municipality_id=${municipalityId}`);
       const data = await res.json();
       if (data.success) {
