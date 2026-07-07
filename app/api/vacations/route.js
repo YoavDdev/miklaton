@@ -51,9 +51,46 @@ export async function GET(request) {
       v.call_category?.municipality_id === municipalityId
     );
 
+    // Also fetch vacations from on_call_contacts (contacts not tied to any category)
+    const { data: directVacations, error: directError } = await supabase
+      .from('on_call_contacts')
+      .select(`
+        id,
+        name,
+        phone,
+        on_vacation,
+        vacation_start,
+        vacation_end,
+        vacation_reason,
+        municipality_id,
+        replacement:on_call_contacts!on_call_contacts_replacement_contact_id_fkey(
+          id,
+          name,
+          phone
+        )
+      `)
+      .eq('on_vacation', true)
+      .eq('active', true)
+      .eq('municipality_id', municipalityId)
+      .not('vacation_start', 'is', null)
+      .not('vacation_end', 'is', null);
+
+    // Normalize direct vacations to same shape as category vacations
+    const normalizedDirect = (directVacations || []).map(v => ({
+      id: v.id,
+      external_name: v.name,
+      external_phone: v.phone,
+      on_vacation: v.on_vacation,
+      vacation_start: v.vacation_start,
+      vacation_end: v.vacation_end,
+      vacation_reason: v.vacation_reason,
+      call_category: null,
+      replacement: v.replacement
+    }));
+
     return NextResponse.json({
       success: true,
-      vacations: filtered
+      vacations: [...filtered, ...normalizedDirect]
     });
 
   } catch (error) {

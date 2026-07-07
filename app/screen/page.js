@@ -395,7 +395,9 @@ export default function ScreenPage() {
               categories: []
             };
           }
-          grouped[key].categories.push(vac.call_category?.name || 'לא ידוע');
+          if (vac.call_category?.name) {
+            grouped[key].categories.push(vac.call_category.name);
+          }
         });
         setVacations(Object.values(grouped));
       }

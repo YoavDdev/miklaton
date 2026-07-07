@@ -290,32 +290,55 @@ export default function VacationManager() {
         }
         return;
       } else {
-        // Create new contact
-        if (!vacationForm.contact_phone || !vacationForm.contact_category_id) {
-          alert('כדי להוסיף כונן חדש, יש למלא טלפון וקטגוריה');
+        // Create new contact - phone is required, category is optional
+        if (!vacationForm.contact_phone) {
+          alert('כדי להוסיף כונן חדש, יש למלא טלפון');
           return;
         }
 
-        const createRes = await fetch(`/api/call-categories/${vacationForm.contact_category_id}/contacts`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            external_name: vacationForm.contact_search,
-            external_phone: vacationForm.contact_phone,
-            escalation_order: 999,
-            on_vacation: true,
-            vacation_start: vacationForm.vacation_start,
-            vacation_end: vacationForm.vacation_end,
-            vacation_reason: vacationForm.reason
-          })
-        });
-        const createData = await createRes.json();
-        if (!createData.success) {
-          alert('❌ ' + (createData.error || 'שגיאה ביצירת כונן'));
-          return;
+        if (vacationForm.contact_category_id) {
+          // Create in a specific category
+          const createRes = await fetch(`/api/call-categories/${vacationForm.contact_category_id}/contacts`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              external_name: vacationForm.contact_search,
+              external_phone: vacationForm.contact_phone,
+              escalation_order: 999,
+              on_vacation: true,
+              vacation_start: vacationForm.vacation_start,
+              vacation_end: vacationForm.vacation_end,
+              vacation_reason: vacationForm.reason,
+              replacement_contact_id: replacementContactId || null
+            })
+          });
+          const createData = await createRes.json();
+          if (!createData.success) {
+            alert('❌ ' + (createData.error || 'שגיאה ביצירת כונן'));
+            return;
+          }
+        } else {
+          // No category - just save to on_call_contacts for vacation record only
+          const createRes = await fetch('/api/on-call-contacts', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: vacationForm.contact_search,
+              phone: vacationForm.contact_phone,
+              on_vacation: true,
+              vacation_start: vacationForm.vacation_start,
+              vacation_end: vacationForm.vacation_end,
+              vacation_reason: vacationForm.reason,
+              replacement_contact_id: replacementContactId || null
+            })
+          });
+          const createData = await createRes.json();
+          if (!createData.success) {
+            alert('❌ ' + (createData.error || 'שגיאה ביצירת כונן'));
+            return;
+          }
         }
-        
-        // Contact created with vacation already - just reload
+
         closeModal();
         loadVacations();
         return;
@@ -489,7 +512,7 @@ export default function VacationManager() {
                   </div>
                 )}
                 {vacationForm.contact_search && !vacationForm.contact_id && (
-                  <p className="text-xs text-blue-600 mt-1">💡 לא נמצא? הוסף טלפון וקטגוריה למטה ליצירת כונן חדש</p>
+                  <p className="text-xs text-blue-600 mt-1">💡 לא נמצא? הוסף טלפון למטה לרשומת חופשים (קטגוריה אופציונלי)</p>
                 )}
               </div>
 
@@ -508,12 +531,11 @@ export default function VacationManager() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-1">קטגוריה *</label>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">קטגוריה (אופציונלי)</label>
                     <select
                       value={vacationForm.contact_category_id}
                       onChange={e => setVacationForm({...vacationForm, contact_category_id: e.target.value})}
                       className="w-full px-3 py-2 border rounded-lg text-sm"
-                      required
                     >
                       <option value="">-- בחר קטגוריה --</option>
                       {categories.map(cat => (
