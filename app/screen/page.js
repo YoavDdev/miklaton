@@ -156,7 +156,7 @@ export default function ScreenPage() {
   // Initial load
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 60000); // refresh every 1 minute (free tier optimized for 8-screen setup)
+    const interval = setInterval(fetchAll, 30000); // refresh every 30 seconds
 
     // Realtime war mode
     const channel = supabase
@@ -671,14 +671,21 @@ export default function ScreenPage() {
       <WeatherAlertBar alerts={weather?.alerts} />
 
       {/* Vacation Bar - Always visible */}
-      {vacations.length > 0 && (
-        <div className="bg-gradient-to-l from-orange-900/40 to-orange-800/40 border-b border-orange-700/30 px-8 py-2">
-          <div className="flex items-center gap-4 overflow-x-auto">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-lg">🏖️</span>
-              <span className="font-bold text-orange-100 text-sm">בחופש:</span>
-            </div>
-            {vacations.map((vac, idx) => (
+      <div className="bg-gradient-to-l from-orange-900/40 to-orange-800/40 border-b border-orange-700/30 px-8 py-2">
+        <div className="flex items-center gap-4 overflow-x-auto">
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-lg">🏖️</span>
+            <span className="font-bold text-orange-100 text-sm">בחופש:</span>
+            <button
+              onClick={() => fetchAll()}
+              className="ml-2 text-xs bg-orange-700/50 hover:bg-orange-600/50 text-orange-200 px-2 py-1 rounded transition-colors"
+              title="רענן נתונים"
+            >
+              🔄
+            </button>
+          </div>
+          {vacations.length > 0 ? (
+            vacations.map((vac, idx) => (
               <div key={idx} className="flex items-center gap-2 bg-orange-900/30 rounded-lg px-3 py-1 shrink-0 border border-orange-700/50">
                 <span className="font-semibold text-white text-sm">{vac.name}</span>
                 <span className="text-orange-300 text-xs">({vac.vacation_start} - {vac.vacation_end})</span>
@@ -692,10 +699,12 @@ export default function ScreenPage() {
                   <span className="text-red-300 text-xs">⚠️ אין מחליף</span>
                 )}
               </div>
-            ))}
-          </div>
+            ))
+          ) : (
+            <span className="text-orange-300 text-xs italic">אין כוננים בחופש כרגע</span>
+          )}
         </div>
-      )}
+      </div>
 
       <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0 overflow-hidden">
         
