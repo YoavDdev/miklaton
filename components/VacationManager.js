@@ -212,6 +212,8 @@ export default function VacationManager() {
   const handleSendToVacation = async (e) => {
     e.preventDefault();
     
+    console.log('Form submitted:', vacationForm);
+    
     if (!vacationForm.contact_search || !vacationForm.vacation_start || !vacationForm.vacation_end) {
       alert('יש למלא שם כונן, תאריך התחלה וסיום');
       return;
@@ -291,6 +293,9 @@ export default function VacationManager() {
         return;
       } else {
         // Create new contact - phone is required, category is optional
+        console.log('Creating new contact - no existing contact found');
+        console.log('Has category?', !!vacationForm.contact_category_id);
+        
         if (!vacationForm.contact_phone) {
           alert('כדי להוסיף כונן חדש, יש למלא טלפון');
           return;
@@ -319,12 +324,14 @@ export default function VacationManager() {
           }
         } else {
           // No category - just save to on_call_contacts for vacation record only
+          const municipalityId = getMunicipalityId();
           const createRes = await fetch('/api/on-call-contacts', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               name: vacationForm.contact_search,
               phone: vacationForm.contact_phone,
+              municipality_id: municipalityId,
               on_vacation: true,
               vacation_start: vacationForm.vacation_start,
               vacation_end: vacationForm.vacation_end,
@@ -333,6 +340,7 @@ export default function VacationManager() {
             })
           });
           const createData = await createRes.json();
+          console.log('Create on-call contact result:', createData);
           if (!createData.success) {
             alert('❌ ' + (createData.error || 'שגיאה ביצירת כונן'));
             return;
