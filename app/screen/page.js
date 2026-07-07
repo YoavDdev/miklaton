@@ -28,6 +28,7 @@ function formatDateForDB(date) {
 
 export default function ScreenPage() {
   const [zoom, setZoom] = useState(1.5);
+  const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
@@ -145,7 +146,7 @@ export default function ScreenPage() {
 
   // Read zoom and municipality_id from URL, save to localStorage
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    setMounted(true);
     const params = new URLSearchParams(window.location.search);
     const z = parseFloat(params.get('zoom'));
     if (!isNaN(z) && z > 0.5 && z <= 3) {
@@ -573,7 +574,8 @@ export default function ScreenPage() {
     <div
       className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden"
       dir="rtl"
-      style={{ zoom }}
+      style={mounted ? { zoom } : {}}
+      suppressHydrationWarning
     >
       <AutoRefresh />
 
