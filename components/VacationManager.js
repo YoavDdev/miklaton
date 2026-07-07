@@ -15,8 +15,14 @@ export default function VacationManager() {
     vacation_start: '',
     vacation_end: '',
     reason: 'חופש',
-    replacement_contact_id: ''
+    replacement_contact_id: '',
+    // For contact search/creation:
+    contact_search: '',
+    contact_phone: '',
+    contact_category_id: ''
   });
+  const [contactSuggestions, setContactSuggestions] = useState([]);
+  const [showContactSuggestions, setShowContactSuggestions] = useState(false);
 
   useEffect(() => {
     loadVacations();
@@ -83,6 +89,60 @@ export default function VacationManager() {
     }
   };
 
+  const handleContactSearch = (value) => {
+    setVacationForm({...vacationForm, contact_search: value, contact_id: ''});
+    
+    if (value.length >= 2) {
+      const allContacts = getAllContactsFromCategories();
+      const filtered = allContacts.filter(c =>
+        c.name.toLowerCase().includes(value.toLowerCase())
+      );
+      
+      // Deduplicate by name/phone - show each person only once
+      const seen = new Set();
+      const unique = filtered.filter(c => {
+        const key = `${c.name}_${c.phone}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      
+      const matches = unique.slice(0, 5);
+      setContactSuggestions(matches);
+      setShowContactSuggestions(matches.length > 0);
+    } else {
+      setContactSuggestions([]);
+      setShowContactSuggestions(false);
+    }
+  };
+
+  const selectExistingContact = (contact) => {
+    setVacationForm({
+      ...vacationForm,
+      contact_search: contact.name,
+      contact_id: contact.id,
+      contact_phone: contact.phone,
+      contact_category_id: contact.categoryId
+    });
+    setShowContactSuggestions(false);
+  };
+
+  const closeModal = () => {
+    setShowAddModal(false);
+    setVacationForm({ 
+      contact_id: '', 
+      vacation_start: '', 
+      vacation_end: '', 
+      reason: 'חופש', 
+      replacement_contact_id: '', 
+      contact_search: '', 
+      contact_phone: '', 
+      contact_category_id: '' 
+    });
+    setContactSuggestions([]);
+    setShowContactSuggestions(false);
+  };
+
   const getAllContactsFromCategories = () => {
     const contacts = [];
     categories.forEach(cat => {
@@ -104,23 +164,93 @@ export default function VacationManager() {
 
   const handleSendToVacation = async (e) => {
     e.preventDefault();
-    if (!vacationForm.contact_id || !vacationForm.vacation_start || !vacationForm.vacation_end) {
-      alert('יש למלא כונן, תאריך התחלה וסיום');
-      return;
-    }
-
-    const selectedContact = getAllContactsFromCategories().find(c => c.id === vacationForm.contact_id);
-    if (!selectedContact) {
-      alert('כונן לא נמצא');
+    
+    if (!vacationForm.contact_search || !vacationForm.vacation_start || !vacationForm.vacation_end) {
+      alert('יש למלא שם כונן, תאריך התחלה וסיום');
       return;
     }
 
     try {
-      const res = await fetch(`/api/call-categories/${selectedContact.categoryId}/contacts/vacation`, {
+      let categoryId, contactId;
+
+      // If existing contact selected
+      if (vacationForm.contact_id) {
+        const allContacts = getAllContactsFromCategories();
+        const selectedContact = allContacts.find(c => c.id === vacationForm.contact_id);
+        if (!selectedContact) {
+          alert('כונן לא נמצא');
+          return;
+        }
+        
+        // Find ALL contacts with same name (may be in multiple categories)
+        const contactsWithSameName = allContacts.filter(c => 
+          c.name.toLowerCase() === selectedContact.name.toLowerCase() ||
+          c.phone === selectedContact.phone
+        );
+        
+        // Send all of them to vacation
+        const vacationPromises = contactsWithSameName.map(contact =>
+          fetch(`/api/call-categories/${contact.categoryId}/contacts/vacation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contact_id: contact.id,
+              vacation_start: vacationForm.vacation_start,
+              vacation_end: vacationForm.vacation_end,
+              reason: vacationForm.reason,
+              replacement_contact_id: vacationForm.replacement_contact_id || null
+            })
+          }).then(res => res.json())
+        );
+        
+        const results = await Promise.all(vacationPromises);
+        const allSuccess = results.every(r => r.success);
+        
+        if (allSuccess) {
+          closeModal();
+          loadVacations();
+        } else {
+          alert('❌ שגיאה בשליחה לחופש');
+        }
+        return;
+      } else {
+        // Create new contact
+        if (!vacationForm.contact_phone || !vacationForm.contact_category_id) {
+          alert('כדי להוסיף כונן חדש, יש למלא טלפון וקטגוריה');
+          return;
+        }
+
+        const createRes = await fetch(`/api/call-categories/${vacationForm.contact_category_id}/contacts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            external_name: vacationForm.contact_search,
+            external_phone: vacationForm.contact_phone,
+            escalation_order: 999,
+            on_vacation: true,
+            vacation_start: vacationForm.vacation_start,
+            vacation_end: vacationForm.vacation_end,
+            vacation_reason: vacationForm.reason
+          })
+        });
+        const createData = await createRes.json();
+        if (!createData.success) {
+          alert('❌ ' + (createData.error || 'שגיאה ביצירת כונן'));
+          return;
+        }
+        
+        // Contact created with vacation already - just reload
+        closeModal();
+        loadVacations();
+        return;
+      }
+
+      // Send existing contact to vacation
+      const res = await fetch(`/api/call-categories/${categoryId}/contacts/vacation`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contact_id: vacationForm.contact_id,
+          contact_id: contactId,
           vacation_start: vacationForm.vacation_start,
           vacation_end: vacationForm.vacation_end,
           reason: vacationForm.reason,
@@ -129,8 +259,7 @@ export default function VacationManager() {
       });
       const data = await res.json();
       if (data.success) {
-        setShowAddModal(false);
-        setVacationForm({ contact_id: '', vacation_start: '', vacation_end: '', reason: 'חופש', replacement_contact_id: '' });
+        closeModal();
         loadVacations();
       } else {
         alert('❌ ' + (data.error || 'שגיאה'));
@@ -140,8 +269,6 @@ export default function VacationManager() {
       alert('❌ שגיאה בשליחה לחופש');
     }
   };
-
-  const allContacts = getAllContactsFromCategories();
 
   return (
     <div className="bg-white rounded-lg shadow" dir="rtl">
@@ -172,38 +299,81 @@ export default function VacationManager() {
           </div>
         ) : (
           <div className="space-y-3">
-            {vacations.map(vac => {
-              const categoryName = vac.call_category?.name || 'לא ידוע';
-              const replacementName = vac.replacement?.name;
-              return (
-                <div key={vac.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-bold text-gray-900">{vac.external_name}</span>
-                        <span className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{categoryName}</span>
-                        <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">🏖️ {vac.vacation_reason || 'חופש'}</span>
-                      </div>
-                      <p className="text-sm text-gray-600">{vac.external_phone}</p>
-                      <p className="text-sm text-orange-600 mt-1">
-                        📅 {vac.vacation_start} עד {vac.vacation_end}
-                      </p>
-                      {replacementName && (
-                        <p className="text-sm text-blue-600 mt-1">
-                          🔄 מחליף: {replacementName} ({vac.replacement.phone})
+            {(() => {
+              // Group vacations by name/phone to show each person only once
+              const grouped = {};
+              vacations.forEach(vac => {
+                const key = `${vac.external_name}_${vac.external_phone}`;
+                if (!grouped[key]) {
+                  grouped[key] = {
+                    name: vac.external_name,
+                    phone: vac.external_phone,
+                    vacation_start: vac.vacation_start,
+                    vacation_end: vac.vacation_end,
+                    vacation_reason: vac.vacation_reason,
+                    replacement: vac.replacement,
+                    categories: [],
+                    allIds: []
+                  };
+                }
+                grouped[key].categories.push(vac.call_category?.name || 'לא ידוע');
+                grouped[key].allIds.push({ id: vac.id, categoryId: vac.call_category.id });
+              });
+
+              return Object.values(grouped).map((person, idx) => {
+                const replacementName = person.replacement?.name;
+                return (
+                  <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="font-bold text-gray-900">{person.name}</span>
+                          {person.categories.map((cat, i) => (
+                            <span key={i} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{cat}</span>
+                          ))}
+                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">🏖️ {person.vacation_reason || 'חופש'}</span>
+                        </div>
+                        <p className="text-sm text-gray-600">{person.phone}</p>
+                        <p className="text-sm text-orange-600 mt-1">
+                          📅 {person.vacation_start} עד {person.vacation_end}
                         </p>
-                      )}
+                        {replacementName && (
+                          <p className="text-sm text-blue-600 mt-1">
+                            🔄 מחליף: {replacementName} ({person.replacement.phone})
+                          </p>
+                        )}
+                      </div>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('להחזיר כונן מחופש מכל הקטגוריות?')) return;
+                          try {
+                            // Return from vacation in ALL categories
+                            const promises = person.allIds.map(({ id, categoryId }) =>
+                              fetch(`/api/call-categories/${categoryId}/contacts/vacation?contact_id=${id}`, {
+                                method: 'DELETE'
+                              }).then(res => res.json())
+                            );
+                            const results = await Promise.all(promises);
+                            const allSuccess = results.every(r => r.success);
+                            if (allSuccess) {
+                              loadVacations();
+                            } else {
+                              alert('❌ שגיאה');
+                            }
+                          } catch (err) {
+                            console.error(err);
+                            alert('❌ שגיאה בהחזרה מחופש');
+                          }
+                        }}
+                        className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        ↩️ החזר מחופש
+                      </button>
                     </div>
-                    <button
-                      onClick={() => returnFromVacation(vac.id, vac.call_category.id)}
-                      className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-semibold transition-colors"
-                    >
-                      ↩️ החזר מחופש
-                    </button>
                   </div>
-                </div>
-              );
-            })}
+                );
+              });
+            })()}
           </div>
         )}
       </div>
@@ -214,22 +384,71 @@ export default function VacationManager() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
             <h3 className="text-lg font-bold text-gray-900 mb-4">🏖️ שליחת כונן לחופש</h3>
             <form onSubmit={handleSendToVacation} className="space-y-4">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">כונן *</label>
-                <select
-                  value={vacationForm.contact_id}
-                  onChange={e => setVacationForm({...vacationForm, contact_id: e.target.value})}
+              {/* Contact Search with Autocomplete */}
+              <div className="relative">
+                <label className="block text-sm font-semibold text-gray-700 mb-1">שם הכונן *</label>
+                <input
+                  type="text"
+                  value={vacationForm.contact_search}
+                  onChange={e => handleContactSearch(e.target.value)}
+                  onFocus={() => vacationForm.contact_search.length >= 2 && setShowContactSuggestions(true)}
+                  onBlur={() => setTimeout(() => setShowContactSuggestions(false), 200)}
                   className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="התחל להקליד שם..."
                   required
-                >
-                  <option value="">-- בחר כונן --</option>
-                  {allContacts.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} ({c.categoryName}) - {c.phone}
-                    </option>
-                  ))}
-                </select>
+                />
+                {showContactSuggestions && contactSuggestions.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                    {contactSuggestions.map(contact => (
+                      <button
+                        key={contact.id}
+                        type="button"
+                        onClick={() => selectExistingContact(contact)}
+                        className="w-full text-right px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-0"
+                      >
+                        <p className="font-semibold text-sm text-gray-900">{contact.name}</p>
+                        <p className="text-xs text-gray-500">{contact.categoryName} · {contact.phone}</p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {vacationForm.contact_search && !vacationForm.contact_id && (
+                  <p className="text-xs text-blue-600 mt-1">💡 לא נמצא? הוסף טלפון וקטגוריה למטה ליצירת כונן חדש</p>
+                )}
               </div>
+
+              {/* Show phone and category fields if contact not found */}
+              {vacationForm.contact_search && !vacationForm.contact_id && (
+                <>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">טלפון *</label>
+                    <input
+                      type="tel"
+                      value={vacationForm.contact_phone}
+                      onChange={e => setVacationForm({...vacationForm, contact_phone: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      placeholder="05X-XXXXXXX"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1">קטגוריה *</label>
+                    <select
+                      value={vacationForm.contact_category_id}
+                      onChange={e => setVacationForm({...vacationForm, contact_category_id: e.target.value})}
+                      className="w-full px-3 py-2 border rounded-lg text-sm"
+                      required
+                    >
+                      <option value="">-- בחר קטגוריה --</option>
+                      {categories.map(cat => (
+                        <option key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1">מתאריך *</label>
@@ -291,7 +510,7 @@ export default function VacationManager() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setShowAddModal(false)}
+                  onClick={closeModal}
                   className="flex-1 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl font-bold text-sm"
                 >
                   ביטול
