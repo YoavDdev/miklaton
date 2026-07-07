@@ -30,7 +30,8 @@ export async function GET(request) {
         replacement_contact_id,
         call_category:call_categories!call_category_contacts_call_category_id_fkey(
           id,
-          name
+          name,
+          municipality_id
         ),
         replacement:on_call_contacts!fk_replacement_contact(
           id,
@@ -45,11 +46,18 @@ export async function GET(request) {
 
     if (error) throw error;
 
-    // Filter by municipality (category.municipality_id)
-    const filtered = (vacations || []).filter(v => 
-      v.call_category?.id && 
-      v.call_category
-    );
+    console.log('Raw vacations count:', vacations?.length || 0);
+    
+    // Filter by municipality
+    const filtered = (vacations || []).filter(v => {
+      const match = v.call_category?.municipality_id === municipalityId;
+      if (!match) {
+        console.log('Filtered out vacation:', v.external_name, 'municipality:', v.call_category?.municipality_id, 'vs', municipalityId);
+      }
+      return match;
+    });
+
+    console.log('Filtered vacations count:', filtered.length);
 
     return NextResponse.json({
       success: true,

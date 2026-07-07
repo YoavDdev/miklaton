@@ -64,7 +64,8 @@ export async function GET(request) {
           .from('call_category_contacts')
           .select(`
             *,
-            contact:on_call_contacts!call_category_contacts_contact_id_fkey(*)
+            contact:on_call_contacts!call_category_contacts_contact_id_fkey(*),
+            replacement:on_call_contacts!fk_replacement_contact(*)
           `)
           .eq('call_category_id', category.id)
           .eq('active', true)
@@ -89,10 +90,13 @@ export async function GET(request) {
             if (contact.on_vacation) {
               if (contact.vacation_start && contact.vacation_end) {
                 if (currentDate >= contact.vacation_start && currentDate <= contact.vacation_end) {
-                  return false;
+                  // If has replacement, keep the contact (will be swapped to replacement in frontend)
+                  // If no replacement, filter out
+                  return contact.replacement_contact_id ? true : false;
                 }
               } else {
-                return false;
+                // On vacation but no dates - filter out unless has replacement
+                return contact.replacement_contact_id ? true : false;
               }
             }
 

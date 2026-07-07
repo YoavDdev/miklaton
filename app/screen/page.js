@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { getMunicipalityId } from '@/lib/municipality';
 import EmergencyHotlineBar from '@/components/EmergencyHotlineBar';
 import WeatherAlertBar from '@/components/WeatherAlertBar';
 import AutoRefresh from '@/components/AutoRefresh';
@@ -40,6 +41,7 @@ export default function ScreenPage() {
   const [staffOnBreak, setStaffOnBreak] = useState({}); // { staff_id: { startTime: timestamp, duration: 30 } }
   const [statusModal, setStatusModal] = useState({ open: false, staffId: null, staffName: null });
   const [timingMode, setTimingMode] = useState('immediate');
+  const [vacations, setVacations] = useState([]);
 
   // Live clock
   useEffect(() => {
@@ -174,10 +176,20 @@ export default function ScreenPage() {
       )
       .subscribe();
 
+    // Realtime vacations
+    const vacationChannel = supabase
+      .channel('screen_vacations')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'call_category_contacts' },
+        () => fetchVacations()
+      )
+      .subscribe();
+
     return () => {
       clearInterval(interval);
       supabase.removeChannel(channel);
       supabase.removeChannel(notifChannel);
+      supabase.removeChannel(vacationChannel);
     };
   }, []);
 
@@ -214,6 +226,7 @@ export default function ScreenPage() {
       fetchDutyRoster(),
       fetchShabbatTimes(),
       fetchWeather(),
+      fetchVacations(),
       securityDeptId ? fetchSecurityStatus() : Promise.resolve()
     ]);
     // Update timestamp to show screen is actively checking
@@ -348,6 +361,39 @@ export default function ScreenPage() {
         setWeather({ current: data.current, daily: data.daily || [], alerts: data.alerts || [] });
       }
     } catch {}
+  };
+
+  const fetchVacations = async () => {
+    try {
+      const municipalityId = getMunicipalityId();
+      const res = await fetch(`/api/vacations?municipality_id=${municipalityId}`);
+      const data = await res.json();
+      console.log('Fetched vacations:', data);
+      if (data.success) {
+        // Group by person (same name/phone) to avoid duplicates
+        const grouped = {};
+        (data.vacations || []).forEach(vac => {
+          const key = `${vac.external_name}_${vac.external_phone}`;
+          if (!grouped[key]) {
+            grouped[key] = {
+              name: vac.external_name,
+              phone: vac.external_phone,
+              vacation_start: vac.vacation_start,
+              vacation_end: vac.vacation_end,
+              vacation_reason: vac.vacation_reason,
+              replacement: vac.replacement,
+              categories: []
+            };
+          }
+          grouped[key].categories.push(vac.call_category?.name || 'לא ידוע');
+        });
+        const vacationsArray = Object.values(grouped);
+        console.log('Setting vacations to state:', vacationsArray);
+        setVacations(vacationsArray);
+      }
+    } catch (err) {
+      console.error('Error fetching vacations:', err);
+    }
   };
 
   const toggleStaffBreak = (staffId) => {
@@ -896,6 +942,49 @@ export default function ScreenPage() {
                     </div>
                   );
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* Staff on Vacation */}
+          {(() => {
+            console.log('Vacations state in render:', vacations, 'length:', vacations.length);
+            return null;
+          })()}
+          {vacations.length > 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+              <div className="px-5 py-3 bg-gradient-to-l from-orange-900/50 to-orange-800/50 border-b border-white/10 flex items-center gap-2">
+                <span className="text-xl">🏖️</span>
+                <h2 className="font-bold">כוננים בחופש</h2>
+              </div>
+              <div className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
+                {vacations.map((vac, idx) => (
+                  <div key={idx} className="bg-orange-900/20 border border-orange-700/50 rounded-lg px-3 py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="font-bold text-white text-sm">{vac.name}</div>
+                        <div className="text-xs text-orange-300 mt-0.5">
+                          {vac.categories.join(', ')}
+                        </div>
+                        <div className="text-xs text-orange-400 mt-1">
+                          📅 {vac.vacation_start} עד {vac.vacation_end}
+                        </div>
+                        {vac.replacement && (
+                          <div className="text-xs text-blue-300 mt-1 flex items-center gap-1">
+                            <span>🔄</span>
+                            <span className="font-semibold">מחליף: {vac.replacement.name}</span>
+                            <span className="text-blue-400">({vac.replacement.phone})</span>
+                          </div>
+                        )}
+                        {!vac.replacement && (
+                          <div className="text-xs text-red-300 mt-1">
+                            ⚠️ אין מחליף
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
