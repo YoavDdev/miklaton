@@ -686,21 +686,14 @@ export default function ScreenPage() {
 
       {/* Vacation Bar - Always visible */}
       <div className="bg-gradient-to-l from-orange-900/40 to-orange-800/40 border-b border-orange-700/30 px-8 py-2">
-        <div className="flex items-center gap-4 overflow-x-auto">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <div className="flex items-center gap-2 shrink-0">
             <span className="text-lg">🏖️</span>
             <span className="font-bold text-orange-100 text-sm">בחופש:</span>
-            <button
-              onClick={() => fetchAll()}
-              className="ml-2 text-xs bg-orange-700/50 hover:bg-orange-600/50 text-orange-200 px-2 py-1 rounded transition-colors"
-              title="רענן נתונים"
-            >
-              🔄
-            </button>
           </div>
           {vacations.length > 0 ? (
             vacations.map((vac, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-orange-900/30 rounded-lg px-3 py-1 shrink-0 border border-orange-700/50">
+              <div key={idx} className="flex items-center gap-2 bg-orange-900/30 rounded-lg px-3 py-1 border border-orange-700/50">
                 <span className="font-semibold text-white text-sm">{vac.name}</span>
                 <span className="text-orange-300 text-xs">({vac.vacation_start} - {vac.vacation_end})</span>
                 {vac.replacement && (
