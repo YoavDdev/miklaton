@@ -423,8 +423,13 @@ export default function VacationManager() {
                     allIds: []
                   };
                 }
-                grouped[key].categories.push(vac.call_category?.name || 'לא ידוע');
-                grouped[key].allIds.push({ id: vac.id, categoryId: vac.call_category.id });
+                if (vac.call_category) {
+                  grouped[key].categories.push(vac.call_category.name);
+                  grouped[key].allIds.push({ id: vac.id, categoryId: vac.call_category.id });
+                } else {
+                  // Vacation without category (from on_call_contacts only)
+                  grouped[key].allIds.push({ id: vac.id, categoryId: null });
+                }
               });
 
               return Object.values(grouped).map((person, idx) => {
@@ -455,11 +460,27 @@ export default function VacationManager() {
                           if (!confirm('להחזיר כונן מחופש מכל הקטגוריות?')) return;
                           try {
                             // Return from vacation in ALL categories
-                            const promises = person.allIds.map(({ id, categoryId }) =>
-                              fetch(`/api/call-categories/${categoryId}/contacts/vacation?contact_id=${id}`, {
-                                method: 'DELETE'
-                              }).then(res => res.json())
-                            );
+                            const promises = person.allIds.map(({ id, categoryId }) => {
+                              if (categoryId) {
+                                // Vacation in a category
+                                return fetch(`/api/call-categories/${categoryId}/contacts/vacation?contact_id=${id}`, {
+                                  method: 'DELETE'
+                                }).then(res => res.json());
+                              } else {
+                                // Vacation without category - update on_call_contacts directly
+                                return fetch(`/api/on-call-contacts/${id}`, {
+                                  method: 'PATCH',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({
+                                    on_vacation: false,
+                                    vacation_start: null,
+                                    vacation_end: null,
+                                    vacation_reason: null,
+                                    replacement_contact_id: null
+                                  })
+                                }).then(res => res.json());
+                              }
+                            });
                             const results = await Promise.all(promises);
                             const allSuccess = results.every(r => r.success);
                             if (allSuccess) {

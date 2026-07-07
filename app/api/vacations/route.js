@@ -63,17 +63,15 @@ export async function GET(request) {
         vacation_end,
         vacation_reason,
         municipality_id,
-        replacement:on_call_contacts!on_call_contacts_replacement_contact_id_fkey(
-          id,
-          name,
-          phone
-        )
+        replacement_contact_id
       `)
       .eq('on_vacation', true)
       .eq('active', true)
       .eq('municipality_id', municipalityId)
       .not('vacation_start', 'is', null)
       .not('vacation_end', 'is', null);
+
+    console.log('Direct vacations query:', { directVacations, directError, municipalityId });
 
     // Normalize direct vacations to same shape as category vacations
     const normalizedDirect = (directVacations || []).map(v => ({
@@ -85,7 +83,7 @@ export async function GET(request) {
       vacation_end: v.vacation_end,
       vacation_reason: v.vacation_reason,
       call_category: null,
-      replacement: v.replacement
+      replacement: null // TODO: fetch replacement separately if needed
     }));
 
     return NextResponse.json({
