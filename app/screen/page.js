@@ -368,7 +368,6 @@ export default function ScreenPage() {
       const municipalityId = getMunicipalityId();
       const res = await fetch(`/api/vacations?municipality_id=${municipalityId}`);
       const data = await res.json();
-      console.log('Fetched vacations:', data);
       if (data.success) {
         // Group by person (same name/phone) to avoid duplicates
         const grouped = {};
@@ -387,9 +386,7 @@ export default function ScreenPage() {
           }
           grouped[key].categories.push(vac.call_category?.name || 'לא ידוע');
         });
-        const vacationsArray = Object.values(grouped);
-        console.log('Setting vacations to state:', vacationsArray);
-        setVacations(vacationsArray);
+        setVacations(Object.values(grouped));
       }
     } catch (err) {
       console.error('Error fetching vacations:', err);
@@ -673,6 +670,33 @@ export default function ScreenPage() {
 
       <WeatherAlertBar alerts={weather?.alerts} />
 
+      {/* Vacation Bar - Always visible */}
+      {vacations.length > 0 && (
+        <div className="bg-gradient-to-l from-orange-900/40 to-orange-800/40 border-b border-orange-700/30 px-8 py-2">
+          <div className="flex items-center gap-4 overflow-x-auto">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-lg">🏖️</span>
+              <span className="font-bold text-orange-100 text-sm">בחופש:</span>
+            </div>
+            {vacations.map((vac, idx) => (
+              <div key={idx} className="flex items-center gap-2 bg-orange-900/30 rounded-lg px-3 py-1 shrink-0 border border-orange-700/50">
+                <span className="font-semibold text-white text-sm">{vac.name}</span>
+                <span className="text-orange-300 text-xs">({vac.vacation_start} - {vac.vacation_end})</span>
+                {vac.replacement && (
+                  <div className="flex items-center gap-1 border-r border-orange-700/50 pr-2 mr-1">
+                    <span className="text-xs text-blue-300">🔄</span>
+                    <span className="font-medium text-blue-200 text-xs">{vac.replacement.name}</span>
+                  </div>
+                )}
+                {!vac.replacement && (
+                  <span className="text-red-300 text-xs">⚠️ אין מחליף</span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0 overflow-hidden">
         
         {/* Left Column - Notifications */}
@@ -946,48 +970,6 @@ export default function ScreenPage() {
             </div>
           )}
 
-          {/* Staff on Vacation */}
-          {(() => {
-            console.log('Vacations state in render:', vacations, 'length:', vacations.length);
-            return null;
-          })()}
-          {vacations.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 bg-gradient-to-l from-orange-900/50 to-orange-800/50 border-b border-white/10 flex items-center gap-2">
-                <span className="text-xl">🏖️</span>
-                <h2 className="font-bold">כוננים בחופש</h2>
-              </div>
-              <div className="p-3 space-y-2 max-h-[300px] overflow-y-auto">
-                {vacations.map((vac, idx) => (
-                  <div key={idx} className="bg-orange-900/20 border border-orange-700/50 rounded-lg px-3 py-2">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="font-bold text-white text-sm">{vac.name}</div>
-                        <div className="text-xs text-orange-300 mt-0.5">
-                          {vac.categories.join(', ')}
-                        </div>
-                        <div className="text-xs text-orange-400 mt-1">
-                          📅 {vac.vacation_start} עד {vac.vacation_end}
-                        </div>
-                        {vac.replacement && (
-                          <div className="text-xs text-blue-300 mt-1 flex items-center gap-1">
-                            <span>🔄</span>
-                            <span className="font-semibold">מחליף: {vac.replacement.name}</span>
-                            <span className="text-blue-400">({vac.replacement.phone})</span>
-                          </div>
-                        )}
-                        {!vac.replacement && (
-                          <div className="text-xs text-red-300 mt-1">
-                            ⚠️ אין מחליף
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
       </main>
 

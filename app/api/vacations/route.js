@@ -46,18 +46,10 @@ export async function GET(request) {
 
     if (error) throw error;
 
-    console.log('Raw vacations count:', vacations?.length || 0);
-    
     // Filter by municipality
-    const filtered = (vacations || []).filter(v => {
-      const match = v.call_category?.municipality_id === municipalityId;
-      if (!match) {
-        console.log('Filtered out vacation:', v.external_name, 'municipality:', v.call_category?.municipality_id, 'vs', municipalityId);
-      }
-      return match;
-    });
-
-    console.log('Filtered vacations count:', filtered.length);
+    const filtered = (vacations || []).filter(v => 
+      v.call_category?.municipality_id === municipalityId
+    );
 
     return NextResponse.json({
       success: true,
