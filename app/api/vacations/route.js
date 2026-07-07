@@ -32,9 +32,9 @@ export async function GET(request) {
           id,
           name
         ),
-        replacement:on_call_contacts!call_category_contacts_replacement_contact_id_fkey(
+        replacement:on_call_contacts!fk_replacement_contact(
           id,
-          full_name,
+          name,
           phone
         )
       `)

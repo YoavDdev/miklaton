@@ -42,7 +42,7 @@ export default function VacationManager() {
 
   const loadPhonebook = async () => {
     try {
-      const res = await fetch('/api/contacts');
+      const res = await fetch('/api/on-call-contacts');
       const data = await res.json();
       if (data.success) {
         setPhonebookContacts(data.contacts || []);
@@ -174,7 +174,7 @@ export default function VacationManager() {
           <div className="space-y-3">
             {vacations.map(vac => {
               const categoryName = vac.call_category?.name || 'לא ידוע';
-              const replacementName = vac.replacement?.full_name;
+              const replacementName = vac.replacement?.name;
               return (
                 <div key={vac.id} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                   <div className="flex items-start justify-between gap-4">
@@ -275,7 +275,7 @@ export default function VacationManager() {
                   <option value="">-- ללא מחליף --</option>
                   {phonebookContacts.map(c => (
                     <option key={c.id} value={c.id}>
-                      {c.full_name} - {c.phone}
+                      {c.name} - {c.phone}
                     </option>
                   ))}
                 </select>

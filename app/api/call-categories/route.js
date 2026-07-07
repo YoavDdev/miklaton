@@ -64,7 +64,7 @@ export async function GET(request) {
           .from('call_category_contacts')
           .select(`
             *,
-            contact:on_call_contacts(*)
+            contact:on_call_contacts!call_category_contacts_contact_id_fkey(*)
           `)
           .eq('call_category_id', category.id)
           .eq('active', true)
@@ -182,7 +182,7 @@ export async function GET(request) {
               .from('call_category_subcategory_contacts')
               .select(`
                 *,
-                contact:on_call_contacts(*)
+                contact:on_call_contacts!call_category_subcategory_contacts_contact_id_fkey(*)
               `)
               .eq('subcategory_id', sub.id)
               .eq('active', true)
