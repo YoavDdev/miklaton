@@ -11,6 +11,7 @@ export default function CallGuide({ compact = false }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [missedCounts, setMissedCounts] = useState({});
+  const [selectedPrimary, setSelectedPrimary] = useState(null); // chosen primary contact id
 
   useEffect(() => { loadCategories(); }, []);
 
@@ -60,9 +61,9 @@ export default function CallGuide({ compact = false }) {
     setMissedCounts(prev => ({ ...prev, [contactId]: (prev[contactId] || 0) + 1 }));
   };
 
-  // Sync selectedCategory when categories reload (to reflect hidden contacts)
-  const openCategory = (cat) => setSelectedCategory(cat);
-  const closeCategory = () => { setSelectedCategory(null); setMissedCounts({}); };
+  const openCategory = (cat) => { setSelectedCategory(cat); setSelectedPrimary(null); setMissedCounts({}); };
+  const closeCategory = () => { setSelectedCategory(null); setSelectedPrimary(null); setMissedCounts({}); };
+  const backToPicker = () => { setSelectedPrimary(null); setMissedCounts({}); };
 
   if (loading) {
     return (
@@ -121,12 +122,23 @@ export default function CallGuide({ compact = false }) {
       {/* ── Contact panel (slide-up overlay) ── */}
       {selectedCategory && (() => {
         const cat = selectedCategory;
-        const allCallable = (cat.contacts || [])
-          .filter(c => c.external_phone || c.contact?.phone);
+        const allCallable = (cat.contacts || []).filter(c => c.external_phone || c.contact?.phone);
+        const primaryContacts = allCallable.filter(c => c.is_primary);
+        const needsPicker = primaryContacts.length > 1 && !selectedPrimary;
+
+        // After picking: show chosen primary + its non-primary followers (escalation)
+        // Without picker: show all as usual
+        const visibleContacts = selectedPrimary
+          ? allCallable.filter(c => c.id === selectedPrimary || !c.is_primary)
+          : allCallable;
+
         const callableContacts = [
-          ...allCallable.filter(c => (missedCounts[c.id] || 0) < MISSED_THRESHOLD),
-          ...allCallable.filter(c => (missedCounts[c.id] || 0) >= MISSED_THRESHOLD),
+          ...visibleContacts.filter(c => (missedCounts[c.id] || 0) < MISSED_THRESHOLD),
+          ...visibleContacts.filter(c => (missedCounts[c.id] || 0) >= MISSED_THRESHOLD),
         ];
+
+        const chosenPrimary = primaryContacts.find(c => c.id === selectedPrimary);
+
         return (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4" dir="rtl">
             <div className="absolute inset-0 bg-black/50" onClick={closeCategory} />
@@ -135,10 +147,17 @@ export default function CallGuide({ compact = false }) {
               {/* Modal header */}
               <div className="bg-gradient-to-l from-slate-800 to-slate-900 px-5 py-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-white font-bold text-lg leading-tight">{cat.name}</h2>
-                  {cat.description && <p className="text-slate-400 text-xs mt-0.5">{cat.description}</p>}
+                  <h2 className="text-white font-bold text-lg leading-tight">
+                    {chosenPrimary ? `${cat.name} · ${chosenPrimary.external_name || chosenPrimary.contact?.name}` : cat.name}
+                  </h2>
+                  {!chosenPrimary && cat.description && <p className="text-slate-400 text-xs mt-0.5">{cat.description}</p>}
                 </div>
-                <button onClick={closeCategory} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors text-base font-bold">✕</button>
+                <div className="flex items-center gap-2">
+                  {chosenPrimary && (
+                    <button onClick={backToPicker} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors text-base" title="חזור">←</button>
+                  )}
+                  <button onClick={closeCategory} className="w-8 h-8 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors text-base font-bold">✕</button>
+                </div>
               </div>
 
               {/* Warning / instructions strip */}
@@ -149,8 +168,34 @@ export default function CallGuide({ compact = false }) {
                 </div>
               )}
 
+              {/* ── PRIMARY PICKER ── */}
+              {needsPicker && (
+                <div className="overflow-y-auto flex-1 p-5">
+                  <p className="text-sm font-bold text-gray-700 mb-4 text-center">בחר את סוג המקרה:</p>
+                  <div className="space-y-3">
+                    {primaryContacts.map(c => {
+                      const name = c.external_name || c.contact?.name || 'לא ידוע';
+                      const role = c.external_role || c.contact?.role_description;
+                      return (
+                        <button
+                          key={c.id}
+                          onClick={() => setSelectedPrimary(c.id)}
+                          className="w-full text-right bg-white border-2 border-slate-200 hover:border-emerald-400 hover:bg-emerald-50 active:scale-[0.98] transition-all rounded-xl px-5 py-4 flex items-center justify-between gap-3"
+                        >
+                          <div>
+                            <p className="font-bold text-gray-900 text-base">{name}</p>
+                            {role && <p className="text-xs text-gray-500 mt-0.5">{role}</p>}
+                          </div>
+                          <span className="text-gray-400 text-xl shrink-0">›</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
               {/* Contacts list */}
-              <div className="overflow-y-auto flex-1">
+              {!needsPicker && <div className="overflow-y-auto flex-1">
                 {callableContacts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-400">
                     <span className="text-3xl mb-2">📵</span>
@@ -261,7 +306,7 @@ export default function CallGuide({ compact = false }) {
                     })}
                   </div>
                 )}
-              </div>
+              </div>}
             </div>
           </div>
         );

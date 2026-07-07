@@ -78,9 +78,11 @@ export async function GET(request) {
         let filteredContacts = contacts || [];
         if (currentTimeOnly && filteredContacts.length > 0) {
           const now = new Date();
-          const currentDay = now.getDay(); // 0=Sunday, 6=Saturday
-          const currentTime = now.toTimeString().slice(0, 5); // HH:MM
-          const currentDate = now.toISOString().split('T')[0];
+          // Use Israel local time for all comparisons (stored hours are in IST)
+          const israelNow = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
+          const currentDay = israelNow.getDay(); // 0=Sunday, 6=Saturday
+          const currentTime = israelNow.toTimeString().slice(0, 5); // HH:MM in IST
+          const currentDate = now.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' }); // YYYY-MM-DD in IST
 
           filteredContacts = filteredContacts.filter(contact => {
             // Check if on vacation
