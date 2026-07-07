@@ -17,7 +17,7 @@ export async function POST(request, { params }) {
     // }
 
     const body = await request.json();
-    const { contact_id, vacation_start, vacation_end, reason } = body;
+    const { contact_id, vacation_start, vacation_end, reason, replacement_contact_id } = body;
 
     if (!contact_id || !vacation_start || !vacation_end) {
       return NextResponse.json(
@@ -33,6 +33,7 @@ export async function POST(request, { params }) {
         vacation_start,
         vacation_end,
         vacation_reason: reason || 'חופש',
+        replacement_contact_id: replacement_contact_id || null,
         updated_at: new Date().toISOString()
       })
       .eq('id', contact_id)
@@ -79,6 +80,7 @@ export async function DELETE(request, { params }) {
         vacation_start: null,
         vacation_end: null,
         vacation_reason: null,
+        replacement_contact_id: null,
         updated_at: new Date().toISOString()
       })
       .eq('id', contactId)

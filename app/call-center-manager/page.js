@@ -8,6 +8,7 @@ import OnCallManagerNew from '@/components/OnCallManagerNew';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import SurveyManager from '@/components/SurveyManager';
 import CallCategoryManager from '@/components/CallCategoryManager';
+import VacationManager from '@/components/VacationManager';
 import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
 
 const supabase = createClient(
@@ -573,6 +574,16 @@ export default function CallCenterManagerPage() {
                 📋 קטגוריות פניות
               </button>
               <button
+                onClick={() => setActiveTab('vacations')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'vacations'
+                    ? 'border-pink-600 text-pink-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                🏖️ ניהול חופשים
+              </button>
+              <button
                 onClick={() => setActiveTab('whatsapp')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'whatsapp'
@@ -750,6 +761,11 @@ export default function CallCenterManagerPage() {
         {/* Tab Content - Call Categories */}
         {activeTab === 'call-categories' && (
           <CallCategoryManager />
+        )}
+
+        {/* Tab Content - Vacations */}
+        {activeTab === 'vacations' && (
+          <VacationManager />
         )}
 
         {/* Tab Content - WhatsApp */}
