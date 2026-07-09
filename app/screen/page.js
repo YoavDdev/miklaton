@@ -44,6 +44,23 @@ export default function ScreenPage() {
   const [zoom, setZoom] = useState(1.5);
   const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
+
+  // Hard refresh the page every day at 06:00
+  useEffect(() => {
+    const scheduleDailyReload = () => {
+      const now = new Date();
+      const target = new Date(now);
+      target.setHours(6, 0, 0, 0);
+      if (target <= now) {
+        target.setDate(target.getDate() + 1);
+      }
+      const msUntilTarget = target.getTime() - now.getTime();
+      return setTimeout(() => window.location.reload(), msUntilTarget);
+    };
+
+    const timeout = scheduleDailyReload();
+    return () => clearTimeout(timeout);
+  }, []);
   const [warMode, setWarMode] = useState(false);
   const [notifications, setNotifications] = useState([]);
   const [securityEntries, setSecurityEntries] = useState([]);
