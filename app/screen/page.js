@@ -31,7 +31,7 @@ function formatVacationDateRange(start, end) {
   const endDate = new Date(end + 'T00:00:00');
   const fmt = (d) =>
     `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
-  return `${fmt(startDate)} - ${fmt(endDate)}`;
+  return `מ-${fmt(startDate)} עד ${fmt(endDate)}`;
 }
 
 function isWithinLast24Hours(isoDate) {
@@ -724,7 +724,7 @@ export default function ScreenPage() {
                   }`}
                 >
                   <span className={`font-semibold ${isReturned ? 'text-green-100' : 'text-white'}`}>{vac.name}</span>
-                  <span className={`text-xs ${isReturned ? 'text-green-300' : 'text-orange-300'}`}>({dateRange})</span>
+                  <span className={`text-xs ${isReturned ? 'text-green-300' : 'text-orange-300'}`}>{dateRange}</span>
                   {isNew && <span className="text-xs font-bold text-orange-100">🔥 חדש</span>}
                   {isReturned && <span className="text-xs font-bold text-green-100">✅ חזר לעבודה</span>}
                 </div>
