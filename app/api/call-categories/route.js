@@ -7,6 +7,24 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+// Resolve municipality slug (e.g. 'yehud') to UUID if needed
+async function resolveMunicipalityId(municipalityId) {
+  const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (uuidRegex.test(municipalityId)) return municipalityId;
+
+  const { data, error } = await supabase
+    .from('municipalities')
+    .select('id')
+    .eq('code', municipalityId)
+    .single();
+
+  if (error || !data) {
+    throw new Error(`Municipality not found for code: ${municipalityId}`);
+  }
+
+  return data.id;
+}
+
 // GET - Get all call categories with contacts
 export async function GET(request) {
   try {
@@ -24,11 +42,13 @@ export async function GET(request) {
       return NextResponse.json({ error: 'municipality_id required' }, { status: 400 });
     }
 
+    const resolvedMunicipalityId = await resolveMunicipalityId(municipalityId);
+
     // Get all categories
     const { data: categories, error: catError } = await supabase
       .from('call_categories')
       .select('*')
-      .eq('municipality_id', municipalityId)
+      .eq('municipality_id', resolvedMunicipalityId)
       .eq('active', true)
       .order('display_order');
 
@@ -267,10 +287,12 @@ export async function POST(request) {
       );
     }
 
+    const resolvedMunicipalityId = await resolveMunicipalityId(municipality_id);
+
     const { data, error } = await supabase
       .from('call_categories')
       .insert({
-        municipality_id,
+        municipality_id: resolvedMunicipalityId,
         name,
         icon,
         description,
