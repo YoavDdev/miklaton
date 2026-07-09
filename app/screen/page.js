@@ -26,6 +26,21 @@ function formatDateForDB(date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
 }
 
+function formatVacationDateRange(start, end) {
+  const startDate = new Date(start + 'T00:00:00');
+  const endDate = new Date(end + 'T00:00:00');
+  const fmt = (d) =>
+    `${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}`;
+  return `${fmt(startDate)} - ${fmt(endDate)}`;
+}
+
+function isWithinLast24Hours(isoDate) {
+  if (!isoDate) return false;
+  const then = new Date(isoDate).getTime();
+  const now = Date.now();
+  return now - then < 24 * 60 * 60 * 1000;
+}
+
 export default function ScreenPage() {
   const [zoom, setZoom] = useState(1.5);
   const [mounted, setMounted] = useState(false);
@@ -377,7 +392,7 @@ export default function ScreenPage() {
         || localStorage.getItem('municipality_id') 
         || process.env.NEXT_PUBLIC_MUNICIPALITY_ID
         || '023b5984-7097-4f03-a8dd-7ef7e29a4bc4';
-      const res = await fetch(`/api/vacations?municipality_id=${municipalityId}`);
+      const res = await fetch(`/api/vacations?municipality_id=${municipalityId}&include_recently_returned=true`);
       const data = await res.json();
       if (data.success) {
         // Group by person (same name/phone) to avoid duplicates
@@ -391,6 +406,8 @@ export default function ScreenPage() {
               vacation_start: vac.vacation_start,
               vacation_end: vac.vacation_end,
               vacation_reason: vac.vacation_reason,
+              on_vacation: vac.on_vacation,
+              updated_at: vac.updated_at,
               categories: []
             };
           }
@@ -691,12 +708,28 @@ export default function ScreenPage() {
             <span className="font-bold text-orange-100 text-sm">בחופש:</span>
           </div>
           {vacations.length > 0 ? (
-            vacations.map((vac, idx) => (
-              <div key={idx} className="flex items-center gap-2 bg-orange-900/30 rounded-lg px-3 py-1 border border-orange-700/50">
-                <span className="font-semibold text-white text-sm">{vac.name}</span>
-                <span className="text-orange-300 text-xs">({vac.vacation_start} - {vac.vacation_end})</span>
-              </div>
-            ))
+            vacations.map((vac, idx) => {
+              const isReturned = vac.on_vacation === false;
+              const isNew = !isReturned && isWithinLast24Hours(vac.updated_at);
+              const dateRange = formatVacationDateRange(vac.vacation_start, vac.vacation_end);
+              return (
+                <div
+                  key={idx}
+                  className={`flex items-center gap-2 rounded-lg px-3 py-1 border text-sm ${
+                    isReturned
+                      ? 'bg-green-900/40 border-green-600/50'
+                      : isNew
+                        ? 'bg-orange-700/60 border-orange-400 ring-2 ring-orange-400 animate-pulse'
+                        : 'bg-orange-900/30 border-orange-700/50'
+                  }`}
+                >
+                  <span className={`font-semibold ${isReturned ? 'text-green-100' : 'text-white'}`}>{vac.name}</span>
+                  <span className={`text-xs ${isReturned ? 'text-green-300' : 'text-orange-300'}`}>({dateRange})</span>
+                  {isNew && <span className="text-xs font-black text-orange-100">🔥 חדש</span>}
+                  {isReturned && <span className="text-xs font-black text-green-100">✅ חזר לעבודה</span>}
+                </div>
+              );
+            })
           ) : (
             <span className="text-orange-300 text-xs italic">אין כוננים בחופש כרגע</span>
           )}
