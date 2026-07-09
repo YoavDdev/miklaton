@@ -3,7 +3,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { createClient } from '@supabase/supabase-js';
 import { getMunicipalityId } from '@/lib/municipality';
-import EmergencyHotlineBar from '@/components/EmergencyHotlineBar';
 import WeatherAlertBar from '@/components/WeatherAlertBar';
 import AutoRefresh from '@/components/AutoRefresh';
 
@@ -695,8 +694,6 @@ export default function ScreenPage() {
           )}
         </div>
       </header>
-
-      <EmergencyHotlineBar />
 
       <WeatherAlertBar alerts={weather?.alerts} />
 
