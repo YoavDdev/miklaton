@@ -70,6 +70,10 @@ export default function ScreenPage() {
   const [shabbatTimes, setShabbatTimes] = useState(null);
   const [weather, setWeather] = useState(null);
   const [securityDeptId, setSecurityDeptId] = useState(null);
+  const securityDeptIdRef = useRef(securityDeptId);
+  useEffect(() => {
+    securityDeptIdRef.current = securityDeptId;
+  }, [securityDeptId]);
   const [staffOnBreak, setStaffOnBreak] = useState({}); // { staff_id: { startTime: timestamp, duration: 30 } }
   const [statusModal, setStatusModal] = useState({ open: false, staffId: null, staffName: null });
   const [timingMode, setTimingMode] = useState('immediate');
@@ -190,10 +194,23 @@ export default function ScreenPage() {
     }
   }, []);
 
-  // Initial load
+  // Static data - fetch once on mount
+  useEffect(() => {
+    fetchDepartments();
+    fetchShabbatTimes();
+  }, []);
+
+  // Weather - fetch on mount and refresh every 5 minutes
+  useEffect(() => {
+    fetchWeather();
+    const interval = setInterval(fetchWeather, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Initial load + polling + realtime
   useEffect(() => {
     fetchAll();
-    const interval = setInterval(fetchAll, 30000); // refresh every 30 seconds
+    const interval = setInterval(fetchAll, 10000); // refresh critical data every 10 seconds
 
     // Realtime war mode
     const channel = supabase
@@ -213,7 +230,7 @@ export default function ScreenPage() {
       )
       .subscribe();
 
-    // Realtime vacations
+    // Realtime vacations from category contacts
     const vacationChannel = supabase
       .channel('screen_vacations')
       .on('postgres_changes',
@@ -222,11 +239,41 @@ export default function ScreenPage() {
       )
       .subscribe();
 
+    // Realtime direct on-call contact vacations
+    const directVacationChannel = supabase
+      .channel('screen_direct_vacations')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'on_call_contacts' },
+        () => fetchVacations()
+      )
+      .subscribe();
+
+    // Realtime duty roster changes
+    const rosterChannel = supabase
+      .channel('screen_duty_roster')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'duty_roster' },
+        () => fetchDutyRoster()
+      )
+      .subscribe();
+
+    // Realtime contacts changes
+    const contactsChannel = supabase
+      .channel('screen_contacts')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'contacts' },
+        () => fetchDutyRoster()
+      )
+      .subscribe();
+
     return () => {
       clearInterval(interval);
       supabase.removeChannel(channel);
       supabase.removeChannel(notifChannel);
       supabase.removeChannel(vacationChannel);
+      supabase.removeChannel(directVacationChannel);
+      supabase.removeChannel(rosterChannel);
+      supabase.removeChannel(contactsChannel);
     };
   }, []);
 
@@ -259,12 +306,9 @@ export default function ScreenPage() {
     await Promise.all([
       fetchWarMode(),
       fetchNotifications(),
-      fetchDepartments(),
       fetchDutyRoster(),
-      fetchShabbatTimes(),
-      fetchWeather(),
       fetchVacations(),
-      securityDeptId ? fetchSecurityStatus() : Promise.resolve()
+      securityDeptIdRef.current ? fetchSecurityStatus() : Promise.resolve()
     ]);
     // Update timestamp to show screen is actively checking
     setLastSecurityUpdate(new Date());
