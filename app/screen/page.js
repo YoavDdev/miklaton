@@ -391,7 +391,6 @@ export default function ScreenPage() {
               vacation_start: vac.vacation_start,
               vacation_end: vac.vacation_end,
               vacation_reason: vac.vacation_reason,
-              replacement: vac.replacement,
               categories: []
             };
           }
@@ -696,15 +695,6 @@ export default function ScreenPage() {
               <div key={idx} className="flex items-center gap-2 bg-orange-900/30 rounded-lg px-3 py-1 border border-orange-700/50">
                 <span className="font-semibold text-white text-sm">{vac.name}</span>
                 <span className="text-orange-300 text-xs">({vac.vacation_start} - {vac.vacation_end})</span>
-                {vac.replacement && (
-                  <div className="flex items-center gap-1 border-r border-orange-700/50 pr-2 mr-1">
-                    <span className="text-xs text-blue-300">🔄</span>
-                    <span className="font-medium text-blue-200 text-xs">{vac.replacement.name}</span>
-                  </div>
-                )}
-                {!vac.replacement && (
-                  <span className="text-red-300 text-xs">⚠️ אין מחליף</span>
-                )}
               </div>
             ))
           ) : (
