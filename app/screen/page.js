@@ -345,6 +345,8 @@ export default function ScreenPage() {
 
   const fetchSecurityStatus = async () => {
     try {
+      const deptId = securityDeptIdRef.current;
+      if (!deptId) return;
       const today = new Date();
       const todayStr = formatDateForDB(today);
       const yesterday = new Date(today);
@@ -352,8 +354,8 @@ export default function ScreenPage() {
       const yesterdayStr = formatDateForDB(yesterday);
 
       const [todayRes, yesterdayRes] = await Promise.all([
-        fetch(`/api/security-daily-order?department_id=${securityDeptId}&order_date=${todayStr}`),
-        fetch(`/api/security-daily-order?department_id=${securityDeptId}&order_date=${yesterdayStr}`)
+        fetch(`/api/security-daily-order?department_id=${deptId}&order_date=${todayStr}`),
+        fetch(`/api/security-daily-order?department_id=${deptId}&order_date=${yesterdayStr}`)
       ]);
 
       const todayData = await todayRes.json();
