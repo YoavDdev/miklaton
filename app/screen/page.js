@@ -725,8 +725,8 @@ export default function ScreenPage() {
                 >
                   <span className={`font-semibold ${isReturned ? 'text-green-100' : 'text-white'}`}>{vac.name}</span>
                   <span className={`text-xs ${isReturned ? 'text-green-300' : 'text-orange-300'}`}>({dateRange})</span>
-                  {isNew && <span className="text-xs font-black text-orange-100">🔥 חדש</span>}
-                  {isReturned && <span className="text-xs font-black text-green-100">✅ חזר לעבודה</span>}
+                  {isNew && <span className="text-xs font-bold text-orange-100">🔥 חדש</span>}
+                  {isReturned && <span className="text-xs font-bold text-green-100">✅ חזר לעבודה</span>}
                 </div>
               );
             })
