@@ -123,36 +123,7 @@ export default function CallGuide({ compact = false }) {
       {selectedCategory && (() => {
         const cat = selectedCategory;
         
-        // Replace vacationing contacts with their replacements
-        const processedContacts = (cat.contacts || []).map(c => {
-          // If contact is on vacation and has a replacement, show replacement instead
-          if (c.on_vacation && c.replacement) {
-            return {
-              ...c,
-              external_name: c.replacement.name,
-              external_phone: c.replacement.phone,
-              external_role: `מחליף ${c.external_name}`,
-              is_replacement: true,
-              original_contact_name: c.external_name,
-              replacement_id: c.replacement.id // Track replacement ID for deduplication
-            };
-          }
-          return c;
-        });
-        
-        // Deduplicate: if same replacement appears multiple times, keep only the first occurrence
-        const seenReplacements = new Set();
-        const deduplicatedContacts = processedContacts.filter(c => {
-          if (c.is_replacement && c.replacement_id) {
-            if (seenReplacements.has(c.replacement_id)) {
-              return false; // Skip duplicate replacement
-            }
-            seenReplacements.add(c.replacement_id);
-          }
-          return true;
-        });
-        
-        const allCallable = deduplicatedContacts.filter(c => c.external_phone || c.contact?.phone);
+        const allCallable = (cat.contacts || []).filter(c => c.external_phone || c.contact?.phone);
         const primaryContacts = allCallable.filter(c => c.is_primary);
         const needsPicker = primaryContacts.length > 1 && !selectedPrimary;
 
@@ -215,9 +186,6 @@ export default function CallGuide({ compact = false }) {
                           <div className="flex-1">
                             <div className="flex items-center gap-2">
                               <p className="font-bold text-gray-900 text-base">{name}</p>
-                              {c.is_replacement && (
-                                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">🔄 מחליף</span>
-                              )}
                             </div>
                             {role && <p className="text-xs text-gray-500 mt-0.5">{role}</p>}
                           </div>
@@ -253,9 +221,6 @@ export default function CallGuide({ compact = false }) {
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2">
                                 <p className="font-bold text-gray-900 text-base">{name}</p>
-                                {contact.is_replacement && (
-                                  <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">🔄 מחליף</span>
-                                )}
                               </div>
                               {role && <p className="text-xs text-gray-500 mt-0.5">{role}</p>}
                               {contact.notes_for_operator && <p className="text-xs text-amber-700 mt-1 font-medium">💡 {contact.notes_for_operator}</p>}
@@ -294,9 +259,6 @@ export default function CallGuide({ compact = false }) {
                             <div className="mb-3">
                               <div className="flex items-center gap-2">
                                 <p className="text-xl font-bold text-gray-900">{name}</p>
-                                {contact.is_replacement && (
-                                  <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full">🔄 מחליף</span>
-                                )}
                               </div>
                               {role && <p className="text-sm text-gray-500 mt-0.5">{role}</p>}
                               {contact.notes_for_operator && <p className="text-sm text-amber-700 mt-1 font-medium">💡 {contact.notes_for_operator}</p>}
@@ -328,9 +290,6 @@ export default function CallGuide({ compact = false }) {
                               <div className="flex items-center gap-2">
                                 <span className="text-xs bg-red-100 text-red-500 font-semibold px-2 py-0.5 rounded-full shrink-0">לא ענה</span>
                                 <span className="text-sm font-medium text-gray-500 truncate line-through">{name}</span>
-                                {contact.is_replacement && (
-                                  <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full shrink-0">🔄 מחליף</span>
-                                )}
                               </div>
                               {role && <p className="text-xs text-gray-400 mt-0.5">{role}</p>}
                             </div>
@@ -345,9 +304,6 @@ export default function CallGuide({ compact = false }) {
                             <div className="flex items-center gap-2">
                               <span className="text-xs text-gray-400 font-medium shrink-0">שלב {idx + 1}</span>
                               <span className="text-sm font-medium text-gray-600 truncate">{name}</span>
-                              {contact.is_replacement && (
-                                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-0.5 rounded-full shrink-0">🔄 מחליף</span>
-                              )}
                             </div>
                             {role && <p className="text-xs text-gray-400 mt-0.5 mr-10">{role}</p>}
                           </div>

@@ -15,19 +15,13 @@ export default function VacationManager() {
     vacation_start: '',
     vacation_end: '',
     reason: 'חופש',
-    replacement_contact_id: '',
     // For contact search/creation:
     contact_search: '',
     contact_phone: '',
-    contact_category_id: '',
-    // For replacement search/creation:
-    replacement_search: '',
-    replacement_phone: ''
+    contact_category_id: ''
   });
   const [contactSuggestions, setContactSuggestions] = useState([]);
   const [showContactSuggestions, setShowContactSuggestions] = useState(false);
-  const [replacementSuggestions, setReplacementSuggestions] = useState([]);
-  const [showReplacementSuggestions, setShowReplacementSuggestions] = useState(false);
 
   useEffect(() => {
     loadVacations();
@@ -132,43 +126,6 @@ export default function VacationManager() {
     setShowContactSuggestions(false);
   };
 
-  const handleReplacementSearch = (value) => {
-    setVacationForm({...vacationForm, replacement_search: value, replacement_contact_id: ''});
-    
-    if (value.length >= 2) {
-      const allContacts = getAllContactsFromCategories();
-      const filtered = allContacts.filter(c =>
-        c.name.toLowerCase().includes(value.toLowerCase())
-      );
-      
-      // Deduplicate by name/phone
-      const seen = new Set();
-      const unique = filtered.filter(c => {
-        const key = `${c.name}_${c.phone}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      
-      const matches = unique.slice(0, 5);
-      setReplacementSuggestions(matches);
-      setShowReplacementSuggestions(matches.length > 0);
-    } else {
-      setReplacementSuggestions([]);
-      setShowReplacementSuggestions(false);
-    }
-  };
-
-  const selectReplacementContact = (contact) => {
-    setVacationForm({
-      ...vacationForm,
-      replacement_search: contact.name,
-      replacement_contact_id: contact.contact_id, // Use on_call_contacts ID, not call_category_contacts ID
-      replacement_phone: contact.phone
-    });
-    setShowReplacementSuggestions(false);
-  };
-
   const closeModal = () => {
     setShowAddModal(false);
     setVacationForm({ 
@@ -176,17 +133,12 @@ export default function VacationManager() {
       vacation_start: '', 
       vacation_end: '', 
       reason: 'חופש', 
-      replacement_contact_id: '', 
       contact_search: '', 
       contact_phone: '', 
-      contact_category_id: '',
-      replacement_search: '',
-      replacement_phone: ''
+      contact_category_id: ''
     });
     setContactSuggestions([]);
     setShowContactSuggestions(false);
-    setReplacementSuggestions([]);
-    setShowReplacementSuggestions(false);
   };
 
   const getAllContactsFromCategories = () => {
@@ -196,7 +148,6 @@ export default function VacationManager() {
         if (c.external_name && c.external_phone) {
           contacts.push({
             id: c.id,
-            contact_id: c.contact_id, // ID from on_call_contacts (for replacement)
             categoryId: cat.id,
             categoryName: cat.name,
             name: c.external_name,
@@ -220,36 +171,6 @@ export default function VacationManager() {
     }
 
     try {
-      let replacementContactId = vacationForm.replacement_contact_id;
-
-      // Create replacement contact in on_call_contacts if needed
-      if (vacationForm.replacement_search && !replacementContactId) {
-        // If no phone provided, it means user typed but didn't complete the form
-        if (!vacationForm.replacement_phone) {
-          alert('כדי להוסיף מחליף חדש, יש למלא טלפון');
-          return;
-        }
-
-        // Create in on_call_contacts
-        const createReplacementRes = await fetch('/api/on-call-contacts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: vacationForm.replacement_search,
-            phone: vacationForm.replacement_phone,
-            municipality_id: null,
-            department_id: null
-          })
-        });
-        const replacementData = await createReplacementRes.json();
-        if (!replacementData.success) {
-          alert('❌ שגיאה ביצירת מחליף: ' + (replacementData.error || ''));
-          return;
-        }
-        replacementContactId = replacementData.contact.id;
-      }
-
-      let categoryId, contactId;
 
       // If existing contact selected
       if (vacationForm.contact_id) {
@@ -275,8 +196,7 @@ export default function VacationManager() {
               contact_id: contact.id,
               vacation_start: vacationForm.vacation_start,
               vacation_end: vacationForm.vacation_end,
-              reason: vacationForm.reason,
-              replacement_contact_id: replacementContactId || null
+              reason: vacationForm.reason
             })
           }).then(res => res.json())
         );
@@ -313,8 +233,7 @@ export default function VacationManager() {
               on_vacation: true,
               vacation_start: vacationForm.vacation_start,
               vacation_end: vacationForm.vacation_end,
-              vacation_reason: vacationForm.reason,
-              replacement_contact_id: replacementContactId || null
+              vacation_reason: vacationForm.reason
             })
           });
           const createData = await createRes.json();
@@ -335,8 +254,7 @@ export default function VacationManager() {
               on_vacation: true,
               vacation_start: vacationForm.vacation_start,
               vacation_end: vacationForm.vacation_end,
-              vacation_reason: vacationForm.reason,
-              replacement_contact_id: replacementContactId || null
+              vacation_reason: vacationForm.reason
             })
           });
           const createData = await createRes.json();
@@ -350,26 +268,6 @@ export default function VacationManager() {
         closeModal();
         loadVacations();
         return;
-      }
-
-      // Send existing contact to vacation
-      const res = await fetch(`/api/call-categories/${categoryId}/contacts/vacation`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contact_id: contactId,
-          vacation_start: vacationForm.vacation_start,
-          vacation_end: vacationForm.vacation_end,
-          reason: vacationForm.reason,
-          replacement_contact_id: vacationForm.replacement_contact_id || null
-        })
-      });
-      const data = await res.json();
-      if (data.success) {
-        closeModal();
-        loadVacations();
-      } else {
-        alert('❌ ' + (data.error || 'שגיאה'));
       }
     } catch (err) {
       console.error(err);
@@ -418,7 +316,6 @@ export default function VacationManager() {
                     vacation_start: vac.vacation_start,
                     vacation_end: vac.vacation_end,
                     vacation_reason: vac.vacation_reason,
-                    replacement: vac.replacement,
                     categories: [],
                     allIds: []
                   };
@@ -433,7 +330,6 @@ export default function VacationManager() {
               });
 
               return Object.values(grouped).map((person, idx) => {
-                const replacementName = person.replacement?.name;
                 return (
                   <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
                     <div className="flex items-start justify-between gap-4">
@@ -449,11 +345,6 @@ export default function VacationManager() {
                         <p className="text-sm text-orange-600 mt-1">
                           📅 {person.vacation_start} עד {person.vacation_end}
                         </p>
-                        {replacementName && (
-                          <p className="text-sm text-blue-600 mt-1">
-                            🔄 מחליף: {replacementName} ({person.replacement.phone})
-                          </p>
-                        )}
                       </div>
                       <button
                         onClick={async () => {
@@ -475,8 +366,7 @@ export default function VacationManager() {
                                     on_vacation: false,
                                     vacation_start: null,
                                     vacation_end: null,
-                                    vacation_reason: null,
-                                    replacement_contact_id: null
+                                    vacation_reason: null
                                   })
                                 }).then(res => res.json());
                               }
@@ -611,55 +501,6 @@ export default function VacationManager() {
                 />
               </div>
 
-              {/* Replacement Contact Search with Autocomplete */}
-              <div className="relative">
-                <label className="block text-sm font-semibold text-gray-700 mb-1">מחליף (אופציונלי)</label>
-                <input
-                  type="text"
-                  value={vacationForm.replacement_search}
-                  onChange={e => handleReplacementSearch(e.target.value)}
-                  onFocus={() => vacationForm.replacement_search.length >= 2 && setShowReplacementSuggestions(true)}
-                  onBlur={() => setTimeout(() => setShowReplacementSuggestions(false), 200)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                  placeholder="התחל להקליד שם מחליף..."
-                />
-                {showReplacementSuggestions && replacementSuggestions.length > 0 && (
-                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                    {replacementSuggestions.map(contact => (
-                      <button
-                        key={contact.id}
-                        type="button"
-                        onClick={() => selectReplacementContact(contact)}
-                        className="w-full text-right px-3 py-2 hover:bg-gray-50 border-b border-gray-100 last:border-0"
-                      >
-                        <p className="font-semibold text-sm text-gray-900">{contact.name}</p>
-                        <p className="text-xs text-gray-500">{contact.categoryName} · {contact.phone}</p>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {vacationForm.replacement_search && !vacationForm.replacement_contact_id && (
-                  <p className="text-xs text-blue-600 mt-1">💡 לא נמצא? הוסף טלפון למטה ליצירת מחליף חדש</p>
-                )}
-                {!vacationForm.replacement_search && (
-                  <p className="text-xs text-gray-500 mt-1">אם יש מחליף, הוא יופיע במערכת במקום הכונן שבחופש</p>
-                )}
-              </div>
-
-              {/* Show phone field if replacement not found */}
-              {vacationForm.replacement_search && !vacationForm.replacement_contact_id && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1">טלפון מחליף *</label>
-                  <input
-                    type="tel"
-                    value={vacationForm.replacement_phone}
-                    onChange={e => setVacationForm({...vacationForm, replacement_phone: e.target.value})}
-                    className="w-full px-3 py-2 border rounded-lg text-sm"
-                    placeholder="05X-XXXXXXX"
-                    required
-                  />
-                </div>
-              )}
 
               <div className="flex gap-3 mt-6">
                 <button

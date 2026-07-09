@@ -12,7 +12,7 @@ export default function CallCategoryManager() {
   const [editingContact, setEditingContact] = useState(null); // Contact being edited
   const [editingCategory, setEditingCategory] = useState(null); // Category being edited
   const [vacationModal, setVacationModal] = useState(null); // { categoryId, contactId, contactName }
-  const [vacationForm, setVacationForm] = useState({ start: '', end: '', reason: 'חופש', replacement_contact_id: '' });
+  const [vacationForm, setVacationForm] = useState({ start: '', end: '', reason: 'חופש' });
   const [savingVacation, setSavingVacation] = useState(false);
   const [phonebookContacts, setPhonebookContacts] = useState([]);
   const [nameSearch, setNameSearch] = useState('');
@@ -345,7 +345,7 @@ export default function CallCategoryManager() {
 
   const sendOnVacation = (categoryId, contactId, contactName) => {
     setVacationModal({ categoryId, contactId, contactName });
-    setVacationForm({ start: '', end: '', reason: 'חופש', replacement_contact_id: '' });
+    setVacationForm({ start: '', end: '', reason: 'חופש' });
   };
 
   const confirmVacation = async () => {
@@ -359,8 +359,7 @@ export default function CallCategoryManager() {
           contact_id: vacationModal.contactId,
           vacation_start: vacationForm.start,
           vacation_end: vacationForm.end,
-          reason: vacationForm.reason,
-          replacement_contact_id: vacationForm.replacement_contact_id || null
+          reason: vacationForm.reason
         })
       });
       const data = await res.json();
@@ -521,22 +520,6 @@ export default function CallCategoryManager() {
                   className="w-full px-3 py-2 border rounded-lg text-sm"
                   placeholder="חופש, מחלה..."
                 />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1">מחליף (אופציונלי)</label>
-                <select
-                  value={vacationForm.replacement_contact_id}
-                  onChange={e => setVacationForm({...vacationForm, replacement_contact_id: e.target.value})}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
-                >
-                  <option value="">-- ללא מחליף --</option>
-                  {phonebookContacts.map(c => (
-                    <option key={c.id} value={c.id}>
-                      {c.full_name} - {c.phone}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500 mt-1">אם יש מחליף, הוא יופיע במערכת בזמן החופש</p>
               </div>
             </div>
             <div className="flex gap-3">
