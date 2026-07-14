@@ -13,6 +13,7 @@ import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
 import DailyUpdatesPanel from '@/components/DailyUpdatesPanel';
 import CallGuide from '@/components/CallGuide';
+import PanicButtonSearch from '@/components/PanicButtonSearch';
 import SecurityFieldStatus from '@/components/SecurityFieldStatus';
 import { getMunicipalityId } from '@/lib/municipality';
 import alertFlowsData from '@/data/alertFlows.json';
@@ -208,8 +209,11 @@ export default function OperatorPage() {
       {/* ── Header ── */}
       <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">🎧 מוקד חירום</h1>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            <h1 className="text-xl font-bold shrink-0">🎧 מוקד חירום</h1>
+            <PanicButtonSearch />
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={toggleWarMode}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 ${
