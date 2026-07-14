@@ -370,7 +370,7 @@ function DetailCard({ button, onClose, onSaved }) {
               <p className="text-xs text-amber-700 font-semibold mb-1">🗺️ דרך הגעה</p>
               {editing ? (
                 <textarea
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none text-gray-900"
                   rows={2}
                   placeholder="אופציונלי..."
                   value={form.directions}
@@ -434,7 +434,7 @@ function DetailCard({ button, onClose, onSaved }) {
               <p className="text-xs text-red-700 font-semibold mb-1">⚠️ הוראות למוקדן</p>
               {editing ? (
                 <textarea
-                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none"
+                  className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm resize-none text-gray-900"
                   rows={3}
                   placeholder="הוראות מיוחדות..."
                   value={form.operator_instructions}
