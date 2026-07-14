@@ -17,19 +17,19 @@ function ContactRow({ contact, onChange, onRemove }) {
   return (
     <div className="flex gap-2 items-center">
       <input
-        className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+        className="flex-1 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900"
         placeholder="שם"
         value={contact.name || ''}
         onChange={e => onChange({ ...contact, name: e.target.value })}
       />
       <input
-        className="w-28 border border-gray-300 rounded-lg px-2 py-1.5 text-sm ltr"
+        className="w-28 border border-gray-300 rounded-lg px-2 py-1.5 text-sm ltr text-gray-900"
         placeholder="טלפון"
         value={contact.phone || ''}
         onChange={e => onChange({ ...contact, phone: e.target.value })}
       />
       <input
-        className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm"
+        className="w-24 border border-gray-300 rounded-lg px-2 py-1.5 text-sm text-gray-900"
         placeholder="תפקיד"
         value={contact.role || ''}
         onChange={e => onChange({ ...contact, role: e.target.value })}
@@ -222,12 +222,12 @@ function DetailCard({ button, onClose, onSaved }) {
         category: button.category || 'other',
         address: button.address || '',
         directions: button.directions || '',
-        contacts: button.contacts ? [...button.contacts] : [],
+        contacts: Array.isArray(button.contacts) ? button.contacts.map(c => ({...c})) : (typeof button.contacts === 'string' ? JSON.parse(button.contacts) : []),
         operator_instructions: button.operator_instructions || '',
       });
       setEditing(false);
     }
-  }, [button]);
+  }, [button?.id]);
 
   const handleCopy = (text, key) => {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -287,7 +287,7 @@ function DetailCard({ button, onClose, onSaved }) {
               <span className="text-2xl">🆘</span>
               {editing ? (
                 <input
-                  className="text-white font-bold text-lg bg-white/20 border border-white/40 rounded-lg px-2 py-0.5 w-48"
+                  className="text-gray-900 font-bold text-lg bg-white border border-white/40 rounded-lg px-2 py-0.5 w-48"
                   value={form.name}
                   onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 />
@@ -347,7 +347,7 @@ function DetailCard({ button, onClose, onSaved }) {
             <p className="text-xs text-gray-500 font-semibold mb-1">📍 כתובת</p>
             {editing ? (
               <input
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm text-gray-900"
                 value={form.address}
                 onChange={e => setForm(f => ({ ...f, address: e.target.value }))}
               />
