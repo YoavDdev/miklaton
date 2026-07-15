@@ -6,6 +6,29 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+function getIsraelDateString(date = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Jerusalem',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  }).formatToParts(date);
+  const values = Object.fromEntries(parts.map(part => [part.type, part.value]));
+  return `${values.year}-${values.month}-${values.day}`;
+}
+
+function getPreviousDateString(dateString) {
+  const date = new Date(`${dateString}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return getIsraelDateString(date);
+}
+
+function wasUpdatedWithinLast24Hours(updatedAt) {
+  if (!updatedAt) return false;
+  const elapsed = Date.now() - new Date(updatedAt).getTime();
+  return elapsed >= 0 && elapsed < 24 * 60 * 60 * 1000;
+}
+
 // GET - Get all active vacations across all categories
 export async function GET(request) {
   try {
@@ -41,7 +64,6 @@ export async function GET(request) {
           phone
         )
       `)
-      .eq('on_vacation', true)
       .eq('active', true)
       .not('vacation_start', 'is', null)
       .not('vacation_end', 'is', null);
@@ -68,13 +90,12 @@ export async function GET(request) {
         replacement_contact_id,
         updated_at
       `)
-      .eq('on_vacation', true)
       .eq('active', true)
       .eq('municipality_id', municipalityId)
       .not('vacation_start', 'is', null)
       .not('vacation_end', 'is', null);
 
-    console.log('Direct vacations query:', { directVacations, directError, municipalityId });
+    if (directError) throw directError;
 
     // Normalize direct vacations to same shape as category vacations
     const normalizedDirect = (directVacations || []).map(v => ({
@@ -90,93 +111,24 @@ export async function GET(request) {
       replacement: null // TODO: fetch replacement separately if needed
     }));
 
-    let recentlyReturned = [];
-
-    // Optionally include contacts that returned from vacation in the last 24 hours
-    if (includeRecentlyReturned) {
-      const cutoff = new Date();
-      cutoff.setHours(cutoff.getHours() - 24);
-      const cutoffIso = cutoff.toISOString();
-
-      const { data: returnedCategory, error: returnedCategoryError } = await supabase
-        .from('call_category_contacts')
-        .select(`
-          id,
-          external_name,
-          external_phone,
-          on_vacation,
-          vacation_start,
-          vacation_end,
-          vacation_reason,
-          replacement_contact_id,
-          updated_at,
-          call_category:call_categories!call_category_contacts_call_category_id_fkey(
-            id,
-            name,
-            municipality_id
-          ),
-          replacement:on_call_contacts!fk_replacement_contact(
-            id,
-            name,
-            phone
-          )
-        `)
-        .eq('on_vacation', false)
-        .eq('active', true)
-        .gte('vacation_end', cutoffIso)
-        .gte('updated_at', cutoffIso)
-        .not('vacation_start', 'is', null)
-        .not('vacation_end', 'is', null);
-
-      if (returnedCategoryError) throw returnedCategoryError;
-
-      const filteredReturnedCategory = (returnedCategory || []).filter(v =>
-        v.call_category?.municipality_id === municipalityId
-      );
-
-      const { data: returnedDirect, error: returnedDirectError } = await supabase
-        .from('on_call_contacts')
-        .select(`
-          id,
-          name,
-          phone,
-          on_vacation,
-          vacation_start,
-          vacation_end,
-          vacation_reason,
-          municipality_id,
-          replacement_contact_id,
-          updated_at
-        `)
-        .eq('on_vacation', false)
-        .eq('active', true)
-        .eq('municipality_id', municipalityId)
-        .gte('vacation_end', cutoffIso)
-        .gte('updated_at', cutoffIso)
-        .not('vacation_start', 'is', null)
-        .not('vacation_end', 'is', null);
-
-      if (returnedDirectError) throw returnedDirectError;
-
-      const normalizedReturnedDirect = (returnedDirect || []).map(v => ({
-        id: v.id,
-        external_name: v.name,
-        external_phone: v.phone,
-        on_vacation: v.on_vacation,
-        vacation_start: v.vacation_start,
-        vacation_end: v.vacation_end,
-        vacation_reason: v.vacation_reason,
-        updated_at: v.updated_at,
-        call_category: null,
-        replacement: null
-      }));
-
-      recentlyReturned = [...filteredReturnedCategory, ...normalizedReturnedDirect];
-    }
+    const today = getIsraelDateString();
+    const yesterday = getPreviousDateString(today);
+    const allVacationRecords = [...filtered, ...normalizedDirect];
+    const activeVacations = allVacationRecords.filter(v =>
+      v.on_vacation && v.vacation_end >= today
+    );
+    const automaticallyReturned = allVacationRecords
+      .filter(v => v.on_vacation && v.vacation_end === yesterday)
+      .map(v => ({ ...v, on_vacation: false, automatically_returned: true }));
+    const manuallyReturned = allVacationRecords.filter(v =>
+      !v.on_vacation && wasUpdatedWithinLast24Hours(v.updated_at)
+    );
 
     return NextResponse.json({
       success: true,
-      vacations: [...filtered, ...normalizedDirect, ...recentlyReturned]
+      vacations: includeRecentlyReturned
+        ? [...activeVacations, ...automaticallyReturned, ...manuallyReturned]
+        : activeVacations
     });
 
   } catch (error) {

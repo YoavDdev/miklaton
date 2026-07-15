@@ -27,13 +27,15 @@ export default function VacationManager() {
     loadVacations();
     loadPhonebook();
     loadCategories();
+    const interval = setInterval(() => loadVacations(false), 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  const loadVacations = async () => {
+  const loadVacations = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       const municipalityId = getMunicipalityId();
-      const res = await fetch(`/api/vacations?municipality_id=${municipalityId}`);
+      const res = await fetch(`/api/vacations?municipality_id=${municipalityId}&include_recently_returned=true`);
       const data = await res.json();
       if (data.success) {
         setVacations(data.vacations || []);
@@ -316,10 +318,12 @@ export default function VacationManager() {
                     vacation_start: vac.vacation_start,
                     vacation_end: vac.vacation_end,
                     vacation_reason: vac.vacation_reason,
+                    on_vacation: vac.on_vacation,
                     categories: [],
                     allIds: []
                   };
                 }
+                if (vac.on_vacation) grouped[key].on_vacation = true;
                 if (vac.call_category) {
                   grouped[key].categories.push(vac.call_category.name);
                   grouped[key].allIds.push({ id: vac.id, categoryId: vac.call_category.id });
@@ -330,8 +334,13 @@ export default function VacationManager() {
               });
 
               return Object.values(grouped).map((person, idx) => {
+                const isReturned = person.on_vacation === false;
                 return (
-                  <div key={idx} className="border border-gray-200 rounded-lg p-4 hover:bg-gray-50 transition-colors">
+                  <div key={idx} className={`border rounded-lg p-4 transition-colors ${
+                    isReturned
+                      ? 'border-green-300 bg-green-50 hover:bg-green-100'
+                      : 'border-gray-200 hover:bg-gray-50'
+                  }`}>
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
@@ -339,14 +348,18 @@ export default function VacationManager() {
                           {person.categories.map((cat, i) => (
                             <span key={i} className="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full">{cat}</span>
                           ))}
-                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full">🏖️ {person.vacation_reason || 'חופש'}</span>
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${
+                            isReturned ? 'bg-green-200 text-green-800' : 'bg-orange-100 text-orange-700'
+                          }`}>
+                            {isReturned ? '✅ חזר לעבודה' : `🏖️ ${person.vacation_reason || 'חופש'}`}
+                          </span>
                         </div>
                         <p className="text-sm text-gray-600">{person.phone}</p>
-                        <p className="text-sm text-orange-600 mt-1">
+                        <p className={`text-sm mt-1 ${isReturned ? 'text-green-700' : 'text-orange-600'}`}>
                           📅 {person.vacation_start} עד {person.vacation_end}
                         </p>
                       </div>
-                      <button
+                      {!isReturned && <button
                         onClick={async () => {
                           if (!confirm('להחזיר כונן מחופש מכל הקטגוריות?')) return;
                           try {
@@ -364,9 +377,7 @@ export default function VacationManager() {
                                   headers: { 'Content-Type': 'application/json' },
                                   body: JSON.stringify({
                                     on_vacation: false,
-                                    vacation_start: null,
-                                    vacation_end: null,
-                                    vacation_reason: null
+                                    updated_at: new Date().toISOString()
                                   })
                                 }).then(res => res.json());
                               }
@@ -386,7 +397,7 @@ export default function VacationManager() {
                         className="px-3 py-1.5 bg-green-100 hover:bg-green-200 text-green-700 rounded-lg text-sm font-semibold transition-colors"
                       >
                         ↩️ החזר מחופש
-                      </button>
+                      </button>}
                     </div>
                   </div>
                 );

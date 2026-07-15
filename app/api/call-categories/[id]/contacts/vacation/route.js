@@ -77,9 +77,6 @@ export async function DELETE(request, { params }) {
       .from('call_category_contacts')
       .update({
         on_vacation: false,
-        vacation_start: null,
-        vacation_end: null,
-        vacation_reason: null,
         replacement_contact_id: null,
         updated_at: new Date().toISOString()
       })
