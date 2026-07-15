@@ -136,8 +136,8 @@ export async function GET(request) {
 
             // Check time range
             if (contact.available_hours_start && contact.available_hours_end) {
-              const startTime = contact.available_hours_start;
-              const endTime = contact.available_hours_end;
+              const startTime = contact.available_hours_start.slice(0, 5);
+              const endTime = contact.available_hours_end.slice(0, 5);
               
               // Handle overnight shifts
               if (endTime < startTime) {

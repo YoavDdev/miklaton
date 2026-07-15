@@ -13,11 +13,15 @@ export default function CallGuide({ compact = false }) {
   const [missedCounts, setMissedCounts] = useState({});
   const [selectedPrimary, setSelectedPrimary] = useState(null); // chosen primary contact id
 
-  useEffect(() => { loadCategories(); }, []);
+  useEffect(() => {
+    loadCategories();
+    const interval = setInterval(() => loadCategories(false), 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
 
-  const loadCategories = async () => {
+  const loadCategories = async (showLoading = true) => {
     try {
-      setLoading(true);
+      if (showLoading) setLoading(true);
       let municipalityId = getMunicipalityId();
       const isUUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(municipalityId);
       if (!municipalityId || !isUUID) {
