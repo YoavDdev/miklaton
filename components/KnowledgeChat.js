@@ -91,11 +91,6 @@ export default function KnowledgeChat({ userName = 'מוקדן' }) {
                 : 'bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-sm'
             }`}>
               <div className="whitespace-pre-wrap text-sm leading-relaxed">{msg.content}</div>
-              {msg.sources && msg.sources.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-gray-100">
-                  <p className="text-xs text-gray-400">מקורות: {msg.sources.map(s => s.title).join(', ')}</p>
-                </div>
-              )}
             </div>
           </div>
         ))}
