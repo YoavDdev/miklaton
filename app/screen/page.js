@@ -805,7 +805,7 @@ export default function ScreenPage() {
             </div>
             <div className="px-3 py-2">
               {vacations.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
+                <div className={`grid gap-2 ${vacations.length <= 3 ? 'grid-cols-3' : vacations.length <= 4 ? 'grid-cols-4' : 'grid-cols-5'}`}>
                   {vacations.map((vac, idx) => {
                     const isReturned = vac.on_vacation === false;
                     const isNew = !isReturned && isWithinLast24Hours(vac.updated_at);
@@ -813,18 +813,20 @@ export default function ScreenPage() {
                     return (
                       <div
                         key={idx}
-                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border text-sm ${
+                        className={`rounded-lg px-3 py-2 border-r-4 bg-white/5 border border-white/10 ${
                           isReturned
-                            ? 'bg-green-900/30 border-green-700/40'
+                            ? 'border-r-green-500'
                             : isNew
-                              ? 'bg-orange-700/40 border-orange-400 ring-1 ring-orange-400 animate-pulse'
-                              : 'bg-white/5 border-white/10'
+                              ? 'border-r-orange-400'
+                              : 'border-r-gray-500'
                         }`}
                       >
-                        <span className={`font-semibold ${isReturned ? 'text-green-200' : 'text-white'}`}>{vac.name}</span>
-                        <span className={`text-xs ${isReturned ? 'text-green-400' : 'text-gray-400'}`}>{dateRange}</span>
-                        {isNew && <span className="text-xs font-bold text-orange-200">🔥 חדש</span>}
-                        {isReturned && <span className="text-xs font-bold text-green-300">✅ חזר</span>}
+                        <div className="flex items-center gap-1.5">
+                          <span className={`font-bold text-sm truncate ${isReturned ? 'text-green-200' : 'text-white'}`}>{vac.name}</span>
+                          {isNew && <span className="text-[10px] bg-orange-700/60 text-orange-200 px-1 py-0.5 rounded shrink-0">חדש</span>}
+                          {isReturned && <span className="text-[10px] bg-green-800/60 text-green-300 px-1 py-0.5 rounded shrink-0">חזר</span>}
+                        </div>
+                        <div className="text-[11px] text-gray-400 mt-0.5">{dateRange}</div>
                       </div>
                     );
                   })}
