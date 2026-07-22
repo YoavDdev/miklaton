@@ -675,7 +675,7 @@ export default function ScreenPage() {
     >
       <AutoRefresh />
 
-      {/* LEFT SIDE - Header + Content (takes ~2/3 width) */}
+      {/* LEFT SIDE - Header + Content */}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
         {/* War Mode Banner */}
@@ -696,53 +696,57 @@ export default function ScreenPage() {
           </div>
         )}
 
-        {/* Header - Time & Date & Weather */}
-        <header className={`px-6 py-2 border-b shrink-0 ${isCemeteryReminderActive ? 'bg-red-900/40 border-red-500/50' : 'border-white/10'}`}>
-          <div className="w-full flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className={`text-4xl font-black tracking-tight font-mono ${isCemeteryReminderActive ? 'text-red-400 animate-pulse' : ''}`} suppressHydrationWarning>
-                {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+        {/* Header - Time & Date & Weather - single row */}
+        <header className={`px-8 py-3 shrink-0 ${isCemeteryReminderActive ? 'bg-red-900/40' : ''}`}>
+          <div className="flex items-center gap-6">
+            {/* Clock */}
+            <div className={`text-5xl font-black tracking-tight font-mono leading-none ${isCemeteryReminderActive ? 'text-red-400 animate-pulse' : 'text-white'}`} suppressHydrationWarning>
+              {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
+            {/* Date */}
+            <div className="border-r border-white/20 pr-5">
+              <div className="text-base font-bold text-white">
+                יום {DAYS_HEB[currentTime.getDay()]}
               </div>
-              <div className="border-r border-white/20 pr-4">
-                <div className="text-base font-bold">
-                  יום {DAYS_HEB[currentTime.getDay()]}
-                </div>
-                <div className="text-xs text-gray-300">
-                  {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
-                </div>
+              <div className="text-xs text-gray-400">
+                {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
               </div>
             </div>
 
-            {/* Weather */}
+            {/* Weather - same row */}
             {weather && (
-              <div className={`flex items-center gap-4 rounded-xl px-4 py-1.5 border ${weather.alerts?.length > 0 ? 'bg-red-900/30 border-red-500/50' : 'bg-slate-800/50 border-slate-600/30'}`}>
+              <div className={`flex items-center gap-5 rounded-xl px-4 py-2 border ${weather.alerts?.length > 0 ? 'bg-red-900/20 border-red-500/40' : 'bg-white/5 border-white/10'}`}>
+                {/* Current */}
                 <div className="flex items-center gap-2">
-                  <span className="text-3xl">{getWeatherInfo(weather.current.weather_code).icon}</span>
+                  <span className="text-4xl">{getWeatherInfo(weather.current.weather_code).icon}</span>
                   <div>
-                    <div className="font-black text-white text-xl">{Math.round(weather.current.temperature_2m)}°</div>
-                    <div className={weather.alerts?.length > 0 ? 'text-red-200 text-xs' : 'text-slate-300 text-xs'}>{getWeatherInfo(weather.current.weather_code).label}</div>
+                    <div className="font-black text-white text-2xl leading-none">{Math.round(weather.current.temperature_2m)}°</div>
+                    <div className={`text-xs mt-0.5 ${weather.alerts?.length > 0 ? 'text-red-200' : 'text-gray-400'}`}>{getWeatherInfo(weather.current.weather_code).label}</div>
                   </div>
                 </div>
 
-                <div className={`text-xs border-r pr-3 mr-1 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
-                  <div>תחושה {Math.round(weather.current.apparent_temperature)}°</div>
-                  <div>לחות {weather.current.relative_humidity_2m}%</div>
-                  <div>רוח {Math.round(weather.current.wind_speed_10m)} קמ"ש</div>
+                {/* Details */}
+                <div className={`border-r pr-4 space-y-0.5 text-xs ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-gray-400 border-white/10'}`}>
+                  <div>🌡️ תחושה {Math.round(weather.current.apparent_temperature)}°</div>
+                  <div>💧 לחות {weather.current.relative_humidity_2m}%</div>
+                  <div>💨 רוח {Math.round(weather.current.wind_speed_10m)} קמ"ש</div>
                 </div>
 
-                <div className={`flex items-center gap-3 text-xs border-r pr-3 mr-1 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
+                {/* Forecast */}
+                <div className={`flex items-center gap-4 border-r pr-4 ${weather.alerts?.length > 0 ? 'border-red-500/30' : 'border-white/10'}`}>
                   {weather.daily?.slice(1, 4).map((d, i) => {
                     const dayName = ['מחר', 'מחרתיים', 'עוד 3'][i];
                     return (
                       <div key={i} className="text-center">
-                        <div className="font-bold">{dayName}</div>
-                        <div className="text-base">{getWeatherInfo(d.code).icon}</div>
-                        <div>{Math.round(d.max)}°/{Math.round(d.min)}°</div>
+                        <div className={`text-[10px] font-bold ${weather.alerts?.length > 0 ? 'text-red-200' : 'text-gray-400'}`}>{dayName}</div>
+                        <div className="text-lg leading-none">{getWeatherInfo(d.code).icon}</div>
+                        <div className={`text-[10px] font-mono ${weather.alerts?.length > 0 ? 'text-red-200' : 'text-gray-500'}`}>{Math.round(d.max)}°/{Math.round(d.min)}°</div>
                       </div>
                     );
                   })}
                 </div>
 
+                {/* Alerts */}
                 {weather.alerts?.length > 0 && (
                   <div className="text-xs text-red-100 font-bold">
                     {weather.alerts.map((a, i) => <div key={i}>⚠️ {a.text}</div>)}
@@ -755,54 +759,57 @@ export default function ScreenPage() {
 
         <WeatherAlertBar alerts={weather?.alerts} />
 
-        {/* Vacation Bar */}
-        <div className="bg-gradient-to-l from-orange-900/40 to-orange-800/40 border-b border-orange-700/30 px-6 py-1 shrink-0">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <div className="flex items-center gap-2 shrink-0">
-              <span className="text-lg">🏖️</span>
-              <span className="font-bold text-orange-100 text-sm">בחופש:</span>
-            </div>
-            {vacations.length > 0 ? (
-              vacations.map((vac, idx) => {
-                const isReturned = vac.on_vacation === false;
-                const isNew = !isReturned && isWithinLast24Hours(vac.updated_at);
-                const dateRange = formatVacationDateRange(vac.vacation_start, vac.vacation_end);
-                return (
-                  <div
-                    key={idx}
-                    className={`flex items-center gap-2 rounded-lg px-3 py-0.5 border text-sm ${
-                      isReturned
-                        ? 'bg-green-900/40 border-green-600/50'
-                        : isNew
-                          ? 'bg-orange-700/60 border-orange-400 ring-2 ring-orange-400 animate-pulse'
-                          : 'bg-orange-900/30 border-orange-700/50'
-                    }`}
-                  >
-                    <span className={`font-semibold ${isReturned ? 'text-green-100' : 'text-white'}`}>{vac.name}</span>
-                    <span className={`text-xs ${isReturned ? 'text-green-300' : 'text-orange-300'}`}>{dateRange}</span>
-                    {isNew && <span className="text-xs font-bold text-orange-100">🔥 חדש</span>}
-                    {isReturned && <span className="text-xs font-bold text-green-100">✅ חזר</span>}
-                  </div>
-                );
-              })
-            ) : (
-              <span className="text-orange-300 text-xs italic">אין כוננים בחופש כרגע</span>
-            )}
-          </div>
-        </div>
+        {/* Main Content Area */}
+        <div className="flex-1 px-8 pb-4 flex flex-col gap-4 min-h-0 overflow-hidden">
 
-        {/* Main Content Area - Notifications */}
-        <div className="flex-1 px-6 py-3 flex flex-col gap-3 min-h-0 overflow-hidden">
+          {/* Vacation Section */}
+          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden shrink-0">
+            <div className="px-4 py-2 bg-gradient-to-l from-orange-900/30 to-transparent border-b border-white/5 flex items-center gap-2">
+              <span className="text-base">🏖️</span>
+              <h2 className="font-bold text-sm text-orange-100">בחופש</h2>
+              <span className="text-[10px] bg-orange-800/50 text-orange-200 px-1.5 py-0.5 rounded-full">{vacations.filter(v => v.on_vacation !== false).length}</span>
+            </div>
+            <div className="px-3 py-2">
+              {vacations.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {vacations.map((vac, idx) => {
+                    const isReturned = vac.on_vacation === false;
+                    const isNew = !isReturned && isWithinLast24Hours(vac.updated_at);
+                    const dateRange = formatVacationDateRange(vac.vacation_start, vac.vacation_end);
+                    return (
+                      <div
+                        key={idx}
+                        className={`flex items-center gap-2 rounded-lg px-3 py-1.5 border text-sm ${
+                          isReturned
+                            ? 'bg-green-900/30 border-green-700/40'
+                            : isNew
+                              ? 'bg-orange-700/40 border-orange-400 ring-1 ring-orange-400 animate-pulse'
+                              : 'bg-white/5 border-white/10'
+                        }`}
+                      >
+                        <span className={`font-semibold ${isReturned ? 'text-green-200' : 'text-white'}`}>{vac.name}</span>
+                        <span className={`text-xs ${isReturned ? 'text-green-400' : 'text-gray-400'}`}>{dateRange}</span>
+                        {isNew && <span className="text-xs font-bold text-orange-200">🔥 חדש</span>}
+                        {isReturned && <span className="text-xs font-bold text-green-300">✅ חזר</span>}
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-gray-500 text-sm py-1">אין כוננים בחופש כרגע</div>
+              )}
+            </div>
+          </div>
           
           {/* Urgent Notifications */}
           {urgentNotifs.length > 0 && (
             <div className="flex flex-col gap-2 shrink-0">
               {urgentNotifs.map(n => (
-                <div key={n.id} className="bg-red-900/60 border-2 border-red-500 rounded-xl p-4 animate-pulse">
+                <div key={n.id} className="bg-red-900/50 border-2 border-red-500 rounded-xl p-4 animate-pulse">
                   <div className="flex items-start gap-3">
                     <span className="text-2xl">🚨</span>
                     <div>
-                      <h3 className="text-lg text-red-100">{n.title}</h3>
+                      <h3 className="text-lg font-bold text-red-100">{n.title}</h3>
                       <p className="text-red-200 mt-1">{n.message}</p>
                       <p className="text-red-400 text-xs mt-1">{n.author} • {new Date(n.created_at).toLocaleString('he-IL')}</p>
                     </div>
@@ -813,26 +820,36 @@ export default function ScreenPage() {
           )}
 
           {/* Regular Notifications */}
-          {regularNotifs.length > 0 && (
+          {regularNotifs.length > 0 ? (
             <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0 flex-1">
               <div className="px-4 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2 shrink-0">
-                <span className="text-lg">📢</span>
-                <h2 className="font-bold text-base">הודעות והנחיות</h2>
+                <span className="text-base">📢</span>
+                <h2 className="font-bold text-sm">הודעות והנחיות</h2>
+                <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded-full">{regularNotifs.length}</span>
               </div>
               <div className="divide-y divide-white/5 flex-1 overflow-hidden">
                 {regularNotifs.map(n => (
-                  <div key={n.id} className="px-4 py-2.5 hover:bg-white/5 transition-colors">
+                  <div key={n.id} className="px-4 py-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h4 className="text-white">{n.title}</h4>
-                        <p className="text-gray-300 text-sm mt-1">{n.message}</p>
+                        <h4 className="text-white font-medium">{n.title}</h4>
+                        <p className="text-gray-400 text-sm mt-0.5">{n.message}</p>
                       </div>
-                      <span className="text-xs text-gray-500 whitespace-nowrap mr-4">
+                      <span className="text-xs text-gray-600 whitespace-nowrap mr-4 font-mono">
                         {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          ) : (
+            /* Empty state - no notifications */
+            <div className="flex-1 flex items-center justify-center">
+              <div className="text-center">
+                <div className="text-6xl mb-4 opacity-30">✅</div>
+                <div className="text-xl font-bold text-gray-500">אין הודעות פעילות</div>
+                <div className="text-sm text-gray-600 mt-1">הכל תקין</div>
               </div>
             </div>
           )}
@@ -841,8 +858,8 @@ export default function ScreenPage() {
           {warMode && currentDuty.length > 0 && (
             <div className="bg-red-900/30 border-2 border-red-600 rounded-xl overflow-hidden shrink-0">
               <div className="px-4 py-2 bg-red-900/50 border-b border-red-600 flex items-center gap-2">
-                <span className="text-lg">🚨</span>
-                <h2 className="font-bold text-red-100">כוננים במצב חירום - עכשיו</h2>
+                <span className="text-base">🚨</span>
+                <h2 className="font-bold text-sm text-red-100">כוננים במצב חירום - עכשיו</h2>
               </div>
               <div className="p-3 grid grid-cols-2 gap-2">
                 {currentDuty.map((duty, idx) => {
