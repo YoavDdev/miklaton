@@ -46,7 +46,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { street_name, street_name_alt, collection_day, collection_day_hebrew, collection_time, collection_type, zone, notes } = body;
+    const { street_name, collection_day, collection_day_hebrew, takeout_day_hebrew, collection_time, collection_type, zone, notes } = body;
 
     if (!street_name || !collection_day || !collection_day_hebrew) {
       return NextResponse.json({ success: false, error: 'street_name, collection_day, and collection_day_hebrew are required' }, { status: 400 });
@@ -56,12 +56,12 @@ export async function POST(request) {
       .from('garbage_collection_schedule')
       .insert({
         street_name,
-        street_name_alt,
         collection_day,
         collection_day_hebrew,
+        takeout_day_hebrew,
         collection_time: collection_time || '06:00-14:00',
         collection_type: collection_type || 'גזם',
-        zone,
+        zone: zone || 'יהוד',
         notes
       })
       .select()

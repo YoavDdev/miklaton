@@ -252,11 +252,14 @@ async function fetchLiveData() {
       .order('street_name');
 
     if (garbageSchedule && garbageSchedule.length > 0) {
-      liveContext += '\n## לוח זמנים איסוף גזם ואשפה:\n';
-      liveContext += 'כששואלים על רחוב ספציפי, חפש ברשימה הזו ותן תשובה מדויקת.\n';
+      liveContext += '\n## לוח זמנים פינוי גזם:\n';
+      liveContext += 'חשוב: יום ההוצאה = יום לפני הפינוי. יש לומר לתושב מתי להוציא ומתי הפינוי.\n';
+      liveContext += 'אנשי קשר תברואה: שמשון 050-6917771, יוסי מססה 050-8440888\n\n';
       garbageSchedule.forEach(s => {
-        liveContext += `- רחוב ${s.street_name}: יום ${s.collection_day_hebrew} | ${s.collection_time} | ${s.collection_type}`;
-        if (s.zone) liveContext += ` | אזור: ${s.zone}`;
+        if (s.street_name === 'אנשי קשר תברואה') return;
+        liveContext += `- ${s.street_name}: פינוי יום ${s.collection_day_hebrew}`;
+        if (s.takeout_day_hebrew) liveContext += ` | הוצאה יום ${s.takeout_day_hebrew}`;
+        liveContext += ` | ${s.zone}`;
         if (s.notes) liveContext += ` | ${s.notes}`;
         liveContext += '\n';
       });
@@ -306,7 +309,7 @@ const SYSTEM_PROMPT_BASE = `אתה עוזר AI מתקדם למוקדנים במ�
 - כששואלים "מי עובד עכשיו/כרגע" - הצג רק את מי שהמשמרת שלו פעילה עכשיו
 - כששואלים "מי עובד היום" - הצג את כל רשימת העובדים ליום
 - "כוננים" = כוננות חירום, לא עובדים רגילים
-- כששואלים על איסוף גזם/אשפה ברחוב ספציפי, חפש ברשימת לוח הזמנים ותן תשובה מדויקת עם יום ושעות
+- כששואלים על גזם ברחוב ספציפי: חפש ברשימה, תן יום פינוי + יום הוצאה + אנשי קשר. מונוסון = שישי וראשון
 - זכור את ההקשר של השיחה ואל תחזור על עצמך`;
 
 // =====================================================
