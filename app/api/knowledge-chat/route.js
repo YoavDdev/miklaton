@@ -9,34 +9,159 @@ const supabase = createClient(
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-// Helper: Get today's date in Israel timezone
+// =====================================================
+// SESSION MEMORY - conversation history per session
+// =====================================================
+const sessions = {};
+const SESSION_TTL = 30 * 60 * 1000; // 30 minutes
+const MAX_MESSAGES = 20;
+
+function getSession(sessionId) {
+  if (!sessionId) return null;
+  const session = sessions[sessionId];
+  if (!session) return null;
+  if (Date.now() - session.lastActive > SESSION_TTL) {
+    delete sessions[sessionId];
+    return null;
+  }
+  session.lastActive = Date.now();
+  return session;
+}
+
+function createSession(sessionId) {
+  sessions[sessionId] = { messages: [], lastActive: Date.now() };
+  // Cleanup old sessions
+  const now = Date.now();
+  Object.keys(sessions).forEach(id => {
+    if (now - sessions[id].lastActive > SESSION_TTL) delete sessions[id];
+  });
+  return sessions[sessionId];
+}
+
+// =====================================================
+// HELPERS
+// =====================================================
+
 function getIsraelDate() {
   const now = new Date();
   const israelTime = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
   const year = israelTime.getFullYear();
   const month = String(israelTime.getMonth() + 1).padStart(2, '0');
   const day = String(israelTime.getDate()).padStart(2, '0');
-  return { dateStr: `${year}-${month}-${day}`, dayOfWeek: israelTime.getDay(), currentHour: israelTime.getHours() };
+  return { dateStr: `${year}-${month}-${day}`, dayOfWeek: israelTime.getDay(), currentHour: israelTime.getHours(), currentMinute: israelTime.getMinutes() };
 }
 
-// Helper: Check if a shift is active at a given hour
 function isShiftActive(startHour, endHour, currentHour) {
-  if (startHour === endHour) return true; // 24h shift
-  if (endHour < startHour) {
-    // Overnight shift (e.g. 22:00-06:00)
-    return currentHour >= startHour || currentHour < endHour;
-  }
+  if (startHour === endHour) return true;
+  if (endHour < startHour) return currentHour >= startHour || currentHour < endHour;
   return currentHour >= startHour && currentHour < endHour;
 }
 
-// Helper: Fetch live data from Supabase
-async function fetchLiveData() {
-  const { dateStr, dayOfWeek, currentHour } = getIsraelDate();
-  const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-  let liveContext = `\n\n=== מידע חי - יום ${dayNames[dayOfWeek]}, ${dateStr}, שעה ${currentHour}:00 ===\n`;
+// =====================================================
+// SMART SEARCH - scoring-based knowledge search
+// =====================================================
+
+async function searchKnowledgeBase(question) {
+  const { data: allEntries } = await supabase
+    .from('knowledge_base')
+    .select('id, title, content, category, tags, contacts')
+    .eq('is_active', true);
+
+  if (!allEntries || allEntries.length === 0) return [];
+
+  const queryWords = question.split(/\s+/).filter(w => w.length > 1);
+  
+  const scored = allEntries.map(entry => {
+    let score = 0;
+    const titleLower = (entry.title || '').toLowerCase();
+    const contentLower = (entry.content || '').toLowerCase();
+    const questionLower = question.toLowerCase();
+
+    // Exact title match
+    if (titleLower.includes(questionLower)) score += 100;
+
+    // Word-by-word scoring
+    for (const word of queryWords) {
+      const w = word.toLowerCase();
+      if (titleLower.includes(w)) score += 30;
+      if (contentLower.includes(w)) score += 15;
+      if (entry.tags && entry.tags.some(t => t.toLowerCase().includes(w))) score += 25;
+    }
+
+    // Bonus for multiple word matches in title
+    const titleMatches = queryWords.filter(w => titleLower.includes(w.toLowerCase())).length;
+    if (titleMatches >= 2) score += titleMatches * 20;
+
+    return { ...entry, score };
+  });
+
+  return scored
+    .filter(e => e.score > 10)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 10);
+}
+
+// =====================================================
+// FETCH DAILY UPDATES & NOTIFICATIONS
+// =====================================================
+
+async function fetchDailyUpdatesAndNotifications() {
+  let context = '';
 
   try {
-    // 1. Security daily order for today (פקחים/ביטחון - מי עובד היום)
+    // Daily updates
+    const now = new Date().toISOString();
+    const { data: updates } = await supabase
+      .from('daily_updates')
+      .select('*')
+      .lte('start_time', now)
+      .gt('end_time', now)
+      .order('start_time', { ascending: false });
+
+    if (updates && updates.length > 0) {
+      context += '\n## עדכונים יומיים פעילים:\n';
+      updates.forEach(u => {
+        context += `- 📢 **${u.title}**: ${u.content || u.message || ''}`;
+        if (u.category) context += ` [${u.category}]`;
+        context += '\n';
+      });
+    }
+
+    // General notifications
+    const { data: notifications } = await supabase
+      .from('general_notifications')
+      .select('*')
+      .or('start_date.is.null,start_date.lte.' + now)
+      .or('end_date.is.null,end_date.gte.' + now)
+      .or('expires_at.is.null,expires_at.gte.' + now)
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (notifications && notifications.length > 0) {
+      context += '\n## הודעות והנחיות פעילות:\n';
+      notifications.forEach(n => {
+        const important = n.is_important ? '⚠️ ' : '';
+        context += `- ${important}**${n.title}**: ${n.message || ''}\n`;
+      });
+    }
+  } catch (error) {
+    console.error('Error fetching updates/notifications:', error);
+  }
+
+  return context;
+}
+
+// =====================================================
+// FETCH LIVE OPERATIONAL DATA
+// =====================================================
+
+async function fetchLiveData() {
+  const { dateStr, dayOfWeek, currentHour, currentMinute } = getIsraelDate();
+  const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
+  let liveContext = `\n\n=== מידע חי - יום ${dayNames[dayOfWeek]}, ${dateStr}, שעה ${currentHour}:${String(currentMinute).padStart(2, '0')} ===\n`;
+
+  try {
+    // 1. Security daily order
     const { data: departments } = await supabase
       .from('departments')
       .select('id, name')
@@ -60,8 +185,7 @@ async function fetchLiveData() {
             .order('display_order');
 
           if (orderEntries && orderEntries.length > 0) {
-            // Split into currently working vs full schedule
-            const now = [];
+            const nowWorking = [];
             const allDay = [];
             orderEntries.forEach(e => {
               const name = e.staff_name || e.staff?.name || 'לא ידוע';
@@ -71,25 +195,21 @@ async function fetchLiveData() {
               const tasks = (e.tasks && e.tasks.length > 0) ? ` | משימות: ${e.tasks.join(', ')}` : '';
               allDay.push(`- ${info}${tasks}`);
               if (isShiftActive(startH, endH, currentHour)) {
-                now.push(`- ${info}${tasks}`);
+                nowWorking.push(`- ${info}${tasks}`);
               }
             });
 
-            liveContext += `\n## עובדים כרגע ב${dept.name} (שעה ${currentHour}:00):\n`;
-            liveContext += now.length > 0 ? now.join('\n') + '\n' : 'אין עובדים כרגע\n';
-            
+            liveContext += `\n## עובדים כרגע ב${dept.name} (שעה ${currentHour}:${String(currentMinute).padStart(2, '0')}):\n`;
+            liveContext += nowWorking.length > 0 ? nowWorking.join('\n') + '\n' : 'אין עובדים כרגע\n';
             liveContext += `\n## כל העובדים היום ב${dept.name}:\n`;
             liveContext += allDay.join('\n') + '\n';
-
-            if (order.general_notes) {
-              liveContext += `הערות כלליות: ${order.general_notes}\n`;
-            }
+            if (order.general_notes) liveContext += `הערות כלליות: ${order.general_notes}\n`;
           }
         }
       }
     }
 
-    // 2. Duty roster - כוננות חירום (לא עובדים רגילים!)
+    // 2. Duty roster - emergency on-call
     const { data: duties } = await supabase
       .from('duty_roster')
       .select('*, contacts(*), departments(name)')
@@ -97,9 +217,7 @@ async function fetchLiveData() {
       .eq('active', true);
 
     if (duties && duties.length > 0) {
-      // Currently on-call
       const currentlyOnCall = duties.filter(d => isShiftActive(d.start_hour, d.end_hour, currentHour));
-      
       if (currentlyOnCall.length > 0) {
         liveContext += `\n## כוננים כרגע (כוננות חירום, שעה ${currentHour}:00):\n`;
         currentlyOnCall.forEach(d => {
@@ -111,7 +229,7 @@ async function fetchLiveData() {
       }
     }
 
-    // 3. On-call contacts (רשימת כוננים קבועה)
+    // 3. On-call contacts
     const { data: onCallContacts } = await supabase
       .from('on_call_contacts')
       .select('*')
@@ -125,6 +243,25 @@ async function fetchLiveData() {
       });
     }
 
+    // 4. Garbage collection schedule
+    const { data: garbageSchedule } = await supabase
+      .from('garbage_collection_schedule')
+      .select('*')
+      .eq('is_active', true)
+      .order('collection_day')
+      .order('street_name');
+
+    if (garbageSchedule && garbageSchedule.length > 0) {
+      liveContext += '\n## לוח זמנים איסוף גזם ואשפה:\n';
+      liveContext += 'כששואלים על רחוב ספציפי, חפש ברשימה הזו ותן תשובה מדויקת.\n';
+      garbageSchedule.forEach(s => {
+        liveContext += `- רחוב ${s.street_name}: יום ${s.collection_day_hebrew} | ${s.collection_time} | ${s.collection_type}`;
+        if (s.zone) liveContext += ` | אזור: ${s.zone}`;
+        if (s.notes) liveContext += ` | ${s.notes}`;
+        liveContext += '\n';
+      });
+    }
+
   } catch (error) {
     console.error('Error fetching live data:', error);
     liveContext += '\n(שגיאה בטעינת מידע חי)\n';
@@ -133,108 +270,106 @@ async function fetchLiveData() {
   return liveContext;
 }
 
-// POST - ask a question to the AI knowledge assistant
+// =====================================================
+// SYSTEM PROMPT
+// =====================================================
+
+const SYSTEM_PROMPT_BASE = `אתה עוזר AI מתקדם למוקדנים במוקד עיריית יהוד-מונוסון, במערכת "מקלטון".
+
+**תפקידך:**
+1. לענות על שאלות מוקדנים בצורה מקצועית, ברורה ותמציתית
+2. לספק מידע מדויק על נהלים, תהליכים, אנשי קשר
+3. לעזור לזהות סוג פנייה ולהפנות לגורם המתאים
+4. לספק מידע חי - מי עובד/כונן, עדכונים פעילים
+5. לענות על שאלות טכניות על איך להשתמש במערכת
+
+**חשוב - הבחנה בין סוגי שאלות:**
+
+**1. שאלת מידע (תשובה פשוטה):**
+דוגמאות: "מי עובד היום?", "מה הנוהל לגרירה?", "איך מפעילים מצב חירום?"
+→ תן תשובה ישירה וקצרה
+
+**2. דיווח/תלונה (צריך הכוונה):**
+דוגמאות: "תושב מתלונן על רכב נטוש", "יש כלב משוטט ברחוב"
+→ תן למוקדן:
+• למי להפנות (שם + טלפון)
+• שאלות לבירור מול התושב
+• הערות חשובות
+
+**כללים:**
+- ענה תמיד בעברית
+- היה תמציתי - אל תחזור על מידע שכבר נאמר בשיחה
+- אם יש טלפון רלוונטי, ציין אותו
+- אם יש כמה שלבים, מספר אותם
+- אל תמציא מידע שלא נמצא במקורות
+- אם אין לך מידע, אמור בבירור שאין ושיש לפנות למנהל המוקד
+- כששואלים "מי עובד עכשיו/כרגע" - הצג רק את מי שהמשמרת שלו פעילה עכשיו
+- כששואלים "מי עובד היום" - הצג את כל רשימת העובדים ליום
+- "כוננים" = כוננות חירום, לא עובדים רגילים
+- כששואלים על איסוף גזם/אשפה ברחוב ספציפי, חפש ברשימת לוח הזמנים ותן תשובה מדויקת עם יום ושעות
+- זכור את ההקשר של השיחה ואל תחזור על עצמך`;
+
+// =====================================================
+// POST - Main chat endpoint
+// =====================================================
+
 export async function POST(request) {
   try {
     if (!OPENAI_API_KEY) {
-      return NextResponse.json(
-        { success: false, error: 'OpenAI API key not configured' },
-        { status: 500 }
-      );
+      return NextResponse.json({ success: false, error: 'OpenAI API key not configured' }, { status: 500 });
     }
 
     const body = await request.json();
-    const { question, user_name } = body;
+    const { question, user_name, session_id } = body;
 
     if (!question) {
-      return NextResponse.json(
-        { success: false, error: 'question is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, error: 'question is required' }, { status: 400 });
     }
 
-    // Step 1: Search knowledge base for relevant entries
-    const { data: entries, error: searchError } = await supabase
-      .from('knowledge_base')
-      .select('id, title, content, category, contacts')
-      .eq('is_active', true)
-      .or(`title.ilike.%${question}%,content.ilike.%${question}%`);
+    // Session management
+    const sid = session_id || `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    let session = getSession(sid) || createSession(sid);
 
-    // Also do a broader search with individual words
-    const words = question.split(/\s+/).filter(w => w.length > 2);
-    let broadEntries = [];
-    if (words.length > 0) {
-      const orConditions = words.map(w => `title.ilike.%${w}%,content.ilike.%${w}%`).join(',');
-      const { data: broad } = await supabase
-        .from('knowledge_base')
-        .select('id, title, content, category, contacts')
-        .eq('is_active', true)
-        .or(orConditions);
-      broadEntries = broad || [];
-    }
+    // Parallel data fetching
+    const [scoredEntries, liveData, updatesContext] = await Promise.all([
+      searchKnowledgeBase(question),
+      fetchLiveData(),
+      fetchDailyUpdatesAndNotifications()
+    ]);
 
-    // Combine and deduplicate results
-    const allEntries = [...(entries || []), ...broadEntries];
-    const uniqueEntries = Array.from(new Map(allEntries.map(e => [e.id, e])).values());
-
-    // If no entries found at all, fetch all entries (let AI decide relevance)
-    let contextEntries = uniqueEntries;
-    if (contextEntries.length === 0) {
-      const { data: allData } = await supabase
-        .from('knowledge_base')
-        .select('id, title, content, category, contacts')
-        .eq('is_active', true)
-        .limit(20);
-      contextEntries = allData || [];
-    }
-
-    // Step 2: Build context from knowledge base entries
-    const knowledgeContext = contextEntries.map(entry => {
-      let text = `## ${entry.title}\nקטגוריה: ${entry.category}\n${entry.content}`;
+    // Build knowledge context (only relevant entries)
+    const knowledgeContext = scoredEntries.map(entry => {
+      let text = `## ${entry.title} (רלוונטיות: ${entry.score})\nקטגוריה: ${entry.category}\n${entry.content}`;
       if (entry.contacts && entry.contacts.length > 0) {
         text += '\nאנשי קשר: ' + entry.contacts.map(c => `${c.name} - ${c.phone}${c.role ? ` (${c.role})` : ''}`).join(', ');
       }
       return text;
     }).join('\n\n---\n\n');
 
-    // Step 3: Build app guide context
+    // App guide
     const appGuideContext = appGuide.guide.map(g => `## ${g.topic}\n${g.content}`).join('\n\n');
 
-    // Step 4: Fetch live data
-    const liveData = await fetchLiveData();
-
-    // Step 5: Call OpenAI
-    const systemPrompt = `אתה עוזר ידע למוקדנים בעיריית יהוד-מונוסון במערכת "מקלטון".
-תפקידך לענות על שאלות של מוקדנים בצורה ברורה, תמציתית ומדויקת.
-יש לך 3 מקורות מידע:
-1. מאגר ידע מבצעי (נהלים, תהליכים, אנשי קשר)
-2. מדריך המערכת (איך להשתמש באפליקציה)
-3. מידע חי (מי עובד/כונן היום, פקודת יום)
-
-כללים:
-- ענה בעברית
-- היה תמציתי וברור
-- אם יש מספרי טלפון רלוונטיים, כלול אותם בתשובה
-- אם יש כמה שלבים, מספר אותם
-- אל תמציא מידע שלא נמצא במקורות
-- אם אין לך מידע, אמור שאין לך מידע ושיש לפנות למנהל המוקד
-
-חשוב - הבחנה בין סוגי מידע חי:
-- "עובדים כרגע" = אנשים שהמשמרת שלהם פעילה עכשיו (לפי השעה הנוכחית)
-- "כל העובדים היום" = כל מי שעובד היום בכל השעות
-- "כוננים כרגע" = כוננות חירום (לא עובדים רגילים), רק מי שכונן עכשיו
-- "אנשי קשר כוננות" = רשימת כוננים קבועה
-- כששואלים "מי עובד עכשיו/כרגע" - הצג רק את העובדים כרגע, לא את כל היום
-- כששואלים "מי עובד היום" - הצג את רשימת כל העובדים היום
+    // Build full system prompt with all context
+    const fullSystemPrompt = `${SYSTEM_PROMPT_BASE}
 
 === מדריך המערכת ===
 ${appGuideContext}
 
 === מאגר ידע מבצעי ===
-${knowledgeContext}
+${knowledgeContext || '(אין ערכים רלוונטיים במאגר)'}
+
+${updatesContext}
 
 ${liveData}`;
 
+    // Build messages array with conversation history
+    const messages = [
+      { role: 'system', content: fullSystemPrompt },
+      ...session.messages.slice(-MAX_MESSAGES),
+      { role: 'user', content: question }
+    ];
+
+    // Call OpenAI
     const openaiResponse = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -243,10 +378,7 @@ ${liveData}`;
       },
       body: JSON.stringify({
         model: 'gpt-4o-mini',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: question }
-        ],
+        messages,
         temperature: 0.3,
         max_tokens: 1000
       })
@@ -255,35 +387,38 @@ ${liveData}`;
     if (!openaiResponse.ok) {
       const errData = await openaiResponse.json().catch(() => ({}));
       console.error('OpenAI API error:', errData);
-      return NextResponse.json(
-        { success: false, error: 'שגיאה בשירות ה-AI' },
-        { status: 502 }
-      );
+      return NextResponse.json({ success: false, error: 'שגיאה בשירות ה-AI' }, { status: 502 });
     }
 
     const aiData = await openaiResponse.json();
     const answer = aiData.choices?.[0]?.message?.content || 'לא הצלחתי לייצר תשובה';
 
-    // Step 4: Save to chat history
-    const sourceIds = contextEntries.map(e => e.id);
-    await supabase.from('knowledge_chat_history').insert({
+    // Save to session memory
+    session.messages.push(
+      { role: 'user', content: question },
+      { role: 'assistant', content: answer }
+    );
+    // Trim session if too long
+    if (session.messages.length > MAX_MESSAGES * 2) {
+      session.messages = session.messages.slice(-MAX_MESSAGES);
+    }
+
+    // Save to chat history (async, don't block response)
+    supabase.from('knowledge_chat_history').insert({
       user_name: user_name || 'מוקדן',
       question,
       answer,
-      sources: sourceIds
-    });
+      sources: scoredEntries.map(e => e.id)
+    }).then(() => {}).catch(err => console.error('Failed to save chat history:', err));
 
     return NextResponse.json({
       success: true,
       answer,
-      sources: contextEntries.map(e => ({ id: e.id, title: e.title }))
+      session_id: sid
     });
 
   } catch (error) {
     console.error('Knowledge chat error:', error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

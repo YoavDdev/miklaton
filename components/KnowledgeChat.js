@@ -6,12 +6,12 @@ export default function KnowledgeChat({ userName = 'מוקדן' }) {
   const [messages, setMessages] = useState([
     {
       role: 'assistant',
-      content: 'שלום! אני העוזר הדיגיטלי של המוקד 🧠\nשאל אותי כל שאלה על נהלים, תהליכים ומידע מבצעי ואני אחפש לך את התשובה.',
-      sources: []
+      content: 'שלום! אני העוזר הדיגיטלי של המוקד 🧠\nאני יכול לעזור עם נהלים, מי עובד/כונן, עדכונים, ושאלות על המערכת.\nשאל אותי כל שאלה!'
     }
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [sessionId, setSessionId] = useState(null);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -38,29 +38,27 @@ export default function KnowledgeChat({ userName = 'מוקדן' }) {
       const res = await fetch('/api/knowledge-chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question, user_name: userName })
+        body: JSON.stringify({ question, user_name: userName, session_id: sessionId })
       });
 
       const data = await res.json();
 
       if (data.success) {
+        if (data.session_id) setSessionId(data.session_id);
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: data.answer,
-          sources: data.sources || []
+          content: data.answer
         }]);
       } else {
         setMessages(prev => [...prev, {
           role: 'assistant',
-          content: 'מצטער, לא הצלחתי לעבד את השאלה. נסה שוב או פנה למנהל המוקד.',
-          sources: []
+          content: 'מצטער, לא הצלחתי לעבד את השאלה. נסה שוב או פנה למנהל המוקד.'
         }]);
       }
     } catch (error) {
       setMessages(prev => [...prev, {
         role: 'assistant',
-        content: 'שגיאה בחיבור לשרת. נסה שוב.',
-        sources: []
+        content: 'שגיאה בחיבור לשרת. נסה שוב.'
       }]);
     } finally {
       setIsLoading(false);
@@ -76,8 +74,8 @@ export default function KnowledgeChat({ userName = 'מוקדן' }) {
           🧠
         </div>
         <div>
-          <h3 className="font-bold text-lg">מאגר הידע של המוקד</h3>
-          <p className="text-purple-100 text-sm">שאל אותי הכל על נהלים ותהליכים</p>
+          <h3 className="font-bold text-lg">העוזר החכם של המוקד</h3>
+          <p className="text-purple-100 text-sm">נהלים, כוננויות, עדכונים ועוד</p>
         </div>
       </div>
 
