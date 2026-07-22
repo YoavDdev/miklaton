@@ -19,33 +19,24 @@ function getIsraelDate() {
   return { dateStr: `${year}-${month}-${day}`, dayOfWeek: israelTime.getDay(), currentHour: israelTime.getHours() };
 }
 
+// Helper: Check if a shift is active at a given hour
+function isShiftActive(startHour, endHour, currentHour) {
+  if (startHour === endHour) return true; // 24h shift
+  if (endHour < startHour) {
+    // Overnight shift (e.g. 22:00-06:00)
+    return currentHour >= startHour || currentHour < endHour;
+  }
+  return currentHour >= startHour && currentHour < endHour;
+}
+
 // Helper: Fetch live data from Supabase
 async function fetchLiveData() {
   const { dateStr, dayOfWeek, currentHour } = getIsraelDate();
   const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-  let liveContext = `\n\n=== מידע חי - יום ${dayNames[dayOfWeek]}, ${dateStr} ===\n`;
+  let liveContext = `\n\n=== מידע חי - יום ${dayNames[dayOfWeek]}, ${dateStr}, שעה ${currentHour}:00 ===\n`;
 
   try {
-    // 1. Current on-call contacts (duty roster)
-    const { data: duties } = await supabase
-      .from('duty_roster')
-      .select('*, contacts(*), departments(name)')
-      .eq('day_of_week', dayOfWeek)
-      .eq('active', true);
-
-    if (duties && duties.length > 0) {
-      liveContext += '\n## כוננים היום:\n';
-      duties.forEach(d => {
-        const name = d.contacts?.full_name || 'לא ידוע';
-        const phone = d.contacts?.phone || '';
-        const dept = d.departments?.name || '';
-        const hours = `${d.start_hour}:00 - ${d.end_hour}:00`;
-        const notes = d.notes || '';
-        liveContext += `- ${name} | ${dept} | ${hours} | ${phone} ${notes}\n`;
-      });
-    }
-
-    // 2. Security daily order for today
+    // 1. Security daily order for today (פקחים/ביטחון - מי עובד היום)
     const { data: departments } = await supabase
       .from('departments')
       .select('id, name')
@@ -69,14 +60,27 @@ async function fetchLiveData() {
             .order('display_order');
 
           if (orderEntries && orderEntries.length > 0) {
-            liveContext += `\n## פקודת יום - ${dept.name} (${dateStr}):\n`;
+            // Split into currently working vs full schedule
+            const now = [];
+            const allDay = [];
             orderEntries.forEach(e => {
               const name = e.staff_name || e.staff?.name || 'לא ידוע';
-              liveContext += `- ${name} | ${e.role_title || ''} | ${e.start_time}-${e.end_time} | רכב: ${e.vehicle || 'לא צוין'}\n`;
-              if (e.tasks && e.tasks.length > 0) {
-                liveContext += `  משימות: ${e.tasks.join(', ')}\n`;
+              const startH = parseInt(e.start_time?.split(':')[0] || '0');
+              const endH = parseInt(e.end_time?.split(':')[0] || '0');
+              const info = `${name} | ${e.role_title || ''} | ${e.start_time}-${e.end_time} | רכב: ${e.vehicle || 'לא צוין'}`;
+              const tasks = (e.tasks && e.tasks.length > 0) ? ` | משימות: ${e.tasks.join(', ')}` : '';
+              allDay.push(`- ${info}${tasks}`);
+              if (isShiftActive(startH, endH, currentHour)) {
+                now.push(`- ${info}${tasks}`);
               }
             });
+
+            liveContext += `\n## עובדים כרגע ב${dept.name} (שעה ${currentHour}:00):\n`;
+            liveContext += now.length > 0 ? now.join('\n') + '\n' : 'אין עובדים כרגע\n';
+            
+            liveContext += `\n## כל העובדים היום ב${dept.name}:\n`;
+            liveContext += allDay.join('\n') + '\n';
+
             if (order.general_notes) {
               liveContext += `הערות כלליות: ${order.general_notes}\n`;
             }
@@ -85,14 +89,36 @@ async function fetchLiveData() {
       }
     }
 
-    // 3. On-call contacts
+    // 2. Duty roster - כוננות חירום (לא עובדים רגילים!)
+    const { data: duties } = await supabase
+      .from('duty_roster')
+      .select('*, contacts(*), departments(name)')
+      .eq('day_of_week', dayOfWeek)
+      .eq('active', true);
+
+    if (duties && duties.length > 0) {
+      // Currently on-call
+      const currentlyOnCall = duties.filter(d => isShiftActive(d.start_hour, d.end_hour, currentHour));
+      
+      if (currentlyOnCall.length > 0) {
+        liveContext += `\n## כוננים כרגע (כוננות חירום, שעה ${currentHour}:00):\n`;
+        currentlyOnCall.forEach(d => {
+          const name = d.contacts?.full_name || 'לא ידוע';
+          const phone = d.contacts?.phone || '';
+          const dept = d.departments?.name || '';
+          liveContext += `- ${name} | ${dept} | ${d.start_hour}:00-${d.end_hour}:00 | ${phone}\n`;
+        });
+      }
+    }
+
+    // 3. On-call contacts (רשימת כוננים קבועה)
     const { data: onCallContacts } = await supabase
       .from('on_call_contacts')
       .select('*')
       .eq('active', true);
 
     if (onCallContacts && onCallContacts.length > 0) {
-      liveContext += '\n## אנשי קשר כוננות:\n';
+      liveContext += '\n## אנשי קשר כוננות (רשימה קבועה):\n';
       onCallContacts.forEach(c => {
         const vacation = c.on_vacation ? ' (בחופש)' : '';
         liveContext += `- ${c.name} | ${c.phone}${vacation}\n`;
@@ -192,6 +218,14 @@ export async function POST(request) {
 - אם יש כמה שלבים, מספר אותם
 - אל תמציא מידע שלא נמצא במקורות
 - אם אין לך מידע, אמור שאין לך מידע ושיש לפנות למנהל המוקד
+
+חשוב - הבחנה בין סוגי מידע חי:
+- "עובדים כרגע" = אנשים שהמשמרת שלהם פעילה עכשיו (לפי השעה הנוכחית)
+- "כל העובדים היום" = כל מי שעובד היום בכל השעות
+- "כוננים כרגע" = כוננות חירום (לא עובדים רגילים), רק מי שכונן עכשיו
+- "אנשי קשר כוננות" = רשימת כוננים קבועה
+- כששואלים "מי עובד עכשיו/כרגע" - הצג רק את העובדים כרגע, לא את כל היום
+- כששואלים "מי עובד היום" - הצג את רשימת כל העובדים היום
 
 === מדריך המערכת ===
 ${appGuideContext}
