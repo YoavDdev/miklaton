@@ -11,6 +11,7 @@ import CallCategoryManager from '@/components/CallCategoryManager';
 import VacationManager from '@/components/VacationManager';
 import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
 import KnowledgeBaseManager from '@/components/KnowledgeBaseManager';
+import GarbageScheduleInline from '@/components/GarbageScheduleInline';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -786,8 +787,13 @@ export default function CallCenterManagerPage() {
 
         {/* Tab Content - Knowledge Base */}
         {activeTab === 'knowledge' && (
-          <div className="bg-white rounded-lg shadow p-6">
-            <KnowledgeBaseManager userName={user?.full_name || user?.username || 'מנהל'} />
+          <div className="space-y-6">
+            <div className="bg-white rounded-lg shadow p-6">
+              <KnowledgeBaseManager userName={user?.full_name || user?.username || 'מנהל'} />
+            </div>
+            <div className="bg-white rounded-lg shadow p-6">
+              <GarbageScheduleInline />
+            </div>
           </div>
         )}
 
