@@ -826,7 +826,7 @@ export default function ScreenPage() {
                           {isNew && <span className="text-[10px] bg-orange-700/60 text-orange-200 px-1 py-0.5 rounded shrink-0">חדש</span>}
                           {isReturned && <span className="text-[10px] bg-green-800/60 text-green-300 px-1 py-0.5 rounded shrink-0">חזר</span>}
                         </div>
-                        <div className="text-[11px] text-gray-400 mt-0.5">{dateRange}</div>
+                        <div className="text-xs text-gray-200 mt-0.5 font-mono">{dateRange}</div>
                       </div>
                     );
                   })}
