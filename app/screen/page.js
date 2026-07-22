@@ -650,12 +650,18 @@ export default function ScreenPage() {
     return currentMinutes >= start && currentMinutes < end;
   };
 
-  const activeSecurityNow = securityEntries.filter(e => !e.is_removed && isActive(e.start_time, e.end_time, e._fromYesterday));
+  const activeSecurityNow = securityEntries.filter(e => {
+    // For removed entries, use original times to keep them visible until their original shift ends
+    const startT = e.is_removed && e.original_start_time ? e.original_start_time : e.start_time;
+    const endT = e.is_removed && e.original_end_time ? e.original_end_time : e.end_time;
+    return isActive(startT, endT, e._fromYesterday);
+  });
 
   // Upcoming shifts in the next 12 hours (not currently active)
   const upcomingSecurityShifts = securityEntries.filter(e => {
-    if (e.is_removed) return false;
-    if (isActive(e.start_time, e.end_time, e._fromYesterday)) return false;
+    const startT = e.is_removed && e.original_start_time ? e.original_start_time : e.start_time;
+    const endT = e.is_removed && e.original_end_time ? e.original_end_time : e.end_time;
+    if (isActive(startT, endT, e._fromYesterday)) return false;
     if (e._fromYesterday) return false;
     const [sh, sm] = e.start_time.split(':').map(Number);
     const startMinutes = sh * 60 + sm;
@@ -944,7 +950,7 @@ export default function ScreenPage() {
 
         {/* Active Security Staff */}
         {activeSecurityNow.length > 0 ? (
-          <div className="p-2 space-y-1.5 flex-1 min-h-0 overflow-hidden">
+          <div className="p-2 space-y-1.5">
             {activeSecurityNow.map((entry, idx) => {
               const statusData = staffOnBreak[entry.staff_id];
               const hasStatus = statusData && isStatusActive(statusData);
@@ -952,7 +958,8 @@ export default function ScreenPage() {
               const statusInfo = hasStatus ? getStatusInfo(statusData.type, statusData.note) : null;
               
               const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
-              const isModified = entry.is_modified;
+              const isModified = entry.is_modified && !entry.is_removed;
+              const isRemoved = entry.is_removed;
               
               const colorClasses = {
                 orange: 'bg-orange-900/30 border-2 border-orange-600/70 text-orange-400',
@@ -973,24 +980,31 @@ export default function ScreenPage() {
                   key={idx} 
                   onClick={() => setActionMenu({ open: true, entry })}
                   className={`rounded-lg px-3 py-2 cursor-pointer transition-all ${
-                    hasStatus 
-                      ? colorClasses[statusInfo.color]
-                      : isModified
-                        ? 'bg-yellow-900/20 border border-yellow-600/50'
-                        : baseColors
+                    isRemoved
+                      ? 'bg-red-900/10 border border-red-800/40 opacity-60'
+                      : hasStatus 
+                        ? colorClasses[statusInfo.color]
+                        : isModified
+                          ? 'bg-yellow-900/20 border border-yellow-600/50'
+                          : baseColors
                   }`}
                 >
                   <div className="flex items-center gap-2">
                     <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                      hasStatus 
-                        ? statusInfo.color === 'orange' ? 'bg-orange-500' :
-                          statusInfo.color === 'blue' ? 'bg-blue-500' :
-                          statusInfo.color === 'red' ? 'bg-red-500' : 'bg-purple-500'
-                        : `${baseDotColor} animate-pulse`
+                      isRemoved
+                        ? 'bg-red-700'
+                        : hasStatus 
+                          ? statusInfo.color === 'orange' ? 'bg-orange-500' :
+                            statusInfo.color === 'blue' ? 'bg-blue-500' :
+                            statusInfo.color === 'red' ? 'bg-red-500' : 'bg-purple-500'
+                          : `${baseDotColor} animate-pulse`
                     }`}></div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-bold text-white text-sm truncate flex items-center gap-2">
-                        {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
+                      <div className={`font-bold text-sm truncate flex items-center gap-2 ${isRemoved ? 'text-gray-400' : 'text-white'}`}>
+                        <span className={isRemoved ? 'line-through' : ''}>{entry.staff_name || entry.staff?.full_name || 'לא שובץ'}</span>
+                        {isRemoved && (
+                          <span className="text-[10px] bg-red-900/60 text-red-300 px-1 py-0.5 rounded">❌ ירד ממשמרת</span>
+                        )}
                         {isModified && !hasStatus && (
                           <span className="text-[10px] bg-yellow-800/60 text-yellow-300 px-1 py-0.5 rounded">שונה</span>
                         )}
@@ -1005,17 +1019,19 @@ export default function ScreenPage() {
                         )}
                       </div>
                       <div className="text-xs text-gray-400 flex items-center gap-2">
-                        <span className="text-gray-300">{entry.start_time}-{entry.end_time}</span>
+                        <span className={isRemoved ? 'text-gray-500 line-through' : 'text-gray-300'}>
+                          {entry.original_start_time || entry.start_time}-{entry.original_end_time || entry.end_time}
+                        </span>
                         {isModified && entry.original_end_time && entry.original_end_time !== entry.end_time && (
                           <span className="text-yellow-500/70 line-through text-[10px]">{entry.original_start_time || entry.start_time}-{entry.original_end_time}</span>
                         )}
-                        {!hasStatus && !isModified && (
+                        {!isRemoved && !hasStatus && !isModified && (
                           <span className={`font-medium ${baseRoleColor}`}>
                             {isPatrol ? '🚓' : '👮'} {entry.role_title}
                           </span>
                         )}
                       </div>
-                      {hasStatus && (
+                      {!isRemoved && hasStatus && (
                         <div className={`text-xs font-medium ${
                           statusInfo.color === 'orange' ? 'text-orange-300' :
                           statusInfo.color === 'blue' ? 'text-blue-300' :
@@ -1024,11 +1040,11 @@ export default function ScreenPage() {
                           {statusInfo.icon} {statusInfo.label}
                         </div>
                       )}
-                      {isModified && entry.modification_note && !hasStatus && (
-                        <div className="text-[10px] text-yellow-400/70 mt-0.5">📝 {entry.modification_note}</div>
+                      {(isRemoved || isModified) && entry.modification_note && (
+                        <div className={`text-[10px] mt-0.5 ${isRemoved ? 'text-red-400/70' : 'text-yellow-400/70'}`}>📝 {entry.modification_note}</div>
                       )}
                     </div>
-                    {entry.vehicle && (
+                    {entry.vehicle && !isRemoved && (
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
                         hasStatus 
                           ? 'bg-gray-700/50 text-gray-300'
@@ -1045,7 +1061,7 @@ export default function ScreenPage() {
             })}
           </div>
         ) : (
-          <div className="p-6 text-center flex-1">
+          <div className="p-6 text-center">
             <div className="text-3xl mb-2">⚠️</div>
             <div className="text-red-400 font-bold text-sm mb-1">
               לוודא מול מנהל שמשמרות מודכנות
@@ -1076,17 +1092,40 @@ export default function ScreenPage() {
                 })
                 .map((entry, idx) => {
                   const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
+                  const isModified = entry.is_modified && !entry.is_removed;
+                  const isRemoved = entry.is_removed;
                   return (
-                    <div key={idx} className="rounded px-2 py-1 flex items-center justify-between text-xs bg-white/5 border border-white/5">
+                    <div 
+                      key={idx} 
+                      onClick={() => setActionMenu({ open: true, entry })}
+                      className={`rounded px-2 py-1 flex items-center justify-between text-xs cursor-pointer transition-all hover:bg-white/10 ${
+                        isRemoved ? 'bg-red-900/10 border border-red-800/40 opacity-60'
+                        : isModified ? 'bg-yellow-900/20 border border-yellow-600/40' 
+                        : 'bg-white/5 border border-white/5'
+                      }`}
+                    >
                       <div className="flex items-center gap-2">
                         <span>{isPatrol ? '🚓' : '👮'}</span>
-                        <span className="font-medium text-white">{entry.staff_name || entry.staff?.full_name || 'לא שובץ'}</span>
+                        <span className={`font-medium ${isRemoved ? 'text-gray-400 line-through' : 'text-white'}`}>
+                          {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
+                        </span>
+                        {isRemoved && (
+                          <span className="text-[9px] bg-red-900/60 text-red-300 px-1 py-0.5 rounded">❌ ירד</span>
+                        )}
+                        {isModified && (
+                          <span className="text-[9px] bg-yellow-800/60 text-yellow-300 px-1 py-0.5 rounded">שונה</span>
+                        )}
                       </div>
                       <div className="flex items-center gap-2">
-                        {entry.vehicle && (
+                        {entry.vehicle && !isRemoved && (
                           <span className="text-gray-500">🚗 {entry.vehicle}</span>
                         )}
-                        <span className="text-amber-300 font-mono font-bold">{entry.start_time}-{entry.end_time}</span>
+                        <span className={`font-mono font-bold ${isRemoved ? 'text-gray-500 line-through' : 'text-amber-300'}`}>
+                          {entry.original_start_time || entry.start_time}-{entry.original_end_time || entry.end_time}
+                        </span>
+                        {isModified && entry.original_end_time && entry.original_end_time !== entry.end_time && (
+                          <span className="text-yellow-500/50 line-through text-[9px] font-mono">{entry.original_end_time}</span>
+                        )}
                       </div>
                     </div>
                   );
