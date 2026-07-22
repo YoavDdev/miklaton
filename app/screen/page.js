@@ -625,6 +625,19 @@ export default function ScreenPage() {
 
   const activeSecurityNow = securityEntries.filter(e => isActive(e.start_time, e.end_time, e._fromYesterday));
 
+  // Upcoming shifts in the next 12 hours (not currently active)
+  const upcomingSecurityShifts = securityEntries.filter(e => {
+    if (isActive(e.start_time, e.end_time, e._fromYesterday)) return false;
+    if (e._fromYesterday) return false;
+    const [sh, sm] = e.start_time.split(':').map(Number);
+    const startMinutes = sh * 60 + sm;
+    // Only show shifts that haven't started yet
+    if (startMinutes <= currentMinutes) return false;
+    // Within 12 hours from now
+    const minutesUntilStart = startMinutes - currentMinutes;
+    return minutesUntilStart <= 12 * 60;
+  });
+
   // Shabbat window: 2 hours before candle lighting until 2 hours after havdalah
   const isShabbatRestricted = (() => {
     if (!shabbatTimes?.candleDate || !shabbatTimes?.havdalahDate) return false;
@@ -651,167 +664,147 @@ export default function ScreenPage() {
 
   // Urgent notifications first
   const urgentNotifs = notifications.filter(n => n.type === 'urgent');
-  const regularNotifs = notifications.filter(n => n.type !== 'urgent').slice(0, 5);
+  const regularNotifs = notifications.filter(n => n.type !== 'urgent').slice(0, 4);
 
   return (
     <div
-      className="h-screen flex flex-col bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden"
+      className="flex flex-row bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white overflow-hidden"
       dir="rtl"
-      style={mounted ? { zoom } : {}}
+      style={mounted ? { zoom, height: `calc(100vh / ${zoom})`, width: `calc(100vw / ${zoom})` } : { height: '100vh' }}
       suppressHydrationWarning
     >
       <AutoRefresh />
 
-      {/* War Mode Banner */}
-      {warMode && (
-        <div className="bg-red-600 text-white text-center py-3 text-lg font-black animate-pulse">
-          🚨 מצב חירום פעיל 🚨
-        </div>
-      )}
+      {/* LEFT SIDE - Header + Content (takes ~2/3 width) */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
 
-      {/* Daily Cemetery Gate Reminder */}
-      {isCemeteryReminderActive && (
-        <div className="bg-red-700 text-white text-center py-4 border-b-4 border-red-500 animate-pulse">
-          <div className="text-2xl font-black flex items-center justify-center gap-3">
-            <span>🪦</span>
-            <span>לוודא ששער בית העלמין סגור!</span>
-            <span>🪦</span>
+        {/* War Mode Banner */}
+        {warMode && (
+          <div className="bg-red-600 text-white text-center py-2 text-lg font-black animate-pulse shrink-0">
+            🚨 מצב חירום פעיל 🚨
           </div>
-          <div className="text-sm text-red-200 mt-1">
-            תזכורת יומית בין 19:00 ל-19:10
-          </div>
-        </div>
-      )}
+        )}
 
-      {/* Header - Time & Date */}
-      <header className={`px-8 py-4 border-b ${isCemeteryReminderActive ? 'bg-red-900/40 border-red-500/50' : 'border-white/10'}`}>
-        <div className="w-full flex items-center justify-between">
-          <div className="flex items-center gap-6">
-            <div className={`text-5xl font-black tracking-tight font-mono ${isCemeteryReminderActive ? 'text-red-400 animate-pulse' : ''}`}>
-              {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </div>
-            <div className="border-r border-white/20 pr-6">
-              <div className="text-lg font-bold">
-                יום {DAYS_HEB[currentTime.getDay()]}
-              </div>
-              <div className="text-sm text-gray-300">
-                {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </div>
+        {/* Daily Cemetery Gate Reminder */}
+        {isCemeteryReminderActive && (
+          <div className="bg-red-700 text-white text-center py-2 border-b-2 border-red-500 animate-pulse shrink-0">
+            <div className="text-xl font-black flex items-center justify-center gap-3">
+              <span>🪦</span>
+              <span>לוודא ששער בית העלמין סגור!</span>
+              <span>🪦</span>
             </div>
           </div>
+        )}
 
-          {/* Weather - in the middle */}
-          {weather && (
-            <div className={`flex items-center gap-5 rounded-xl px-5 py-2 border ${weather.alerts?.length > 0 ? 'bg-red-900/30 border-red-500/50' : 'bg-slate-800/50 border-slate-600/30'}`}>
-              <div className="flex items-center gap-3">
-                <span className="text-4xl">{getWeatherInfo(weather.current.weather_code).icon}</span>
-                <div>
-                  <div className="font-black text-white text-2xl">{Math.round(weather.current.temperature_2m)}°</div>
-                  <div className={weather.alerts?.length > 0 ? 'text-red-200 text-sm' : 'text-slate-300 text-sm'}>{getWeatherInfo(weather.current.weather_code).label}</div>
-                </div>
+        {/* Header - Time & Date & Weather */}
+        <header className={`px-6 py-2 border-b shrink-0 ${isCemeteryReminderActive ? 'bg-red-900/40 border-red-500/50' : 'border-white/10'}`}>
+          <div className="w-full flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`text-4xl font-black tracking-tight font-mono ${isCemeteryReminderActive ? 'text-red-400 animate-pulse' : ''}`} suppressHydrationWarning>
+                {currentTime.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
               </div>
-
-              <div className={`text-xs border-r pr-4 mr-2 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
-                <div>תחושה {Math.round(weather.current.apparent_temperature)}°</div>
-                <div>לחות {weather.current.relative_humidity_2m}%</div>
-                <div>רוח {Math.round(weather.current.wind_speed_10m)} קמ"ש</div>
-              </div>
-
-              <div className={`flex items-center gap-4 text-xs border-r pr-4 mr-2 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
-                {weather.daily?.slice(1, 4).map((d, i) => {
-                  const dayName = ['מחר', 'מחרתיים', 'עוד 3'][i];
-                  return (
-                    <div key={i} className="text-center">
-                      <div className="font-bold">{dayName}</div>
-                      <div className="text-lg">{getWeatherInfo(d.code).icon}</div>
-                      <div>{Math.round(d.max)}°/{Math.round(d.min)}°</div>
-                      {d.rain > 5 && <div className="text-blue-300">{Math.round(d.rain)} מ"מ</div>}
-                    </div>
-                  );
-                })}
-              </div>
-
-              {weather.alerts?.length > 0 && (
-                <div className="text-sm text-red-100 font-bold">
-                  {weather.alerts.map((a, i) => <div key={i}>⚠️ {a.text}</div>)}
+              <div className="border-r border-white/20 pr-4">
+                <div className="text-base font-bold">
+                  יום {DAYS_HEB[currentTime.getDay()]}
                 </div>
-              )}
-            </div>
-          )}
-
-          {/* Shabbat Times - on the left side */}
-          {shabbatTimes && (
-            <div className="flex items-center gap-4 bg-white/5 rounded-xl px-5 py-3 border border-white/10">
-              <span className="text-2xl">🕯️</span>
-              <div className="text-sm">
-                {shabbatTimes.parasha && <div className="font-bold text-yellow-300">{shabbatTimes.parasha}</div>}
-                <div className="text-xs text-gray-400 mb-1">
-                  {shabbatTimes.date && <span>תאריך: {shabbatTimes.date}</span>}
-                </div>
-                <div className="flex gap-3 text-gray-300">
-                  {shabbatTimes.candles && <span>כניסה: <strong className="text-white">{shabbatTimes.candles}</strong></span>}
-                  {shabbatTimes.havdalah && <span>יציאה: <strong className="text-white">{shabbatTimes.havdalah}</strong></span>}
+                <div className="text-xs text-gray-300">
+                  {currentTime.toLocaleDateString('he-IL', { day: 'numeric', month: 'long', year: 'numeric' })}
                 </div>
               </div>
             </div>
-          )}
-        </div>
-      </header>
 
-      <WeatherAlertBar alerts={weather?.alerts} />
-
-      {/* Vacation Bar - Always visible */}
-      <div className="bg-gradient-to-l from-orange-900/40 to-orange-800/40 border-b border-orange-700/30 px-8 py-2">
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-lg">🏖️</span>
-            <span className="font-bold text-orange-100 text-sm">בחופש:</span>
-          </div>
-          {vacations.length > 0 ? (
-            vacations.map((vac, idx) => {
-              const isReturned = vac.on_vacation === false;
-              const isNew = !isReturned && isWithinLast24Hours(vac.updated_at);
-              const dateRange = formatVacationDateRange(vac.vacation_start, vac.vacation_end);
-              return (
-                <div
-                  key={idx}
-                  className={`flex items-center gap-2 rounded-lg px-3 py-1 border text-sm ${
-                    isReturned
-                      ? 'bg-green-900/40 border-green-600/50'
-                      : isNew
-                        ? 'bg-orange-700/60 border-orange-400 ring-2 ring-orange-400 animate-pulse'
-                        : 'bg-orange-900/30 border-orange-700/50'
-                  }`}
-                >
-                  <span className={`font-semibold ${isReturned ? 'text-green-100' : 'text-white'}`}>{vac.name}</span>
-                  <span className={`text-xs ${isReturned ? 'text-green-300' : 'text-orange-300'}`}>{dateRange}</span>
-                  {isNew && <span className="text-xs font-bold text-orange-100">🔥 חדש</span>}
-                  {isReturned && <span className="text-xs font-bold text-green-100">✅ חזר לעבודה</span>}
+            {/* Weather */}
+            {weather && (
+              <div className={`flex items-center gap-4 rounded-xl px-4 py-1.5 border ${weather.alerts?.length > 0 ? 'bg-red-900/30 border-red-500/50' : 'bg-slate-800/50 border-slate-600/30'}`}>
+                <div className="flex items-center gap-2">
+                  <span className="text-3xl">{getWeatherInfo(weather.current.weather_code).icon}</span>
+                  <div>
+                    <div className="font-black text-white text-xl">{Math.round(weather.current.temperature_2m)}°</div>
+                    <div className={weather.alerts?.length > 0 ? 'text-red-200 text-xs' : 'text-slate-300 text-xs'}>{getWeatherInfo(weather.current.weather_code).label}</div>
+                  </div>
                 </div>
-              );
-            })
-          ) : (
-            <span className="text-orange-300 text-xs italic">אין כוננים בחופש כרגע</span>
-          )}
-        </div>
-      </div>
 
-      <main className="flex-1 w-full px-8 py-6 grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-0 overflow-hidden">
-        
-        {/* Left Column - Notifications */}
-        <div className="lg:col-span-2 flex flex-col gap-4 min-h-0 overflow-hidden">
+                <div className={`text-xs border-r pr-3 mr-1 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
+                  <div>תחושה {Math.round(weather.current.apparent_temperature)}°</div>
+                  <div>לחות {weather.current.relative_humidity_2m}%</div>
+                  <div>רוח {Math.round(weather.current.wind_speed_10m)} קמ"ש</div>
+                </div>
+
+                <div className={`flex items-center gap-3 text-xs border-r pr-3 mr-1 ${weather.alerts?.length > 0 ? 'text-red-200 border-red-500/30' : 'text-slate-400 border-slate-600/30'}`}>
+                  {weather.daily?.slice(1, 4).map((d, i) => {
+                    const dayName = ['מחר', 'מחרתיים', 'עוד 3'][i];
+                    return (
+                      <div key={i} className="text-center">
+                        <div className="font-bold">{dayName}</div>
+                        <div className="text-base">{getWeatherInfo(d.code).icon}</div>
+                        <div>{Math.round(d.max)}°/{Math.round(d.min)}°</div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {weather.alerts?.length > 0 && (
+                  <div className="text-xs text-red-100 font-bold">
+                    {weather.alerts.map((a, i) => <div key={i}>⚠️ {a.text}</div>)}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </header>
+
+        <WeatherAlertBar alerts={weather?.alerts} />
+
+        {/* Vacation Bar */}
+        <div className="bg-gradient-to-l from-orange-900/40 to-orange-800/40 border-b border-orange-700/30 px-6 py-1 shrink-0">
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-lg">🏖️</span>
+              <span className="font-bold text-orange-100 text-sm">בחופש:</span>
+            </div>
+            {vacations.length > 0 ? (
+              vacations.map((vac, idx) => {
+                const isReturned = vac.on_vacation === false;
+                const isNew = !isReturned && isWithinLast24Hours(vac.updated_at);
+                const dateRange = formatVacationDateRange(vac.vacation_start, vac.vacation_end);
+                return (
+                  <div
+                    key={idx}
+                    className={`flex items-center gap-2 rounded-lg px-3 py-0.5 border text-sm ${
+                      isReturned
+                        ? 'bg-green-900/40 border-green-600/50'
+                        : isNew
+                          ? 'bg-orange-700/60 border-orange-400 ring-2 ring-orange-400 animate-pulse'
+                          : 'bg-orange-900/30 border-orange-700/50'
+                    }`}
+                  >
+                    <span className={`font-semibold ${isReturned ? 'text-green-100' : 'text-white'}`}>{vac.name}</span>
+                    <span className={`text-xs ${isReturned ? 'text-green-300' : 'text-orange-300'}`}>{dateRange}</span>
+                    {isNew && <span className="text-xs font-bold text-orange-100">🔥 חדש</span>}
+                    {isReturned && <span className="text-xs font-bold text-green-100">✅ חזר</span>}
+                  </div>
+                );
+              })
+            ) : (
+              <span className="text-orange-300 text-xs italic">אין כוננים בחופש כרגע</span>
+            )}
+          </div>
+        </div>
+
+        {/* Main Content Area - Notifications */}
+        <div className="flex-1 px-6 py-3 flex flex-col gap-3 min-h-0 overflow-hidden">
           
           {/* Urgent Notifications */}
           {urgentNotifs.length > 0 && (
-            <div className="flex flex-col gap-3 shrink-0">
+            <div className="flex flex-col gap-2 shrink-0">
               {urgentNotifs.map(n => (
-                <div key={n.id} className="bg-red-900/60 border-2 border-red-500 rounded-xl p-5 animate-pulse">
+                <div key={n.id} className="bg-red-900/60 border-2 border-red-500 rounded-xl p-4 animate-pulse">
                   <div className="flex items-start gap-3">
-                    <span className="text-3xl">🚨</span>
+                    <span className="text-2xl">🚨</span>
                     <div>
-                      <h3 className="text-xl text-red-100">{n.title}</h3>
-                      <p className="text-red-200 mt-1 text-lg">{n.message}</p>
-                      <p className="text-red-400 text-xs mt-2">{n.author} • {new Date(n.created_at).toLocaleString('he-IL')}</p>
+                      <h3 className="text-lg text-red-100">{n.title}</h3>
+                      <p className="text-red-200 mt-1">{n.message}</p>
+                      <p className="text-red-400 text-xs mt-1">{n.author} • {new Date(n.created_at).toLocaleString('he-IL')}</p>
                     </div>
                   </div>
                 </div>
@@ -821,14 +814,14 @@ export default function ScreenPage() {
 
           {/* Regular Notifications */}
           {regularNotifs.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0 max-h-[400px]">
-              <div className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center gap-2 shrink-0">
-                <span className="text-xl">📢</span>
-                <h2 className="font-bold text-lg">הודעות והנחיות</h2>
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0 flex-1">
+              <div className="px-4 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2 shrink-0">
+                <span className="text-lg">📢</span>
+                <h2 className="font-bold text-base">הודעות והנחיות</h2>
               </div>
-              <div className="divide-y divide-white/5 overflow-y-auto flex-1">
+              <div className="divide-y divide-white/5 flex-1 overflow-hidden">
                 {regularNotifs.map(n => (
-                  <div key={n.id} className="px-5 py-4 hover:bg-white/5 transition-colors">
+                  <div key={n.id} className="px-4 py-2.5 hover:bg-white/5 transition-colors">
                     <div className="flex items-start justify-between">
                       <div>
                         <h4 className="text-white">{n.title}</h4>
@@ -844,27 +837,27 @@ export default function ScreenPage() {
             </div>
           )}
 
-          {/* Emergency On-Call - visible always but emphasized in war mode */}
+          {/* Emergency On-Call - only in war mode */}
           {warMode && currentDuty.length > 0 && (
-            <div className="bg-red-900/30 border-2 border-red-600 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 bg-red-900/50 border-b border-red-600 flex items-center gap-2">
-                <span className="text-xl">🚨</span>
-                <h2 className="font-bold text-lg text-red-100">כוננים במצב חירום - עכשיו</h2>
+            <div className="bg-red-900/30 border-2 border-red-600 rounded-xl overflow-hidden shrink-0">
+              <div className="px-4 py-2 bg-red-900/50 border-b border-red-600 flex items-center gap-2">
+                <span className="text-lg">🚨</span>
+                <h2 className="font-bold text-red-100">כוננים במצב חירום - עכשיו</h2>
               </div>
-              <div className="p-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="p-3 grid grid-cols-2 gap-2">
                 {currentDuty.map((duty, idx) => {
                   const contact = contacts.find(c => c.id === duty.contact_id);
                   if (!contact) return null;
                   return (
-                    <div key={idx} className="bg-red-900/40 border border-red-700 rounded-lg px-4 py-3 flex items-center justify-between">
+                    <div key={idx} className="bg-red-900/40 border border-red-700 rounded-lg px-3 py-2 flex items-center justify-between">
                       <div>
-                        <div className="font-bold text-white">{contact.full_name}</div>
+                        <div className="font-bold text-white text-sm">{contact.full_name}</div>
                         <div className="text-xs text-red-300">
                           {contact.departments?.name} • {String(duty.start_hour).padStart(2,'0')}:00-{String(duty.end_hour).padStart(2,'0')}:00
                         </div>
                       </div>
                       {contact.phone && (
-                        <a href={`tel:${contact.phone}`} className="text-xl">📞</a>
+                        <a href={`tel:${contact.phone}`} className="text-lg">📞</a>
                       )}
                     </div>
                   );
@@ -873,204 +866,219 @@ export default function ScreenPage() {
             </div>
           )}
         </div>
+      </div>
 
-        {/* Right Column - Security Status */}
-        <div className="flex flex-col gap-4 min-h-0 overflow-hidden">
-
-          {/* Security Field Status */}
-          <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0 max-h-[700px]">
-            <div className="px-5 py-3.5 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-3 shrink-0">
-              <span className="text-2xl">🛡️</span>
-              <div className="flex-1">
-                <h2 className="font-bold text-lg">ביטחון - כרגע בשטח</h2>
-                {lastSecurityUpdate && (
-                  <span className="text-[10px] text-white/40" title="בדיקה אחרונה">
-                    נבדק לאחרונה: {lastSecurityUpdate.toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                )}
-              </div>
-              <div className="flex gap-2">
-                {(() => {
-                  const patrolCount = activeSecurityNow.filter(e => e.role_title && e.role_title.includes('שיטור')).length;
-                  const inspectorCount = activeSecurityNow.length - patrolCount;
-                  return (
-                    <>
-                      {inspectorCount > 0 && (
-                        <span className="text-xs bg-emerald-800/60 text-emerald-200 px-2.5 py-1 rounded-full font-medium">
-                          👮 {inspectorCount}
-                        </span>
-                      )}
-                      {patrolCount > 0 && (
-                        <span className="text-xs bg-indigo-800/60 text-indigo-200 px-2.5 py-1 rounded-full font-medium">
-                          🚓 {patrolCount}
-                        </span>
-                      )}
-                    </>
-                  );
-                })()}
-              </div>
-            </div>
-            
-            {activeSecurityNow.length > 0 ? (
-              <div className="p-3 space-y-2 overflow-y-auto flex-1 max-h-[600px]">
-                {activeSecurityNow.map((entry, idx) => {
-                  const statusData = staffOnBreak[entry.staff_id];
-                  const hasStatus = statusData && isStatusActive(statusData);
-                  const breakTime = hasStatus ? getBreakTimeRemaining(entry.staff_id) : null;
-                  const statusInfo = hasStatus ? getStatusInfo(statusData.type, statusData.note) : null;
-                  
-                  // Determine if inspector or patrol based on role
-                  const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
-                  const isInspector = !isPatrol;
-                  
-                  const colorClasses = {
-                    orange: 'bg-orange-900/30 border-2 border-orange-600/70 hover:bg-orange-900/40 text-orange-400',
-                    blue: 'bg-blue-900/30 border-2 border-blue-600/70 hover:bg-blue-900/40 text-blue-400',
-                    red: 'bg-red-900/30 border-2 border-red-600/70 hover:bg-red-900/40 text-red-400',
-                    purple: 'bg-purple-900/30 border-2 border-purple-600/70 hover:bg-purple-900/40 text-purple-400'
-                  };
-                  
-                  // Base colors for normal state
-                  const baseColors = isPatrol
-                    ? 'bg-indigo-900/20 border border-indigo-700/50 hover:bg-indigo-900/30'
-                    : 'bg-emerald-900/20 border border-emerald-700/50 hover:bg-emerald-900/30';
-                  
-                  const baseDotColor = isPatrol ? 'bg-indigo-400' : 'bg-emerald-400';
-                  const baseRoleColor = isPatrol ? 'text-indigo-300' : 'text-emerald-300';
-                  
-                  return (
-                    <div 
-                      key={idx} 
-                      onClick={() => toggleStaffBreak(entry.staff_id)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        setTimingMode('immediate'); // Reset to immediate mode
-                        setStatusModal({ 
-                          open: true, 
-                          staffId: entry.staff_id, 
-                          staffName: entry.staff_name || entry.staff?.full_name 
-                        });
-                      }}
-                      className={`rounded-xl px-4 py-3 cursor-pointer transition-all shadow-sm ${
-                        hasStatus 
-                          ? colorClasses[statusInfo.color]
-                          : baseColors
-                      }`}
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className={`w-3 h-3 rounded-full shrink-0 mt-1 ${
-                          hasStatus 
-                            ? statusInfo.color === 'orange' ? 'bg-orange-500' :
-                              statusInfo.color === 'blue' ? 'bg-blue-500' :
-                              statusInfo.color === 'red' ? 'bg-red-500' : 'bg-purple-500'
-                            : `${baseDotColor} animate-pulse shadow-lg`
-                        }`}></div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-bold text-white text-base truncate flex items-center gap-2">
-                            {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
-                            {hasStatus && breakTime && (
-                              <span className={`text-xs font-mono ${
-                                statusInfo.color === 'orange' ? 'text-orange-400' :
-                                statusInfo.color === 'blue' ? 'text-blue-400' :
-                                statusInfo.color === 'red' ? 'text-red-400' : 'text-purple-400'
-                              }`}>
-                                {statusInfo.icon} {breakTime}
-                              </span>
-                            )}
-                          </div>
-                          <div className="text-xs text-gray-400 flex items-center gap-2 mt-0.5">
-                            <span className="text-gray-300">{entry.start_time}-{entry.end_time}</span>
-                            {!hasStatus && (
-                              <span className={`font-medium ${baseRoleColor}`}>
-                                {isPatrol ? '🚓' : '👮'} {entry.role_title}
-                              </span>
-                            )}
-                          </div>
-                          {hasStatus && (
-                            <div className={`text-xs mt-1 font-medium ${
-                              statusInfo.color === 'orange' ? 'text-orange-300' :
-                              statusInfo.color === 'blue' ? 'text-blue-300' :
-                              statusInfo.color === 'red' ? 'text-red-300' : 'text-purple-300'
-                            }`}>
-                              {statusInfo.icon} {statusInfo.label}
-                            </div>
-                          )}
-                        </div>
-                        <div className="flex flex-col gap-1 items-end shrink-0">
-                          {entry.vehicle && (
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium shadow-sm ${
-                              hasStatus 
-                                ? 'bg-gray-700/50 text-gray-300'
-                                : isPatrol 
-                                  ? 'bg-indigo-800/50 text-indigo-200' 
-                                  : 'bg-emerald-800/50 text-emerald-200'
-                            }`}>
-                              🚗 {entry.vehicle}
-                            </span>
-                          )}
-                          {hasStatus && (
-                            <span className={`text-xs px-2.5 py-1 rounded-full font-medium shadow-sm ${
-                              statusInfo.color === 'orange' ? 'bg-orange-800/60 text-orange-200' :
-                              statusInfo.color === 'blue' ? 'bg-blue-800/60 text-blue-200' :
-                              statusInfo.color === 'red' ? 'bg-red-800/60 text-red-200' : 'bg-purple-800/60 text-purple-200'
-                            }`}>
-                              {statusInfo.icon}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="p-6 text-center">
-                <div className="text-3xl mb-2">⚠️</div>
-                <div className="text-red-400 font-bold text-sm mb-1">
-                  לוודא מול מנהל שמשמרות מודכנות
-                </div>
-                <div className="text-gray-500 text-xs">
-                  אין נתוני משמרת כרגע
-                </div>
-              </div>
-            )}
+      {/* RIGHT SIDE - Security Column (full height, ~1/3 width) */}
+      <div className="w-[380px] shrink-0 flex flex-col border-r border-white/10 bg-slate-900/50 overflow-hidden">
+        
+        {/* Security Header */}
+        <div className="px-4 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2 shrink-0">
+          <span className="text-xl">🛡️</span>
+          <h2 className="font-bold text-base flex-1">ביטחון - כרגע בשטח</h2>
+          <div className="flex gap-2">
+            {(() => {
+              const patrolCount = activeSecurityNow.filter(e => e.role_title && e.role_title.includes('שיטור')).length;
+              const inspectorCount = activeSecurityNow.length - patrolCount;
+              return (
+                <>
+                  {inspectorCount > 0 && (
+                    <span className="text-xs bg-emerald-800/60 text-emerald-200 px-2 py-0.5 rounded-full font-medium">
+                      👮 {inspectorCount}
+                    </span>
+                  )}
+                  {patrolCount > 0 && (
+                    <span className="text-xs bg-indigo-800/60 text-indigo-200 px-2 py-0.5 rounded-full font-medium">
+                      🚓 {patrolCount}
+                    </span>
+                  )}
+                </>
+              );
+            })()}
           </div>
+        </div>
 
-          {/* On-Call Today - only in emergency mode */}
-          {warMode && todayDuty.length > 0 && (
-            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-              <div className="px-5 py-3 bg-white/5 border-b border-white/10 flex items-center gap-2">
-                <span className="text-xl">�</span>
-                <h2 className="font-bold">כוננים היום - יום {DAYS_HEB[todayDay]}</h2>
-              </div>
-              <div className="p-3 space-y-1 max-h-[250px] overflow-y-auto">
-                {todayDuty.map((duty, idx) => {
-                  const contact = contacts.find(c => c.id === duty.contact_id);
-                  if (!contact) return null;
-                  const isNow = currentDuty.some(d => d.id === duty.id);
-                  return (
-                    <div key={idx} className={`rounded-lg px-3 py-2 flex items-center justify-between text-sm ${
-                      isNow ? 'bg-blue-900/30 border border-blue-700' : 'bg-white/5'
-                    }`}>
-                      <div className="flex items-center gap-2">
-                        {isNow && <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>}
-                        <span className="font-medium text-white">{contact.full_name}</span>
-                        <span className="text-xs text-gray-500">{contact.departments?.name}</span>
+        {/* Active Security Staff */}
+        {activeSecurityNow.length > 0 ? (
+          <div className="p-2 space-y-1.5 flex-1 min-h-0 overflow-hidden">
+            {activeSecurityNow.map((entry, idx) => {
+              const statusData = staffOnBreak[entry.staff_id];
+              const hasStatus = statusData && isStatusActive(statusData);
+              const breakTime = hasStatus ? getBreakTimeRemaining(entry.staff_id) : null;
+              const statusInfo = hasStatus ? getStatusInfo(statusData.type, statusData.note) : null;
+              
+              const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
+              
+              const colorClasses = {
+                orange: 'bg-orange-900/30 border-2 border-orange-600/70 text-orange-400',
+                blue: 'bg-blue-900/30 border-2 border-blue-600/70 text-blue-400',
+                red: 'bg-red-900/30 border-2 border-red-600/70 text-red-400',
+                purple: 'bg-purple-900/30 border-2 border-purple-600/70 text-purple-400'
+              };
+              
+              const baseColors = isPatrol
+                ? 'bg-indigo-900/20 border border-indigo-700/50'
+                : 'bg-emerald-900/20 border border-emerald-700/50';
+              
+              const baseDotColor = isPatrol ? 'bg-indigo-400' : 'bg-emerald-400';
+              const baseRoleColor = isPatrol ? 'text-indigo-300' : 'text-emerald-300';
+              
+              return (
+                <div 
+                  key={idx} 
+                  onClick={() => toggleStaffBreak(entry.staff_id)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setTimingMode('immediate');
+                    setStatusModal({ 
+                      open: true, 
+                      staffId: entry.staff_id, 
+                      staffName: entry.staff_name || entry.staff?.full_name 
+                    });
+                  }}
+                  className={`rounded-lg px-3 py-2 cursor-pointer transition-all ${
+                    hasStatus 
+                      ? colorClasses[statusInfo.color]
+                      : baseColors
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                      hasStatus 
+                        ? statusInfo.color === 'orange' ? 'bg-orange-500' :
+                          statusInfo.color === 'blue' ? 'bg-blue-500' :
+                          statusInfo.color === 'red' ? 'bg-red-500' : 'bg-purple-500'
+                        : `${baseDotColor} animate-pulse`
+                    }`}></div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-bold text-white text-sm truncate flex items-center gap-2">
+                        {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
+                        {hasStatus && breakTime && (
+                          <span className={`text-xs font-mono ${
+                            statusInfo.color === 'orange' ? 'text-orange-400' :
+                            statusInfo.color === 'blue' ? 'text-blue-400' :
+                            statusInfo.color === 'red' ? 'text-red-400' : 'text-purple-400'
+                          }`}>
+                            {statusInfo.icon} {breakTime}
+                          </span>
+                        )}
                       </div>
-                      <span className="text-xs text-gray-400">
-                        {duty.start_hour === duty.end_hour ? '24 שעות' : 
-                          `${String(duty.start_hour).padStart(2,'0')}:00-${String(duty.end_hour).padStart(2,'0')}:00`
-                        }
+                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                        <span className="text-gray-300">{entry.start_time}-{entry.end_time}</span>
+                        {!hasStatus && (
+                          <span className={`font-medium ${baseRoleColor}`}>
+                            {isPatrol ? '🚓' : '👮'} {entry.role_title}
+                          </span>
+                        )}
+                      </div>
+                      {hasStatus && (
+                        <div className={`text-xs font-medium ${
+                          statusInfo.color === 'orange' ? 'text-orange-300' :
+                          statusInfo.color === 'blue' ? 'text-blue-300' :
+                          statusInfo.color === 'red' ? 'text-red-300' : 'text-purple-300'
+                        }`}>
+                          {statusInfo.icon} {statusInfo.label}
+                        </div>
+                      )}
+                    </div>
+                    {entry.vehicle && (
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
+                        hasStatus 
+                          ? 'bg-gray-700/50 text-gray-300'
+                          : isPatrol 
+                            ? 'bg-indigo-800/50 text-indigo-200' 
+                            : 'bg-emerald-800/50 text-emerald-200'
+                      }`}>
+                        🚗 {entry.vehicle}
                       </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="p-6 text-center flex-1">
+            <div className="text-3xl mb-2">⚠️</div>
+            <div className="text-red-400 font-bold text-sm mb-1">
+              לוודא מול מנהל שמשמרות מודכנות
+            </div>
+            <div className="text-gray-500 text-xs">
+              אין נתוני משמרת כרגע
+            </div>
+          </div>
+        )}
+
+        {/* Upcoming Shifts - next 12 hours */}
+        {upcomingSecurityShifts.length > 0 && (
+          <div className="border-t border-white/10 shrink-0">
+            <div className="px-3 py-1.5 bg-gradient-to-l from-amber-900/40 to-amber-800/40 border-b border-white/10 flex items-center gap-2">
+              <span className="text-sm">⏳</span>
+              <h2 className="font-bold text-xs text-amber-100">ממתינים להגיע</h2>
+              <span className="text-[10px] text-amber-300/70">12 שעות הבאות</span>
+              <span className="text-[10px] bg-amber-800/60 text-amber-200 px-1.5 py-0.5 rounded-full mr-auto">
+                {upcomingSecurityShifts.length}
+              </span>
+            </div>
+            <div className="p-1.5 space-y-1">
+              {upcomingSecurityShifts
+                .sort((a, b) => {
+                  const [ah, am] = a.start_time.split(':').map(Number);
+                  const [bh, bm] = b.start_time.split(':').map(Number);
+                  return (ah * 60 + am) - (bh * 60 + bm);
+                })
+                .map((entry, idx) => {
+                  const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
+                  return (
+                    <div key={idx} className="rounded px-2 py-1 flex items-center justify-between text-xs bg-white/5 border border-white/5">
+                      <div className="flex items-center gap-2">
+                        <span>{isPatrol ? '🚓' : '👮'}</span>
+                        <span className="font-medium text-white">{entry.staff_name || entry.staff?.full_name || 'לא שובץ'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {entry.vehicle && (
+                          <span className="text-gray-500">🚗 {entry.vehicle}</span>
+                        )}
+                        <span className="text-amber-300 font-mono font-bold">{entry.start_time}-{entry.end_time}</span>
+                      </div>
                     </div>
                   );
                 })}
-              </div>
             </div>
-          )}
+          </div>
+        )}
 
-        </div>
-      </main>
+        {/* On-Call Today - only in emergency mode */}
+        {warMode && todayDuty.length > 0 && (
+          <div className="border-t border-white/10 shrink-0">
+            <div className="px-4 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2">
+              <span className="text-lg">📋</span>
+              <h2 className="font-bold text-sm">כוננים היום</h2>
+            </div>
+            <div className="p-2 space-y-1">
+              {todayDuty.map((duty, idx) => {
+                const contact = contacts.find(c => c.id === duty.contact_id);
+                if (!contact) return null;
+                const isNow = currentDuty.some(d => d.id === duty.id);
+                return (
+                  <div key={idx} className={`rounded px-2 py-1 flex items-center justify-between text-xs ${
+                    isNow ? 'bg-blue-900/30 border border-blue-700' : 'bg-white/5'
+                  }`}>
+                    <div className="flex items-center gap-2">
+                      {isNow && <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>}
+                      <span className="font-medium text-white">{contact.full_name}</span>
+                    </div>
+                    <span className="text-gray-400">
+                      {duty.start_hour === duty.end_hour ? '24h' : 
+                        `${String(duty.start_hour).padStart(2,'0')}:00-${String(duty.end_hour).padStart(2,'0')}:00`
+                      }
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Status Modal */}
       {statusModal.open && (
