@@ -22,6 +22,10 @@ CREATE INDEX IF NOT EXISTS idx_garbage_active ON garbage_collection_schedule(is_
 
 -- RLS
 ALTER TABLE garbage_collection_schedule ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Allow read garbage_collection_schedule" ON garbage_collection_schedule;
+DROP POLICY IF EXISTS "Allow insert garbage_collection_schedule" ON garbage_collection_schedule;
+DROP POLICY IF EXISTS "Allow update garbage_collection_schedule" ON garbage_collection_schedule;
+DROP POLICY IF EXISTS "Allow delete garbage_collection_schedule" ON garbage_collection_schedule;
 CREATE POLICY "Allow read garbage_collection_schedule" ON garbage_collection_schedule FOR SELECT USING (true);
 CREATE POLICY "Allow insert garbage_collection_schedule" ON garbage_collection_schedule FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow update garbage_collection_schedule" ON garbage_collection_schedule FOR UPDATE USING (true);
