@@ -747,9 +747,9 @@ export default function ScreenPage() {
               </div>
             </div>
 
-            {/* Weather - same row, pushed to left in RTL */}
+            {/* Weather - fills remaining header space */}
             {weather && (
-              <div className={`flex items-center gap-5 rounded-xl px-4 py-2 border ml-auto ${weather.alerts?.length > 0 ? 'bg-red-900/20 border-red-500/40' : 'bg-white/5 border-white/10'}`}>
+              <div className={`flex items-center gap-5 rounded-xl px-4 py-2 border flex-1 ${weather.alerts?.length > 0 ? 'bg-red-900/20 border-red-500/40' : 'bg-white/5 border-white/10'}`}>
                 {/* Current */}
                 <div className="flex items-center gap-2">
                   <span className="text-4xl">{getWeatherInfo(weather.current.weather_code).icon}</span>
