@@ -747,9 +747,9 @@ export default function ScreenPage() {
               </div>
             </div>
 
-            {/* Weather - same row */}
+            {/* Weather - same row, pushed to left in RTL */}
             {weather && (
-              <div className={`flex items-center gap-5 rounded-xl px-4 py-2 border ${weather.alerts?.length > 0 ? 'bg-red-900/20 border-red-500/40' : 'bg-white/5 border-white/10'}`}>
+              <div className={`flex items-center gap-5 rounded-xl px-4 py-2 border ml-auto ${weather.alerts?.length > 0 ? 'bg-red-900/20 border-red-500/40' : 'bg-white/5 border-white/10'}`}>
                 {/* Current */}
                 <div className="flex items-center gap-2">
                   <span className="text-4xl">{getWeatherInfo(weather.current.weather_code).icon}</span>
@@ -950,7 +950,7 @@ export default function ScreenPage() {
 
         {/* Active Security Staff */}
         {activeSecurityNow.length > 0 ? (
-          <div className="p-2 space-y-1.5">
+          <div className={`p-2 ${activeSecurityNow.length > 5 ? 'grid grid-cols-2 gap-1.5' : 'space-y-1.5'}`}>
             {activeSecurityNow.map((entry, idx) => {
               const statusData = staffOnBreak[entry.staff_id];
               const hasStatus = statusData && isStatusActive(statusData);
@@ -960,6 +960,7 @@ export default function ScreenPage() {
               const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
               const isModified = entry.is_modified && !entry.is_removed;
               const isRemoved = entry.is_removed;
+              const isCompact = activeSecurityNow.length > 5;
               
               const colorClasses = {
                 orange: 'bg-orange-900/30 border-2 border-orange-600/70 text-orange-400',
@@ -979,7 +980,7 @@ export default function ScreenPage() {
                 <div 
                   key={idx} 
                   onClick={() => setActionMenu({ open: true, entry })}
-                  className={`rounded-lg px-3 py-2 cursor-pointer transition-all ${
+                  className={`rounded-lg ${isCompact ? 'px-2 py-1' : 'px-3 py-2'} cursor-pointer transition-all ${
                     isRemoved
                       ? 'bg-red-900/10 border border-red-800/40 opacity-60'
                       : hasStatus 
@@ -989,8 +990,8 @@ export default function ScreenPage() {
                           : baseColors
                   }`}
                 >
-                  <div className="flex items-center gap-2">
-                    <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                  <div className="flex items-center gap-1.5">
+                    <div className={`${isCompact ? 'w-2 h-2' : 'w-2.5 h-2.5'} rounded-full shrink-0 ${
                       isRemoved
                         ? 'bg-red-700'
                         : hasStatus 
@@ -1000,16 +1001,16 @@ export default function ScreenPage() {
                           : `${baseDotColor} animate-pulse`
                     }`}></div>
                     <div className="flex-1 min-w-0">
-                      <div className={`font-bold text-sm truncate flex items-center gap-2 ${isRemoved ? 'text-gray-400' : 'text-white'}`}>
+                      <div className={`font-bold ${isCompact ? 'text-xs' : 'text-sm'} truncate flex items-center gap-1.5 ${isRemoved ? 'text-gray-400' : 'text-white'}`}>
                         <span className={isRemoved ? 'line-through' : ''}>{entry.staff_name || entry.staff?.full_name || 'לא שובץ'}</span>
                         {isRemoved && (
-                          <span className="text-[10px] bg-red-900/60 text-red-300 px-1 py-0.5 rounded">❌ ירד ממשמרת</span>
+                          <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} bg-red-900/60 text-red-300 px-1 py-0.5 rounded`}>❌ {isCompact ? 'ירד' : 'ירד ממשמרת'}</span>
                         )}
                         {isModified && !hasStatus && (
-                          <span className="text-[10px] bg-yellow-800/60 text-yellow-300 px-1 py-0.5 rounded">שונה</span>
+                          <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} bg-yellow-800/60 text-yellow-300 px-1 py-0.5 rounded`}>שונה</span>
                         )}
                         {hasStatus && breakTime && (
-                          <span className={`text-xs font-mono ${
+                          <span className={`${isCompact ? 'text-[10px]' : 'text-xs'} font-mono ${
                             statusInfo.color === 'orange' ? 'text-orange-400' :
                             statusInfo.color === 'blue' ? 'text-blue-400' :
                             statusInfo.color === 'red' ? 'text-red-400' : 'text-purple-400'
@@ -1018,20 +1019,20 @@ export default function ScreenPage() {
                           </span>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 flex items-center gap-2">
+                      <div className={`${isCompact ? 'text-[10px]' : 'text-xs'} text-gray-400 flex items-center gap-1.5`}>
                         <span className={isRemoved ? 'text-gray-500 line-through' : 'text-gray-300'}>
                           {entry.original_start_time || entry.start_time}-{entry.original_end_time || entry.end_time}
                         </span>
                         {isModified && entry.original_end_time && entry.original_end_time !== entry.end_time && (
                           <span className="text-yellow-500/70 line-through text-[10px]">{entry.original_start_time || entry.start_time}-{entry.original_end_time}</span>
                         )}
-                        {!isRemoved && !hasStatus && !isModified && (
+                        {!isRemoved && !hasStatus && !isModified && !isCompact && (
                           <span className={`font-medium ${baseRoleColor}`}>
                             {isPatrol ? '🚓' : '👮'} {entry.role_title}
                           </span>
                         )}
                       </div>
-                      {!isRemoved && hasStatus && (
+                      {!isRemoved && hasStatus && !isCompact && (
                         <div className={`text-xs font-medium ${
                           statusInfo.color === 'orange' ? 'text-orange-300' :
                           statusInfo.color === 'blue' ? 'text-blue-300' :
@@ -1040,11 +1041,11 @@ export default function ScreenPage() {
                           {statusInfo.icon} {statusInfo.label}
                         </div>
                       )}
-                      {(isRemoved || isModified) && entry.modification_note && (
+                      {!isCompact && (isRemoved || isModified) && entry.modification_note && (
                         <div className={`text-[10px] mt-0.5 ${isRemoved ? 'text-red-400/70' : 'text-yellow-400/70'}`}>📝 {entry.modification_note}</div>
                       )}
                     </div>
-                    {entry.vehicle && !isRemoved && (
+                    {entry.vehicle && !isRemoved && !isCompact && (
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium shrink-0 ${
                         hasStatus 
                           ? 'bg-gray-700/50 text-gray-300'
@@ -1083,7 +1084,7 @@ export default function ScreenPage() {
                 {upcomingSecurityShifts.length}
               </span>
             </div>
-            <div className="p-1.5 space-y-1">
+            <div className={`p-1.5 ${upcomingSecurityShifts.length > 4 ? 'grid grid-cols-2 gap-1' : 'space-y-1'}`}>
               {upcomingSecurityShifts
                 .sort((a, b) => {
                   const [ah, am] = a.start_time.split(':').map(Number);
