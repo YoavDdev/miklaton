@@ -843,11 +843,11 @@ export default function ScreenPage() {
               {urgentNotifs.map(n => (
                 <div key={n.id} className="bg-red-900/50 border-2 border-red-500 rounded-xl p-4 animate-pulse">
                   <div className="flex items-start gap-3">
-                    <span className="text-2xl">🚨</span>
+                    <span className="text-3xl">🚨</span>
                     <div>
-                      <h3 className="text-lg font-bold text-red-100">{n.title}</h3>
-                      <p className="text-red-200 mt-1">{n.message}</p>
-                      <p className="text-red-400 text-xs mt-1">{n.author} • {new Date(n.created_at).toLocaleString('he-IL')}</p>
+                      <h3 className="text-xl font-bold text-red-100">{n.title}</h3>
+                      <p className="text-red-200 mt-1 text-base">{n.message}</p>
+                      <p className="text-red-400 text-sm mt-1">{n.author} • {new Date(n.created_at).toLocaleString('he-IL')}</p>
                     </div>
                   </div>
                 </div>
@@ -859,8 +859,8 @@ export default function ScreenPage() {
           {regularNotifs.length > 0 ? (
             <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden flex flex-col min-h-0 flex-1">
               <div className="px-4 py-2 bg-white/5 border-b border-white/10 flex items-center gap-2 shrink-0">
-                <span className="text-base">📢</span>
-                <h2 className="font-bold text-sm">הודעות והנחיות</h2>
+                <span className="text-lg">📢</span>
+                <h2 className="font-bold text-base">הודעות והנחיות</h2>
                 <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded-full">{regularNotifs.length}</span>
               </div>
               <div className="divide-y divide-white/5 flex-1 overflow-hidden">
@@ -868,10 +868,10 @@ export default function ScreenPage() {
                   <div key={n.id} className="px-4 py-3">
                     <div className="flex items-start justify-between">
                       <div>
-                        <h4 className="text-white font-medium">{n.title}</h4>
-                        <p className="text-gray-400 text-sm mt-0.5">{n.message}</p>
+                        <h4 className="text-white font-bold text-lg">{n.title}</h4>
+                        <p className="text-gray-300 text-base mt-1">{n.message}</p>
                       </div>
-                      <span className="text-xs text-gray-600 whitespace-nowrap mr-4 font-mono">
+                      <span className="text-sm text-gray-500 whitespace-nowrap mr-4 font-mono">
                         {new Date(n.created_at).toLocaleTimeString('he-IL', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
