@@ -32,16 +32,25 @@ export async function GET(request) {
       return NextResponse.json({ error: 'שגיאה בטעינת סשנים' }, { status: 500 });
     }
 
-    // שלוף מידע משתמשים בנפרד
+    // שלוף מידע משתמשים בנפרד - עם דה-דופליקציה לפי user_id
     if (sessions && sessions.length > 0) {
-      const userIds = sessions.map(s => s.user_id);
+      // שמור רק את הסשן האחרון לכל user (כבר ממוין לפי last_activity desc)
+      const uniqueSessionsMap = new Map();
+      for (const session of sessions) {
+        if (!uniqueSessionsMap.has(session.user_id)) {
+          uniqueSessionsMap.set(session.user_id, session);
+        }
+      }
+      const uniqueSessions = Array.from(uniqueSessionsMap.values());
+
+      const userIds = uniqueSessions.map(s => s.user_id);
       const { data: users } = await supabase
         .from('user_profiles')
         .select('id, full_name, role')
         .in('id', userIds);
 
       // צרף מידע משתמש לכל סשן
-      const enrichedSessions = sessions.map(session => ({
+      const enrichedSessions = uniqueSessions.map(session => ({
         ...session,
         user: users?.find(u => u.id === session.user_id) || null
       }));
@@ -67,20 +76,31 @@ export async function POST(request) {
       return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
     }
 
-    // בדוק אם יש סשן פעיל
-    const { data: existingSession } = await supabase
+    // בדוק אם יש סשנים פעילים (שימוש ב-limit במקום single כדי למנוע שגיאה בכפילויות)
+    const { data: activeSessions } = await supabase
       .from('operator_sessions')
       .select('*')
       .eq('user_id', decoded.userId)
       .eq('is_active', true)
-      .single();
+      .order('last_activity', { ascending: false });
 
-    if (existingSession) {
-      // עדכן last_activity
+    if (activeSessions && activeSessions.length > 0) {
+      const latestSession = activeSessions[0];
+
+      // סגור כפילויות - השאר רק את הסשן האחרון
+      if (activeSessions.length > 1) {
+        const duplicateIds = activeSessions.slice(1).map(s => s.id);
+        await supabase
+          .from('operator_sessions')
+          .update({ is_active: false, session_end: new Date().toISOString() })
+          .in('id', duplicateIds);
+      }
+
+      // עדכן last_activity בסשן האחרון
       const { data, error } = await supabase
         .from('operator_sessions')
         .update({ last_activity: new Date().toISOString() })
-        .eq('id', existingSession.id)
+        .eq('id', latestSession.id)
         .select()
         .single();
 
