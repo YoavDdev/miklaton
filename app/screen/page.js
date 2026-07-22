@@ -78,6 +78,8 @@ export default function ScreenPage() {
   const [statusModal, setStatusModal] = useState({ open: false, staffId: null, staffName: null });
   const [timingMode, setTimingMode] = useState('immediate');
   const [vacations, setVacations] = useState([]);
+  const [actionMenu, setActionMenu] = useState({ open: false, entry: null }); // quick action menu on staff card
+  const [shiftChangeModal, setShiftChangeModal] = useState({ open: false, entry: null, type: null }); // 'end_time_change', 'time_change', 'removed'
 
   // Live clock
   useEffect(() => {
@@ -484,6 +486,31 @@ export default function ScreenPage() {
     }
   };
 
+  const submitShiftChange = async (entryId, changeType, data = {}) => {
+    try {
+      const res = await fetch('/api/security-daily-order/entry', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          entry_id: entryId,
+          change_type: changeType,
+          ...data
+        })
+      });
+      const result = await res.json();
+      if (result.success) {
+        // Refresh security data to reflect the change
+        await fetchSecurityStatus();
+        setShiftChangeModal({ open: false, entry: null, type: null });
+        setActionMenu({ open: false, entry: null });
+      } else {
+        alert('שגיאה: ' + (result.error || 'לא ניתן לבצע את השינוי'));
+      }
+    } catch (err) {
+      alert('שגיאת תקשורת');
+    }
+  };
+
   const toggleStaffBreak = (staffId) => {
     setStaffOnBreak(prev => {
       const updated = { ...prev };
@@ -623,10 +650,11 @@ export default function ScreenPage() {
     return currentMinutes >= start && currentMinutes < end;
   };
 
-  const activeSecurityNow = securityEntries.filter(e => isActive(e.start_time, e.end_time, e._fromYesterday));
+  const activeSecurityNow = securityEntries.filter(e => !e.is_removed && isActive(e.start_time, e.end_time, e._fromYesterday));
 
   // Upcoming shifts in the next 12 hours (not currently active)
   const upcomingSecurityShifts = securityEntries.filter(e => {
+    if (e.is_removed) return false;
     if (isActive(e.start_time, e.end_time, e._fromYesterday)) return false;
     if (e._fromYesterday) return false;
     const [sh, sm] = e.start_time.split(':').map(Number);
@@ -924,6 +952,7 @@ export default function ScreenPage() {
               const statusInfo = hasStatus ? getStatusInfo(statusData.type, statusData.note) : null;
               
               const isPatrol = entry.role_title && entry.role_title.includes('שיטור');
+              const isModified = entry.is_modified;
               
               const colorClasses = {
                 orange: 'bg-orange-900/30 border-2 border-orange-600/70 text-orange-400',
@@ -942,20 +971,13 @@ export default function ScreenPage() {
               return (
                 <div 
                   key={idx} 
-                  onClick={() => toggleStaffBreak(entry.staff_id)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    setTimingMode('immediate');
-                    setStatusModal({ 
-                      open: true, 
-                      staffId: entry.staff_id, 
-                      staffName: entry.staff_name || entry.staff?.full_name 
-                    });
-                  }}
+                  onClick={() => setActionMenu({ open: true, entry })}
                   className={`rounded-lg px-3 py-2 cursor-pointer transition-all ${
                     hasStatus 
                       ? colorClasses[statusInfo.color]
-                      : baseColors
+                      : isModified
+                        ? 'bg-yellow-900/20 border border-yellow-600/50'
+                        : baseColors
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -969,6 +991,9 @@ export default function ScreenPage() {
                     <div className="flex-1 min-w-0">
                       <div className="font-bold text-white text-sm truncate flex items-center gap-2">
                         {entry.staff_name || entry.staff?.full_name || 'לא שובץ'}
+                        {isModified && !hasStatus && (
+                          <span className="text-[10px] bg-yellow-800/60 text-yellow-300 px-1 py-0.5 rounded">שונה</span>
+                        )}
                         {hasStatus && breakTime && (
                           <span className={`text-xs font-mono ${
                             statusInfo.color === 'orange' ? 'text-orange-400' :
@@ -981,7 +1006,10 @@ export default function ScreenPage() {
                       </div>
                       <div className="text-xs text-gray-400 flex items-center gap-2">
                         <span className="text-gray-300">{entry.start_time}-{entry.end_time}</span>
-                        {!hasStatus && (
+                        {isModified && entry.original_end_time && entry.original_end_time !== entry.end_time && (
+                          <span className="text-yellow-500/70 line-through text-[10px]">{entry.original_start_time || entry.start_time}-{entry.original_end_time}</span>
+                        )}
+                        {!hasStatus && !isModified && (
                           <span className={`font-medium ${baseRoleColor}`}>
                             {isPatrol ? '🚓' : '👮'} {entry.role_title}
                           </span>
@@ -995,6 +1023,9 @@ export default function ScreenPage() {
                         }`}>
                           {statusInfo.icon} {statusInfo.label}
                         </div>
+                      )}
+                      {isModified && entry.modification_note && !hasStatus && (
+                        <div className="text-[10px] text-yellow-400/70 mt-0.5">📝 {entry.modification_note}</div>
                       )}
                     </div>
                     {entry.vehicle && (
@@ -1096,6 +1127,284 @@ export default function ScreenPage() {
           </div>
         )}
       </div>
+
+      {/* Action Menu - opens on staff card click */}
+      {actionMenu.open && actionMenu.entry && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4" onClick={() => setActionMenu({ open: false, entry: null })}>
+          <div className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-5 max-w-sm w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span>👤</span>
+                {actionMenu.entry.staff_name || actionMenu.entry.staff?.full_name}
+              </h2>
+              <span className="text-xs text-gray-400 font-mono">{actionMenu.entry.start_time}-{actionMenu.entry.end_time}</span>
+            </div>
+
+            <div className="space-y-2">
+              {/* Break toggle */}
+              <button
+                onClick={() => {
+                  toggleStaffBreak(actionMenu.entry.staff_id);
+                  setActionMenu({ open: false, entry: null });
+                }}
+                className={`w-full text-right px-4 py-3 rounded-xl border transition flex items-center gap-3 ${
+                  staffOnBreak[actionMenu.entry.staff_id]
+                    ? 'bg-orange-900/40 border-orange-500 text-orange-200'
+                    : 'bg-white/5 border-white/10 text-white hover:bg-white/10'
+                }`}
+              >
+                <span className="text-xl">☕</span>
+                <div>
+                  <div className="font-bold text-sm">{staffOnBreak[actionMenu.entry.staff_id] ? 'סיום הפסקה' : 'הפסקה (30 דק\')'}</div>
+                  <div className="text-xs text-gray-400">סטטוס מקומי - לא נשמר במערכת</div>
+                </div>
+              </button>
+
+              {/* Custom status */}
+              <button
+                onClick={() => {
+                  setTimingMode('immediate');
+                  setStatusModal({
+                    open: true,
+                    staffId: actionMenu.entry.staff_id,
+                    staffName: actionMenu.entry.staff_name || actionMenu.entry.staff?.full_name
+                  });
+                  setActionMenu({ open: false, entry: null });
+                }}
+                className="w-full text-right px-4 py-3 rounded-xl border bg-white/5 border-white/10 text-white hover:bg-white/10 transition flex items-center gap-3"
+              >
+                <span className="text-xl">⚡</span>
+                <div>
+                  <div className="font-bold text-sm">סטטוס מיוחד</div>
+                  <div className="text-xs text-gray-400">טקסט חופשי + תזמון</div>
+                </div>
+              </button>
+
+              <div className="border-t border-white/10 my-2"></div>
+              <div className="text-[10px] text-gray-500 px-1 mb-1">שינויים במערכת (נשמרים ב-DB עם חותמת)</div>
+
+              {/* Change end time */}
+              <button
+                onClick={() => {
+                  setShiftChangeModal({ open: true, entry: actionMenu.entry, type: 'end_time_change' });
+                  setActionMenu({ open: false, entry: null });
+                }}
+                className="w-full text-right px-4 py-3 rounded-xl border bg-white/5 border-white/10 text-white hover:bg-blue-900/20 hover:border-blue-700/50 transition flex items-center gap-3"
+              >
+                <span className="text-xl">⏰</span>
+                <div>
+                  <div className="font-bold text-sm">שינוי שעת סיום</div>
+                  <div className="text-xs text-gray-400">מסיים מוקדם / מאוחר</div>
+                </div>
+              </button>
+
+              {/* Change full hours */}
+              <button
+                onClick={() => {
+                  setShiftChangeModal({ open: true, entry: actionMenu.entry, type: 'time_change' });
+                  setActionMenu({ open: false, entry: null });
+                }}
+                className="w-full text-right px-4 py-3 rounded-xl border bg-white/5 border-white/10 text-white hover:bg-blue-900/20 hover:border-blue-700/50 transition flex items-center gap-3"
+              >
+                <span className="text-xl">🔄</span>
+                <div>
+                  <div className="font-bold text-sm">שינוי שעות משמרת</div>
+                  <div className="text-xs text-gray-400">שינוי שעת התחלה וסיום</div>
+                </div>
+              </button>
+
+              {/* Remove from shift */}
+              <button
+                onClick={() => {
+                  setShiftChangeModal({ open: true, entry: actionMenu.entry, type: 'removed' });
+                  setActionMenu({ open: false, entry: null });
+                }}
+                className="w-full text-right px-4 py-3 rounded-xl border bg-white/5 border-white/10 text-white hover:bg-red-900/20 hover:border-red-700/50 transition flex items-center gap-3"
+              >
+                <span className="text-xl">❌</span>
+                <div>
+                  <div className="font-bold text-sm">הורדה ממשמרת</div>
+                  <div className="text-xs text-gray-400">מוריד מהמשמרת של היום</div>
+                </div>
+              </button>
+
+              {/* Restore - only show if entry was modified */}
+              {actionMenu.entry.is_modified && (
+                <button
+                  onClick={() => {
+                    if (confirm('לשחזר את המשמרת המקורית?')) {
+                      submitShiftChange(actionMenu.entry.id, 'restored', { reason: 'שחזור ע"י מוקד' });
+                    }
+                  }}
+                  className="w-full text-right px-4 py-3 rounded-xl border bg-green-900/20 border-green-700/50 text-green-200 hover:bg-green-900/30 transition flex items-center gap-3"
+                >
+                  <span className="text-xl">↩️</span>
+                  <div>
+                    <div className="font-bold text-sm">שחזור מקורי</div>
+                    <div className="text-xs text-green-400/70">חזרה לשעות המקוריות</div>
+                  </div>
+                </button>
+              )}
+            </div>
+
+            <button
+              onClick={() => setActionMenu({ open: false, entry: null })}
+              className="w-full mt-4 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition text-sm"
+            >
+              סגירה
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Shift Change Modal - for DB-synced changes */}
+      {shiftChangeModal.open && shiftChangeModal.entry && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setShiftChangeModal({ open: false, entry: null, type: null })}>
+          <div className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+              {shiftChangeModal.type === 'removed' ? '❌' : shiftChangeModal.type === 'end_time_change' ? '⏰' : '🔄'}
+              {shiftChangeModal.type === 'removed' ? 'הורדה ממשמרת' : shiftChangeModal.type === 'end_time_change' ? 'שינוי שעת סיום' : 'שינוי שעות משמרת'}
+            </h2>
+            <div className="text-sm text-gray-400 mb-4">
+              {shiftChangeModal.entry.staff_name || shiftChangeModal.entry.staff?.full_name} • {shiftChangeModal.entry.start_time}-{shiftChangeModal.entry.end_time}
+            </div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const reason = formData.get('reason') || '';
+              const requestedBy = formData.get('requested_by') || 'מחלקת ביטחון';
+
+              if (!reason.trim()) {
+                alert('נא להזין סיבה לשינוי');
+                return;
+              }
+
+              const data = { reason, requested_by: requestedBy, changed_by: 'מוקד עירוני' };
+
+              if (shiftChangeModal.type === 'end_time_change') {
+                const newEnd = formData.get('new_end_time');
+                if (!newEnd) { alert('נא להזין שעת סיום חדשה'); return; }
+                data.new_end_time = newEnd;
+              } else if (shiftChangeModal.type === 'time_change') {
+                const newStart = formData.get('new_start_time');
+                const newEnd = formData.get('new_end_time');
+                if (!newStart && !newEnd) { alert('נא להזין לפחות שעה אחת'); return; }
+                if (newStart) data.new_start_time = newStart;
+                if (newEnd) data.new_end_time = newEnd;
+              }
+
+              submitShiftChange(shiftChangeModal.entry.id, shiftChangeModal.type, data);
+            }}>
+              {/* Time inputs for end_time_change */}
+              {shiftChangeModal.type === 'end_time_change' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">שעת סיום חדשה</label>
+                  <input
+                    type="time"
+                    name="new_end_time"
+                    defaultValue={shiftChangeModal.entry.end_time}
+                    required
+                    className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none text-lg font-mono"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">סיום מקורי: {shiftChangeModal.entry.original_end_time || shiftChangeModal.entry.end_time}</p>
+                </div>
+              )}
+
+              {/* Time inputs for full time_change */}
+              {shiftChangeModal.type === 'time_change' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">שעות חדשות</label>
+                  <div className="flex gap-3 items-center">
+                    <div className="flex-1">
+                      <input
+                        type="time"
+                        name="new_start_time"
+                        defaultValue={shiftChangeModal.entry.start_time}
+                        className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none font-mono"
+                      />
+                      <p className="text-xs text-gray-500 mt-1 text-center">התחלה</p>
+                    </div>
+                    <span className="text-gray-500 text-xl">←</span>
+                    <div className="flex-1">
+                      <input
+                        type="time"
+                        name="new_end_time"
+                        defaultValue={shiftChangeModal.entry.end_time}
+                        className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none font-mono"
+                      />
+                      <p className="text-xs text-gray-500 mt-1 text-center">סיום</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">מקורי: {shiftChangeModal.entry.original_start_time || shiftChangeModal.entry.start_time}-{shiftChangeModal.entry.original_end_time || shiftChangeModal.entry.end_time}</p>
+                </div>
+              )}
+
+              {/* Removal confirmation */}
+              {shiftChangeModal.type === 'removed' && (
+                <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg">
+                  <div className="text-red-200 text-sm font-bold mb-1">⚠️ הורדה ממשמרת</div>
+                  <div className="text-red-300/80 text-xs">העובד יוסר מהמשמרת היומית. ניתן לשחזר מאוחר יותר.</div>
+                </div>
+              )}
+
+              {/* Reason - required */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">סיבה לשינוי *</label>
+                <input
+                  type="text"
+                  name="reason"
+                  placeholder='לדוגמה: "לבקשת מנהל ביטחון - סיום מוקדם"'
+                  maxLength="100"
+                  autoFocus
+                  required
+                  className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none text-sm"
+                />
+              </div>
+
+              {/* Requested by */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">מבקש השינוי</label>
+                <input
+                  type="text"
+                  name="requested_by"
+                  defaultValue="מחלקת ביטחון"
+                  className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none text-sm"
+                />
+              </div>
+
+              {/* Audit stamp preview */}
+              <div className="mb-4 p-3 bg-white/5 border border-white/10 rounded-lg">
+                <div className="text-[10px] text-gray-500 mb-1">חותמת שינוי:</div>
+                <div className="text-xs text-gray-300">
+                  📋 שונה ע"י: <span className="text-white font-bold">מוקד עירוני</span> • {new Date().toLocaleString('he-IL', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setShiftChangeModal({ open: false, entry: null, type: null })}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="submit"
+                  className={`flex-1 px-4 py-2 text-white rounded-lg font-medium transition ${
+                    shiftChangeModal.type === 'removed'
+                      ? 'bg-red-600 hover:bg-red-500'
+                      : 'bg-blue-600 hover:bg-blue-500'
+                  }`}
+                >
+                  {shiftChangeModal.type === 'removed' ? 'הורדה ממשמרת' : 'אישור שינוי'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Status Modal */}
       {statusModal.open && (
