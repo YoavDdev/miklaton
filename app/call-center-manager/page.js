@@ -10,6 +10,7 @@ import SurveyManager from '@/components/SurveyManager';
 import CallCategoryManager from '@/components/CallCategoryManager';
 import VacationManager from '@/components/VacationManager';
 import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
+import KnowledgeBaseManager from '@/components/KnowledgeBaseManager';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -593,6 +594,16 @@ export default function CallCenterManagerPage() {
               >
                 📱 WhatsApp כוננויות
               </button>
+              <button
+                onClick={() => setActiveTab('knowledge')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'knowledge'
+                    ? 'border-pink-600 text-pink-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                🧠 מאגר ידע
+              </button>
             </nav>
           </div>
         </div>
@@ -771,6 +782,13 @@ export default function CallCenterManagerPage() {
         {/* Tab Content - WhatsApp */}
         {activeTab === 'whatsapp' && (
           <WhatsAppDutyLinks />
+        )}
+
+        {/* Tab Content - Knowledge Base */}
+        {activeTab === 'knowledge' && (
+          <div className="bg-white rounded-lg shadow p-6">
+            <KnowledgeBaseManager userName={user?.full_name || user?.username || 'מנהל'} />
+          </div>
         )}
 
         {/* Tab Content - Messages & Announcements */}
