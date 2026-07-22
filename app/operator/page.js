@@ -14,7 +14,7 @@ import OperatorTasks from '@/components/OperatorTasks';
 import DailyUpdatesPanel from '@/components/DailyUpdatesPanel';
 import CallGuide from '@/components/CallGuide';
 import PanicButtonSearch from '@/components/PanicButtonSearch';
-import KnowledgeChat from '@/components/KnowledgeChat';
+import KnowledgeChatSidebar from '@/components/KnowledgeChatSidebar';
 import SecurityFieldStatus from '@/components/SecurityFieldStatus';
 import { getMunicipalityId } from '@/lib/municipality';
 import alertFlowsData from '@/data/alertFlows.json';
@@ -299,10 +299,8 @@ export default function OperatorPage() {
           <CallGuide />
         </div>
 
-        {/* Knowledge Chat - AI Assistant */}
-        <div className="mb-6 h-[500px]">
-          <KnowledgeChat userName={typeof window !== 'undefined' ? (localStorage.getItem('username') || 'מוקדן') : 'מוקדן'} />
-        </div>
+        {/* Knowledge Chat - Floating Sidebar */}
+        <KnowledgeChatSidebar userName={typeof window !== 'undefined' ? (localStorage.getItem('username') || 'מוקדן') : 'מוקדן'} />
 
         {/* Daily Updates - NEW */}
         <div className="mb-6">

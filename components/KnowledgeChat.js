@@ -68,13 +68,6 @@ export default function KnowledgeChat({ userName = 'מוקדן' }) {
     }
   };
 
-  const quickQuestions = [
-    'מה עושים עם רכב נטוש?',
-    'איך מטפלים בתלונה על כלבים?',
-    'מה הנוהל באירוע חירום?',
-    'למי מפנים פנייה על מפגע?'
-  ];
-
   return (
     <div className="flex flex-col h-full bg-gray-50 rounded-xl border border-gray-200 overflow-hidden" dir="rtl">
       {/* Header */}
@@ -121,24 +114,6 @@ export default function KnowledgeChat({ userName = 'מוקדן' }) {
         
         <div ref={messagesEndRef} />
       </div>
-
-      {/* Quick questions (only show if no user messages yet) */}
-      {messages.length <= 1 && (
-        <div className="px-4 pb-2">
-          <p className="text-xs text-gray-500 mb-2">שאלות לדוגמה:</p>
-          <div className="flex flex-wrap gap-2">
-            {quickQuestions.map((q, idx) => (
-              <button
-                key={idx}
-                onClick={() => setInput(q)}
-                className="text-xs bg-white border border-purple-200 text-purple-700 px-3 py-1.5 rounded-full hover:bg-purple-50 transition-colors"
-              >
-                {q}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Input */}
       <form onSubmit={handleSubmit} className="p-3 border-t border-gray-200 bg-white">
