@@ -7,7 +7,7 @@ import dynamic from 'next/dynamic';
 import FlowRunner from '@/components/FlowRunner';
 import ShelterSearch from '@/components/ShelterSearch';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
-import ReadOnlyNotifications from '@/components/ReadOnlyNotifications';
+import OperatorNotifications from '@/components/OperatorNotifications';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
@@ -290,7 +290,7 @@ export default function OperatorPage() {
             </button>
             {showNotifications && (
               <div className="px-5 pb-4">
-                <ReadOnlyNotifications compact />
+                <OperatorNotifications />
               </div>
             )}
           </div>
