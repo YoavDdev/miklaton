@@ -225,8 +225,6 @@ export default function GarbageScheduleInline() {
           </tbody>
         </table>
       </div>
-
-      <p className="text-xs text-gray-400 mt-3">📞 אנשי קשר תברואה: שמשון 050-6917771 | יוסי מססה 050-8440888</p>
     </div>
   );
 }

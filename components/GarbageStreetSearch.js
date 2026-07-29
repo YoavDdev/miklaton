@@ -351,21 +351,6 @@ function DetailCard({ streetGroup, onClose, onSaved }) {
               )}
             </div>
           )}
-
-          {/* Contact info */}
-          <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-            <p className="text-xs text-gray-500 font-semibold mb-2">📞 אנשי קשר תברואה</p>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">שמשון</span>
-                <a href="tel:050-6917771" className="text-sm text-blue-600 font-mono">050-6917771</a>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-gray-700">יוסי מססה</span>
-                <a href="tel:050-8440888" className="text-sm text-blue-600 font-mono">050-8440888</a>
-              </div>
-            </div>
-          </div>
         </div>
       </div>
     </div>

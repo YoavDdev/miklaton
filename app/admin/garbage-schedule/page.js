@@ -421,7 +421,6 @@ export default function GarbageSchedulePage() {
           <ul className="text-sm text-yellow-700 space-y-1">
             <li>• <strong>יום ההוצאה</strong> = יום לפני יום הפינוי (התושב צריך להוציא בערב שלפני)</li>
             <li>• <strong>מונוסון</strong> = פינוי בימי ראשון ושישי</li>
-            <li>• <strong>אנשי קשר תברואה:</strong> שמשון 050-6917771, יוסי מססה 050-8440888</li>
           </ul>
         </div>
       </main>

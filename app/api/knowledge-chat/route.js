@@ -253,8 +253,7 @@ async function fetchLiveData() {
 
     if (garbageSchedule && garbageSchedule.length > 0) {
       liveContext += '\n## לוח זמנים פינוי גזם:\n';
-      liveContext += 'חשוב: יום ההוצאה = יום לפני הפינוי. יש לומר לתושב מתי להוציא ומתי הפינוי.\n';
-      liveContext += 'אנשי קשר תברואה: שמשון 050-6917771, יוסי מססה 050-8440888\n\n';
+      liveContext += 'חשוב: יום ההוצאה = יום לפני הפינוי. יש לומר לתושב מתי להוציא ומתי הפינוי.\n\n';
       garbageSchedule.forEach(s => {
         if (s.street_name === 'אנשי קשר תברואה') return;
         liveContext += `- ${s.street_name}: פינוי יום ${s.collection_day_hebrew}`;
