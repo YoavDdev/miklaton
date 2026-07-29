@@ -254,7 +254,7 @@ async function fetchLiveData() {
 
     if (garbageSchedule && garbageSchedule.length > 0) {
       liveContext += '\n## לוח זמנים פינוי גזם:\n';
-      liveContext += 'חשוב: יום ההוצאה = יום לפני הפינוי. יש לומר לתושב מתי להוציא ומתי הפינוי.\n\n';
+      liveContext += 'לכל רחוב מצוינים במפורש יום הפינוי ויום ההוצאה. השתמש בדיוק בערכים שכתובים כאן - אל תחשב יום הוצאה בעצמך.\n\n';
       garbageSchedule.forEach(s => {
         if (s.street_name === 'אנשי קשר תברואה') return;
         liveContext += `- ${s.street_name}: פינוי יום ${s.collection_day_hebrew}`;
@@ -309,6 +309,30 @@ async function fetchLiveData() {
   return liveContext;
 }
 
+// Deterministic garbage lookup: find streets named in the question and return
+// an authoritative answer, so the LLM never has to guess the takeout day.
+async function findGarbageMatch(question) {
+  try {
+    const { data } = await supabase
+      .from('garbage_collection_schedule')
+      .select('street_name, collection_day_hebrew, takeout_day_hebrew, zone')
+      .eq('is_active', true);
+    if (!data) return '';
+    const q = String(question || '').replace(/[?.,!"'\-()]/g, ' ');
+    const matches = data.filter(s =>
+      s.street_name && s.street_name !== 'אנשי קשר תברואה' && q.includes(s.street_name)
+    );
+    if (matches.length === 0) return '';
+    let out = '\n\n⚠️ תשובה מדויקת ומחייבת לרחוב/ות שנשאלו (זו האמת - השתמש בערכים האלה בדיוק, אל תשנה ואל תחשב):\n';
+    matches.forEach(s => {
+      out += `- ${s.street_name}: פינוי יום ${s.collection_day_hebrew || '?'}, הוצאה יום ${s.takeout_day_hebrew || '?'}${s.zone ? ` | אזור ${s.zone}` : ''}\n`;
+    });
+    return out;
+  } catch {
+    return '';
+  }
+}
+
 // =====================================================
 // SYSTEM PROMPT
 // =====================================================
@@ -345,7 +369,7 @@ const SYSTEM_PROMPT_BASE = `אתה עוזר AI מתקדם למוקדנים במ�
 - כששואלים "מי עובד עכשיו/כרגע" - הצג רק את מי שהמשמרת שלו פעילה עכשיו
 - כששואלים "מי עובד היום" - הצג את כל רשימת העובדים ליום
 - "כוננים" = כוננות חירום, לא עובדים רגילים
-- כששואלים על גזם ברחוב ספציפי: חפש ברשימה, תן יום פינוי + יום הוצאה + אנשי קשר. מונוסון = שישי וראשון
+- כששואלים על גזם ברחוב ספציפי: מצא את השורה של הרחוב ברשימת "לוח זמנים פינוי גזם", וקרא ממנה בדיוק את "פינוי יום X" ואת "הוצאה יום Y" כפי שכתוב. אל תחשב את יום ההוצאה בעצמך ואל תנחש - השתמש רק בערך שמופיע בשורה. אם לא מצאת את הרחוב ברשימה, אמור שאין מידע ואל תמציא
 - כששואלים "מי אחראי על אגף X" / "לחצן מצוקה של Y" / על איש קשר במחלקה: חפש ברשימת "לחצני מצוקה" ותן את השם, התפקיד והטלפון. אם יש הוראות למוקדן - ציין אותן
 - כששואלים על מקלט לפי כתובת/שכונה: חפש ברשימת "מקלטים ציבוריים" ותן את מספר המקלט, הכתובת והוראות ההגעה. אם יש כמה קרובים - הצע את הרלוונטי לכתובת שנמסרה
 - זכור את ההקשר של השיחה ואל תחזור על עצמך`;
@@ -372,10 +396,11 @@ export async function POST(request) {
     let session = getSession(sid) || createSession(sid);
 
     // Parallel data fetching
-    const [scoredEntries, liveData, updatesContext] = await Promise.all([
+    const [scoredEntries, liveData, updatesContext, garbageMatch] = await Promise.all([
       searchKnowledgeBase(question),
       fetchLiveData(),
-      fetchDailyUpdatesAndNotifications()
+      fetchDailyUpdatesAndNotifications(),
+      findGarbageMatch(question)
     ]);
 
     // Build knowledge context (only relevant entries)
@@ -392,7 +417,7 @@ export async function POST(request) {
 
     // Build full system prompt with all context
     const fullSystemPrompt = `${SYSTEM_PROMPT_BASE}
-
+${garbageMatch}
 === מדריך המערכת ===
 ${appGuideContext}
 
