@@ -507,6 +507,78 @@ export default function PanicButtonSearch() {
     debounceRef.current = setTimeout(() => search(val), 180);
   };
 
+  const handlePrint = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/panic-buttons');
+      const data = await res.json();
+      const buttons = (data.buttons || []).slice().sort((a, b) => (a.name || '').localeCompare(b.name || '', 'he'));
+
+      const esc = (s) => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const parseContacts = (c) => {
+        if (Array.isArray(c)) return c;
+        if (typeof c === 'string') { try { return JSON.parse(c); } catch { return []; } }
+        return [];
+      };
+
+      const rows = buttons.map(b => {
+        const cat = CATEGORY_LABELS[b.category] || CATEGORY_LABELS.other;
+        const contacts = parseContacts(b.contacts)
+          .filter(c => c && (c.name || c.phone))
+          .map(c => `${esc(c.name || '')}${c.role ? ' (' + esc(c.role) + ')' : ''}${c.phone ? ' — ' + esc(c.phone) : ''}`)
+          .join('<br>');
+        return `
+        <tr>
+          <td style="font-weight:bold">${esc(b.name)}</td>
+          <td style="text-align:center">${esc(cat.label)}</td>
+          <td>${esc(b.address)}</td>
+          <td>${contacts || '<span style="color:#999">—</span>'}</td>
+          <td>${esc(b.operator_instructions || '')}</td>
+          <td class="note">&nbsp;</td>
+        </tr>`;
+      }).join('');
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html dir="rtl"><head><title>לחצני מצוקה - יהוד-מונוסון</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; margin: 10px; direction: rtl; font-size: 11px; color: #111; background: #fff; }
+          @page { margin: 0.6cm; size: A4; }
+          table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+          tr { page-break-inside: avoid; }
+          thead { display: table-header-group; background: #f0f0f0; }
+          th, td { border: 1px solid #999; padding: 5px 7px; vertical-align: top; }
+          th { text-align: right; }
+          td.note { background: #fff; height: 30px; }
+          .head { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+        </style></head>
+        <body>
+          <div class="head">
+            <h1 style="font-size:18px;margin:0">🆘 לחצני מצוקה - יהוד-מונוסון</h1>
+            <p style="font-size:11px;color:#666;margin:4px 0 0 0">${new Date().toLocaleDateString('he-IL')} · ${buttons.length} לחצנים</p>
+          </div>
+          <table>
+            <thead><tr>
+              <th style="width:17%">שם</th>
+              <th style="width:11%;text-align:center">קטגוריה</th>
+              <th style="width:18%">כתובת</th>
+              <th style="width:22%">אנשי קשר</th>
+              <th style="width:16%">הוראות למוקדן</th>
+              <th style="width:16%">הערות</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body></html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 500);
+    } catch {
+      alert('שגיאה בהפקת ההדפסה');
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (!open || results.length === 0) return;
     if (e.key === 'ArrowDown') {
@@ -623,6 +695,14 @@ export default function PanicButtonSearch() {
           </div>
         )}
       </div>
+
+      <button
+        onClick={handlePrint}
+        className="shrink-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+        title="הדפס לחצני מצוקה (PDF)"
+      >
+        🖨️
+      </button>
 
       <button
         onClick={() => setShowNew(true)}

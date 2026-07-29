@@ -390,6 +390,65 @@ export default function GarbageStreetSearch() {
     debounceRef.current = setTimeout(() => search(val), 180);
   };
 
+  const handlePrint = async () => {
+    if (typeof window === 'undefined') return;
+    try {
+      const res = await fetch('/api/garbage-collection');
+      const data = await res.json();
+      const entries = (data.schedule || [])
+        .filter(e => e.street_name && e.street_name !== 'אנשי קשר תברואה')
+        .sort((a, b) => (a.street_name || '').localeCompare(b.street_name || '', 'he'));
+
+      const esc = (s) => String(s ?? '').replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+      const rows = entries.map(e => `
+        <tr>
+          <td>${esc(e.street_name)}</td>
+          <td style="text-align:center">${esc(e.collection_day_hebrew)}</td>
+          <td style="text-align:center;font-weight:bold">${esc(e.takeout_day_hebrew || TAKEOUT_MAP[e.collection_day] || '')}</td>
+          <td style="text-align:center">${esc(e.zone)}</td>
+          <td class="note">&nbsp;</td>
+        </tr>`).join('');
+
+      const printWindow = window.open('', '_blank');
+      printWindow.document.write(`
+        <html dir="rtl"><head><title>לוח פינוי גזם - יהוד-מונוסון</title>
+        <style>
+          * { box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; margin: 10px; direction: rtl; font-size: 11px; color: #111; background: #fff; }
+          @page { margin: 0.6cm; size: A4; }
+          table { width: 100%; border-collapse: collapse; page-break-inside: auto; }
+          tr { page-break-inside: avoid; }
+          thead { display: table-header-group; background: #f0f0f0; }
+          th, td { border: 1px solid #999; padding: 5px 7px; }
+          th { text-align: right; }
+          td.note { width: 30%; background: #fff; height: 26px; }
+          .head { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8px; margin-bottom: 12px; }
+        </style></head>
+        <body>
+          <div class="head">
+            <h1 style="font-size:18px;margin:0">🗑️ לוח פינוי גזם - יהוד-מונוסון</h1>
+            <p style="font-size:11px;color:#666;margin:4px 0 0 0">${new Date().toLocaleDateString('he-IL')} · ${entries.length} רחובות · יום ההוצאה = יום לפני הפינוי</p>
+          </div>
+          <table>
+            <thead><tr>
+              <th style="width:26%">רחוב</th>
+              <th style="width:14%;text-align:center">יום פינוי</th>
+              <th style="width:14%;text-align:center">יום הוצאה</th>
+              <th style="width:16%;text-align:center">אזור</th>
+              <th style="width:30%">הערות</th>
+            </tr></thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </body></html>
+      `);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => printWindow.print(), 500);
+    } catch {
+      alert('שגיאה בהפקת ההדפסה');
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (!open || results.length === 0) return;
     if (e.key === 'ArrowDown') {
@@ -494,6 +553,14 @@ export default function GarbageStreetSearch() {
           </div>
         )}
       </div>
+
+      <button
+        onClick={handlePrint}
+        className="shrink-0 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold px-2.5 py-1.5 rounded-lg transition-colors flex items-center gap-1"
+        title="הדפס לוח גזם (PDF)"
+      >
+        🖨️
+      </button>
 
       <button
         onClick={() => setShowNew(true)}
