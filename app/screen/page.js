@@ -79,7 +79,10 @@ export default function ScreenPage() {
   const [timingMode, setTimingMode] = useState('immediate');
   const [vacations, setVacations] = useState([]);
   const [actionMenu, setActionMenu] = useState({ open: false, entry: null }); // quick action menu on staff card
-  const [shiftChangeModal, setShiftChangeModal] = useState({ open: false, entry: null, type: null }); // 'end_time_change', 'time_change', 'removed'
+  const [shiftChangeModal, setShiftChangeModal] = useState({ open: false, entry: null, type: null }); // 'end_time_change', 'time_change', 'replaced', 'removed'
+  const [addShiftModal, setAddShiftModal] = useState({ open: false }); // add a new shift for a security staff member
+  const [staffList, setStaffList] = useState([]); // security staff for the add-shift dropdown
+  const [addShiftSaving, setAddShiftSaving] = useState(false);
 
   // Live clock
   useEffect(() => {
@@ -511,6 +514,47 @@ export default function ScreenPage() {
     }
   };
 
+  const openAddShift = async () => {
+    setAddShiftModal({ open: true });
+    try {
+      const deptId = securityDeptIdRef.current;
+      if (!deptId) return;
+      const res = await fetch(`/api/security-staff?department_id=${deptId}`);
+      const data = await res.json();
+      if (data.success) setStaffList(data.data || []);
+    } catch {}
+  };
+
+  const submitAddShift = async ({ staff_id, staff_name, role, start_time, end_time }) => {
+    setAddShiftSaving(true);
+    try {
+      const role_title = role === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני';
+      const res = await fetch('/api/security-daily-order/entry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          department_id: securityDeptIdRef.current,
+          order_date: formatDateForDB(new Date()),
+          staff_id: staff_id || null,
+          staff_name,
+          role_title,
+          start_time,
+          end_time
+        })
+      });
+      const data = await res.json();
+      if (data.success) {
+        await fetchSecurityStatus();
+        setAddShiftModal({ open: false });
+      } else {
+        alert('שגיאה: ' + (data.error || 'לא ניתן להוסיף משמרת'));
+      }
+    } catch {
+      alert('שגיאת תקשורת');
+    }
+    setAddShiftSaving(false);
+  };
+
   const toggleStaffBreak = (staffId) => {
     setStaffOnBreak(prev => {
       const updated = { ...prev };
@@ -928,7 +972,7 @@ export default function ScreenPage() {
         <div className="px-4 py-3 bg-gradient-to-l from-green-900/50 to-green-800/50 border-b border-white/10 flex items-center gap-2 shrink-0">
           <span className="text-xl">🛡️</span>
           <h2 className="font-bold text-base flex-1">ביטחון - כרגע בשטח</h2>
-          <div className="flex gap-2">
+          <div className="flex items-center gap-2">
             {(() => {
               const patrolCount = activeSecurityNow.filter(e => e.role_title && e.role_title.includes('שיטור')).length;
               const inspectorCount = activeSecurityNow.length - patrolCount;
@@ -947,6 +991,13 @@ export default function ScreenPage() {
                 </>
               );
             })()}
+            <button
+              onClick={openAddShift}
+              title="הוסף משמרת"
+              className="text-white bg-green-700/70 hover:bg-green-600 border border-green-500/40 rounded-lg w-7 h-7 flex items-center justify-center text-lg leading-none shrink-0 transition"
+            >
+              ＋
+            </button>
           </div>
         </div>
 
@@ -1483,6 +1534,103 @@ export default function ScreenPage() {
                   }`}
                 >
                   {shiftChangeModal.type === 'removed' ? 'הורדה ממשמרת' : shiftChangeModal.type === 'replaced' ? '🔄 אישור החלפה' : 'אישור שינוי'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add Shift Modal - add a security staff member to today's shift */}
+      {addShiftModal.open && (
+        <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4" onClick={() => setAddShiftModal({ open: false })}>
+          <div className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
+              <span>➕</span> הוספת משמרת
+            </h2>
+            <div className="text-sm text-gray-400 mb-4">מתוך רשימת עובדי הביטחון בלבד (פיקוח / שיטור)</div>
+
+            <form onSubmit={(e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const staffId = formData.get('staff_id');
+              const staff = staffList.find(s => s.id === staffId);
+              if (!staff) { alert('נא לבחור עובד'); return; }
+              const start = formData.get('start_time');
+              const end = formData.get('end_time');
+              if (!start || !end) { alert('נא להזין שעת התחלה וסיום'); return; }
+              submitAddShift({ staff_id: staff.id, staff_name: staff.full_name, role: staff.role, start_time: start, end_time: end });
+            }}>
+              {/* Staff select */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">עובד *</label>
+                {staffList.length === 0 ? (
+                  <div className="text-sm text-gray-500 py-2">טוען רשימת עובדים...</div>
+                ) : (
+                  <select
+                    name="staff_id"
+                    required
+                    defaultValue=""
+                    className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none text-sm"
+                  >
+                    <option value="" disabled>— בחר עובד —</option>
+                    <optgroup label="👮 פיקוח">
+                      {staffList.filter(s => s.role !== 'שיטור').map(s => (
+                        <option key={s.id} value={s.id}>{s.full_name}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="🚓 שיטור">
+                      {staffList.filter(s => s.role === 'שיטור').map(s => (
+                        <option key={s.id} value={s.id}>{s.full_name}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                )}
+              </div>
+
+              {/* Times */}
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-300 mb-2">שעות המשמרת</label>
+                <div className="flex gap-3 items-center">
+                  <div className="flex-1">
+                    <input
+                      type="time"
+                      name="start_time"
+                      defaultValue="07:00"
+                      required
+                      className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none font-mono"
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-center">התחלה</p>
+                  </div>
+                  <span className="text-gray-500 text-xl">←</span>
+                  <div className="flex-1">
+                    <input
+                      type="time"
+                      name="end_time"
+                      defaultValue="15:00"
+                      required
+                      className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white focus:border-blue-500 focus:outline-none font-mono"
+                    />
+                    <p className="text-xs text-gray-500 mt-1 text-center">סיום</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Buttons */}
+              <div className="flex gap-3">
+                <button
+                  type="button"
+                  onClick={() => setAddShiftModal({ open: false })}
+                  className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg font-medium transition"
+                >
+                  ביטול
+                </button>
+                <button
+                  type="submit"
+                  disabled={addShiftSaving}
+                  className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg font-medium transition disabled:opacity-60"
+                >
+                  {addShiftSaving ? 'מוסיף...' : '➕ הוסף למשמרת'}
                 </button>
               </div>
             </form>

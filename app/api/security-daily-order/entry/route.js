@@ -148,6 +148,72 @@ export async function PATCH(request) {
   }
 }
 
+// POST - add a single new shift entry to a day's order (get-or-create the order)
+export async function POST(request) {
+  try {
+    const body = await request.json();
+    const { department_id, order_date, staff_id, staff_name, role_title, category, start_time, end_time } = body;
+
+    if (!department_id || !order_date) {
+      return NextResponse.json({ success: false, error: 'department_id and order_date required' }, { status: 400 });
+    }
+    if (!staff_id && !staff_name) {
+      return NextResponse.json({ success: false, error: 'staff_id or staff_name required' }, { status: 400 });
+    }
+    if (!start_time || !end_time) {
+      return NextResponse.json({ success: false, error: 'start_time and end_time required' }, { status: 400 });
+    }
+
+    // Get or create the daily order for this date (without touching existing notes)
+    let { data: order } = await supabase
+      .from('security_daily_orders')
+      .select('*')
+      .eq('department_id', department_id)
+      .eq('order_date', order_date)
+      .single();
+
+    if (!order) {
+      const { data: created, error: createErr } = await supabase
+        .from('security_daily_orders')
+        .insert({ department_id, order_date })
+        .select()
+        .single();
+      if (createErr) throw createErr;
+      order = created;
+    }
+
+    // Append to the end of the list
+    const { count } = await supabase
+      .from('security_daily_order_entries')
+      .select('id', { count: 'exact', head: true })
+      .eq('order_id', order.id);
+
+    const resolvedRole = role_title || 'פיקוח עירוני';
+    const resolvedCategory = category || (resolvedRole.includes('שיטור') ? 'שיטור' : 'פיקוח');
+
+    const { data: entry, error: insertError } = await supabase
+      .from('security_daily_order_entries')
+      .insert({
+        order_id: order.id,
+        staff_id: staff_id || null,
+        staff_name: staff_name || null,
+        category: resolvedCategory,
+        role_title: resolvedRole,
+        start_time,
+        end_time,
+        display_order: count || 0
+      })
+      .select()
+      .single();
+
+    if (insertError) throw insertError;
+
+    return NextResponse.json({ success: true, data: entry });
+  } catch (error) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
 // GET - get change history for an entry or order
 export async function GET(request) {
   try {
