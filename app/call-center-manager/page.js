@@ -12,6 +12,7 @@ import VacationManager from '@/components/VacationManager';
 import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
 import KnowledgeBaseManager from '@/components/KnowledgeBaseManager';
 import GarbageScheduleInline from '@/components/GarbageScheduleInline';
+import GarbageStreetSearch from '@/components/GarbageStreetSearch';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -456,6 +457,7 @@ export default function CallCenterManagerPage() {
             >
               {warMode ? '🚨 מצב חירום' : '⚪ מצב רגיל'}
             </button>
+            <GarbageStreetSearch />
           </div>
         </div>
       </header>

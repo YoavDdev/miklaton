@@ -14,6 +14,7 @@ import OperatorTasks from '@/components/OperatorTasks';
 import DailyUpdatesPanel from '@/components/DailyUpdatesPanel';
 import CallGuide from '@/components/CallGuide';
 import PanicButtonSearch from '@/components/PanicButtonSearch';
+import GarbageStreetSearch from '@/components/GarbageStreetSearch';
 import KnowledgeChatSidebar from '@/components/KnowledgeChatSidebar';
 import SecurityFieldStatus from '@/components/SecurityFieldStatus';
 import { getMunicipalityId } from '@/lib/municipality';
@@ -213,6 +214,7 @@ export default function OperatorPage() {
           <div className="flex items-center gap-3">
             <h1 className="text-xl font-bold shrink-0">🎧 מוקד חירום</h1>
             <PanicButtonSearch />
+            <GarbageStreetSearch />
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <button

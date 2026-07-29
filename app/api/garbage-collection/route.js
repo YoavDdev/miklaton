@@ -22,7 +22,7 @@ export async function GET(request) {
       .order('street_name', { ascending: true });
 
     if (street) {
-      query = query.or(`street_name.ilike.%${street}%,street_name_alt.ilike.%${street}%`);
+      query = query.ilike('street_name', `%${street}%`);
     }
     if (day) {
       query = query.eq('collection_day', day);

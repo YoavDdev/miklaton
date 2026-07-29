@@ -173,12 +173,45 @@ INSERT INTO garbage_collection_schedule (street_name, collection_day, collection
 ('תדהר', 'thursday', 'חמישי', 'רביעי', 'יהוד');
 
 -- =====================================================
--- Monosson - Every Sunday (collection) / Friday (takeout)
--- and every Friday (collection) / Thursday (takeout)
+-- Monosson - Specific streets
+-- Takeout: Thursday (before Friday) and Saturday (before Sunday)
+-- Collection: Friday and Sunday
 -- =====================================================
-INSERT INTO garbage_collection_schedule (street_name, collection_day, collection_day_hebrew, takeout_day_hebrew, zone, notes) VALUES
-('כל מונוסון', 'sunday', 'ראשון', 'שישי', 'מונוסון', 'כל הרחובות במונוסון - פינוי ביום ראשון, הוצאה ביום שישי'),
-('כל מונוסון', 'friday', 'שישי', 'חמישי', 'מונוסון', 'כל הרחובות במונוסון - פינוי ביום שישי, הוצאה ביום חמישי');
+INSERT INTO garbage_collection_schedule (street_name, collection_day, collection_day_hebrew, takeout_day_hebrew, zone) VALUES
+('אגוז', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('אגוז', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('אתרוג', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('אתרוג', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('הגפן', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('הגפן', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('הדר', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('הדר', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('רימון', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('רימון', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('צנובר', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('צנובר', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('שקד', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('שקד', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('שוהם', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('שוהם', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('תמר', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('תמר', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('תרשיש', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('תרשיש', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('שנהב', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('שנהב', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('ספיר', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('ספיר', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('אלמוג', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('אלמוג', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('פנינים', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('פנינים', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('יהלום', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('יהלום', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('ברקת', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('ברקת', 'sunday', 'ראשון', 'שבת', 'מונוסון'),
+('ענבר', 'friday', 'שישי', 'חמישי', 'מונוסון'),
+('ענבר', 'sunday', 'ראשון', 'שבת', 'מונוסון');
 
 -- Contact info for garbage dept
 INSERT INTO garbage_collection_schedule (street_name, collection_day, collection_day_hebrew, takeout_day_hebrew, zone, notes) VALUES
