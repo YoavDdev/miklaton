@@ -1009,7 +1009,7 @@ export default function ScreenPage() {
                           <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} bg-red-900/60 text-red-300 px-1 py-0.5 rounded`}>❌ {isCompact ? 'ירד' : 'ירד ממשמרת'}</span>
                         )}
                         {isModified && !hasStatus && (
-                          <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} bg-yellow-800/60 text-yellow-300 px-1 py-0.5 rounded`}>שונה</span>
+                          <span className={`${isCompact ? 'text-[8px]' : 'text-[10px]'} bg-blue-800/60 text-blue-200 px-1 py-0.5 rounded`}>🔄 הוחלף/ה</span>
                         )}
                         {hasStatus && breakTime && (
                           <span className={`${isCompact ? 'text-[10px]' : 'text-xs'} font-mono ${
@@ -1043,8 +1043,11 @@ export default function ScreenPage() {
                           {statusInfo.icon} {statusInfo.label}
                         </div>
                       )}
-                      {!isCompact && (isRemoved || isModified) && entry.modification_note && (
-                        <div className={`text-[10px] mt-0.5 ${isRemoved ? 'text-red-400/70' : 'text-yellow-400/70'}`}>📝 {entry.modification_note}</div>
+                      {!isCompact && isModified && entry.original_staff_name && (
+                        <div className="text-[10px] mt-0.5 text-blue-300/80">🔄 במקום {entry.original_staff_name}{entry.modification_note ? ` · ${entry.modification_note}` : ''}</div>
+                      )}
+                      {!isCompact && isRemoved && entry.modification_note && (
+                        <div className="text-[10px] mt-0.5 text-red-400/70">📝 {entry.modification_note}</div>
                       )}
                     </div>
                     {entry.vehicle && !isRemoved && !isCompact && (
@@ -1116,7 +1119,7 @@ export default function ScreenPage() {
                           <span className="text-[9px] bg-red-900/60 text-red-300 px-1 py-0.5 rounded">❌ ירד</span>
                         )}
                         {isModified && (
-                          <span className="text-[9px] bg-yellow-800/60 text-yellow-300 px-1 py-0.5 rounded">שונה</span>
+                          <span className="text-[9px] bg-blue-800/60 text-blue-200 px-1 py-0.5 rounded" title={entry.original_staff_name ? `במקום ${entry.original_staff_name}` : ''}>🔄 הוחלף/ה</span>
                         )}
                       </div>
                       <div className="flex items-center gap-2">
@@ -1255,6 +1258,21 @@ export default function ScreenPage() {
                 </div>
               </button>
 
+              {/* Replace staff member */}
+              <button
+                onClick={() => {
+                  setShiftChangeModal({ open: true, entry: actionMenu.entry, type: 'replaced' });
+                  setActionMenu({ open: false, entry: null });
+                }}
+                className="w-full text-right px-4 py-3 rounded-xl border bg-white/5 border-white/10 text-white hover:bg-blue-900/20 hover:border-blue-700/50 transition flex items-center gap-3"
+              >
+                <span className="text-xl">🔄</span>
+                <div>
+                  <div className="font-bold text-sm">החלפה במשמרת</div>
+                  <div className="text-xs text-gray-400">מישהו אחר נכנס במקומו, אותן שעות</div>
+                </div>
+              </button>
+
               {/* Remove from shift */}
               <button
                 onClick={() => {
@@ -1305,7 +1323,7 @@ export default function ScreenPage() {
           <div className="bg-gray-900 border-2 border-gray-700 rounded-2xl p-6 max-w-md w-full shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-xl font-bold text-white mb-1 flex items-center gap-2">
               {shiftChangeModal.type === 'removed' ? '❌' : shiftChangeModal.type === 'end_time_change' ? '⏰' : '🔄'}
-              {shiftChangeModal.type === 'removed' ? 'הורדה ממשמרת' : shiftChangeModal.type === 'end_time_change' ? 'שינוי שעת סיום' : 'שינוי שעות משמרת'}
+              {shiftChangeModal.type === 'removed' ? 'הורדה ממשמרת' : shiftChangeModal.type === 'end_time_change' ? 'שינוי שעת סיום' : shiftChangeModal.type === 'replaced' ? 'החלפה במשמרת' : 'שינוי שעות משמרת'}
             </h2>
             <div className="text-sm text-gray-400 mb-4">
               {shiftChangeModal.entry.staff_name || shiftChangeModal.entry.staff?.full_name} • {shiftChangeModal.entry.start_time}-{shiftChangeModal.entry.end_time}
@@ -1317,7 +1335,8 @@ export default function ScreenPage() {
               const reason = formData.get('reason') || '';
               const requestedBy = formData.get('requested_by') || 'מחלקת ביטחון';
 
-              if (!reason.trim()) {
+              // Reason is required for everything except a simple replacement
+              if (shiftChangeModal.type !== 'replaced' && !reason.trim()) {
                 alert('נא להזין סיבה לשינוי');
                 return;
               }
@@ -1334,6 +1353,10 @@ export default function ScreenPage() {
                 if (!newStart && !newEnd) { alert('נא להזין לפחות שעה אחת'); return; }
                 if (newStart) data.new_start_time = newStart;
                 if (newEnd) data.new_end_time = newEnd;
+              } else if (shiftChangeModal.type === 'replaced') {
+                const newName = (formData.get('new_staff_name') || '').trim();
+                if (!newName) { alert('נא להזין את שם המחליף/ה'); return; }
+                data.new_staff_name = newName;
               }
 
               submitShiftChange(shiftChangeModal.entry.id, shiftChangeModal.type, data);
@@ -1382,6 +1405,23 @@ export default function ScreenPage() {
                 </div>
               )}
 
+              {/* Replacement - new staff name */}
+              {shiftChangeModal.type === 'replaced' && (
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-300 mb-2">מי נכנס במקומו/ה? *</label>
+                  <input
+                    type="text"
+                    name="new_staff_name"
+                    placeholder="שם המחליף/ה"
+                    maxLength="100"
+                    autoFocus
+                    required
+                    className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none text-lg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">אותן שעות ({shiftChangeModal.entry.start_time}-{shiftChangeModal.entry.end_time}). המקורי: {shiftChangeModal.entry.original_staff_name || shiftChangeModal.entry.staff_name}</p>
+                </div>
+              )}
+
               {/* Removal confirmation */}
               {shiftChangeModal.type === 'removed' && (
                 <div className="mb-4 p-3 bg-red-900/30 border border-red-700/50 rounded-lg">
@@ -1390,16 +1430,18 @@ export default function ScreenPage() {
                 </div>
               )}
 
-              {/* Reason - required */}
+              {/* Reason - required except for a simple replacement */}
               <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-300 mb-2">סיבה לשינוי *</label>
+                <label className="block text-sm font-medium text-gray-300 mb-2">
+                  {shiftChangeModal.type === 'replaced' ? 'סיבה / הערה (אופציונלי)' : 'סיבה לשינוי *'}
+                </label>
                 <input
                   type="text"
                   name="reason"
-                  placeholder='לדוגמה: "לבקשת מנהל ביטחון - סיום מוקדם"'
+                  placeholder={shiftChangeModal.type === 'replaced' ? 'למשל: "החלפה בתיאום ביניהם"' : 'לדוגמה: "לבקשת מנהל ביטחון - סיום מוקדם"'}
                   maxLength="100"
-                  autoFocus
-                  required
+                  autoFocus={shiftChangeModal.type !== 'replaced'}
+                  required={shiftChangeModal.type !== 'replaced'}
                   className="w-full px-3 py-2.5 bg-gray-800 border-2 border-gray-700 rounded-lg text-white placeholder-gray-500 focus:border-blue-500 focus:outline-none text-sm"
                 />
               </div>
@@ -1440,7 +1482,7 @@ export default function ScreenPage() {
                       : 'bg-blue-600 hover:bg-blue-500'
                   }`}
                 >
-                  {shiftChangeModal.type === 'removed' ? 'הורדה ממשמרת' : 'אישור שינוי'}
+                  {shiftChangeModal.type === 'removed' ? 'הורדה ממשמרת' : shiftChangeModal.type === 'replaced' ? '🔄 אישור החלפה' : 'אישור שינוי'}
                 </button>
               </div>
             </form>
