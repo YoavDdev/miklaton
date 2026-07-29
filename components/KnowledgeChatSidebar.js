@@ -1,15 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import KnowledgeChat from '@/components/KnowledgeChat';
 
 export default function KnowledgeChatSidebar({ userName = 'מוקדן' }) {
   const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    const timer = setTimeout(() => setIsOpen(true), 2000);
-    return () => clearTimeout(timer);
-  }, []);
 
   return (
     <>
