@@ -52,6 +52,7 @@ export async function GET(request) {
         vacation_end,
         vacation_reason,
         replacement_contact_id,
+        replacement_note,
         updated_at,
         call_category:call_categories!call_category_contacts_call_category_id_fkey(
           id,
@@ -88,6 +89,7 @@ export async function GET(request) {
         vacation_reason,
         municipality_id,
         replacement_contact_id,
+        replacement_note,
         updated_at
       `)
       .eq('active', true)
@@ -106,6 +108,7 @@ export async function GET(request) {
       vacation_start: v.vacation_start,
       vacation_end: v.vacation_end,
       vacation_reason: v.vacation_reason,
+      replacement_note: v.replacement_note,
       updated_at: v.updated_at,
       call_category: null,
       replacement: null // TODO: fetch replacement separately if needed

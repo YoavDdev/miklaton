@@ -34,7 +34,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { name, phone, municipality_id, department_id, on_vacation, vacation_start, vacation_end, vacation_reason, replacement_contact_id } = body;
+    const { name, phone, municipality_id, department_id, on_vacation, vacation_start, vacation_end, vacation_reason, replacement_contact_id, replacement_note } = body;
 
     if (!name || !phone) {
       return NextResponse.json(
@@ -55,7 +55,8 @@ export async function POST(request) {
         ...(vacation_start && { vacation_start }),
         ...(vacation_end && { vacation_end }),
         ...(vacation_reason && { vacation_reason }),
-        ...(replacement_contact_id && { replacement_contact_id })
+        ...(replacement_contact_id && { replacement_contact_id }),
+        ...(replacement_note && { replacement_note })
       })
       .select()
       .single();

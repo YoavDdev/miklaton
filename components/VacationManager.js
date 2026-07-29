@@ -4,17 +4,20 @@ import { useState, useEffect } from 'react';
 import { getMunicipalityId } from '@/lib/municipality';
 
 export default function VacationManager() {
+  // Vacation management: add / edit vacations + free-text replacement note
   const [vacations, setVacations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingPerson, setEditingPerson] = useState(null); // when set, the modal edits an existing vacation
   const [phonebookContacts, setPhonebookContacts] = useState([]);
   const [categories, setCategories] = useState([]);
-  
+
   const [vacationForm, setVacationForm] = useState({
     contact_id: '',
     vacation_start: '',
     vacation_end: '',
     reason: 'חופש',
+    replacement_note: '',
     // For contact search/creation:
     contact_search: '',
     contact_phone: '',
@@ -130,17 +133,82 @@ export default function VacationManager() {
 
   const closeModal = () => {
     setShowAddModal(false);
-    setVacationForm({ 
-      contact_id: '', 
-      vacation_start: '', 
-      vacation_end: '', 
-      reason: 'חופש', 
-      contact_search: '', 
-      contact_phone: '', 
+    setEditingPerson(null);
+    setVacationForm({
+      contact_id: '',
+      vacation_start: '',
+      vacation_end: '',
+      reason: 'חופש',
+      replacement_note: '',
+      contact_search: '',
+      contact_phone: '',
       contact_category_id: ''
     });
     setContactSuggestions([]);
     setShowContactSuggestions(false);
+  };
+
+  const openEditVacation = (person) => {
+    setEditingPerson(person);
+    setVacationForm({
+      contact_id: '',
+      vacation_start: person.vacation_start || '',
+      vacation_end: person.vacation_end || '',
+      reason: person.vacation_reason || 'חופש',
+      replacement_note: person.replacement_note || '',
+      contact_search: person.name || '',
+      contact_phone: person.phone || '',
+      contact_category_id: ''
+    });
+    setContactSuggestions([]);
+    setShowContactSuggestions(false);
+    setShowAddModal(true);
+  };
+
+  const handleUpdateVacation = async () => {
+    if (!editingPerson) return;
+    if (!vacationForm.vacation_start || !vacationForm.vacation_end) {
+      alert('יש למלא תאריך התחלה וסיום');
+      return;
+    }
+    try {
+      const promises = editingPerson.allIds.map(({ id, categoryId }) => {
+        if (categoryId) {
+          return fetch(`/api/call-categories/${categoryId}/contacts/vacation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contact_id: id,
+              vacation_start: vacationForm.vacation_start,
+              vacation_end: vacationForm.vacation_end,
+              reason: vacationForm.reason,
+              replacement_note: vacationForm.replacement_note
+            })
+          }).then(res => res.json());
+        }
+        return fetch(`/api/on-call-contacts/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            vacation_start: vacationForm.vacation_start,
+            vacation_end: vacationForm.vacation_end,
+            vacation_reason: vacationForm.reason,
+            replacement_note: vacationForm.replacement_note,
+            updated_at: new Date().toISOString()
+          })
+        }).then(res => res.json());
+      });
+      const results = await Promise.all(promises);
+      if (results.every(r => r.success)) {
+        closeModal();
+        loadVacations();
+      } else {
+        alert('❌ שגיאה בעדכון החופש');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('❌ שגיאה בעדכון החופש');
+    }
   };
 
   const getAllContactsFromCategories = () => {
@@ -164,9 +232,14 @@ export default function VacationManager() {
 
   const handleSendToVacation = async (e) => {
     e.preventDefault();
-    
+
+    // Editing an existing vacation - update in place instead of creating
+    if (editingPerson) {
+      return handleUpdateVacation();
+    }
+
     console.log('Form submitted:', vacationForm);
-    
+
     if (!vacationForm.contact_search || !vacationForm.vacation_start || !vacationForm.vacation_end) {
       alert('יש למלא שם כונן, תאריך התחלה וסיום');
       return;
@@ -198,7 +271,8 @@ export default function VacationManager() {
               contact_id: contact.id,
               vacation_start: vacationForm.vacation_start,
               vacation_end: vacationForm.vacation_end,
-              reason: vacationForm.reason
+              reason: vacationForm.reason,
+              replacement_note: vacationForm.replacement_note
             })
           }).then(res => res.json())
         );
@@ -256,7 +330,8 @@ export default function VacationManager() {
               on_vacation: true,
               vacation_start: vacationForm.vacation_start,
               vacation_end: vacationForm.vacation_end,
-              vacation_reason: vacationForm.reason
+              vacation_reason: vacationForm.reason,
+              replacement_note: vacationForm.replacement_note
             })
           });
           const createData = await createRes.json();
@@ -318,12 +393,14 @@ export default function VacationManager() {
                     vacation_start: vac.vacation_start,
                     vacation_end: vac.vacation_end,
                     vacation_reason: vac.vacation_reason,
+                    replacement_note: vac.replacement_note,
                     on_vacation: vac.on_vacation,
                     categories: [],
                     allIds: []
                   };
                 }
                 if (vac.on_vacation) grouped[key].on_vacation = true;
+                if (vac.replacement_note && !grouped[key].replacement_note) grouped[key].replacement_note = vac.replacement_note;
                 if (vac.call_category) {
                   grouped[key].categories.push(vac.call_category.name);
                   grouped[key].allIds.push({ id: vac.id, categoryId: vac.call_category.id });
@@ -358,7 +435,19 @@ export default function VacationManager() {
                         <p className={`text-sm mt-1 ${isReturned ? 'text-green-700' : 'text-orange-600'}`}>
                           📅 {person.vacation_start} עד {person.vacation_end}
                         </p>
+                        {person.replacement_note && (
+                          <p className="text-sm mt-1 text-blue-700 bg-blue-50 border border-blue-100 rounded-md px-2 py-1 inline-block">
+                            🔄 מחליף: {person.replacement_note}
+                          </p>
+                        )}
                       </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                      {!isReturned && <button
+                        onClick={() => openEditVacation(person)}
+                        className="px-3 py-1.5 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded-lg text-sm font-semibold transition-colors"
+                      >
+                        ✏️ ערוך
+                      </button>}
                       {!isReturned && <button
                         onClick={async () => {
                           if (!confirm('להחזיר כונן מחופש מכל הקטגוריות?')) return;
@@ -398,6 +487,7 @@ export default function VacationManager() {
                       >
                         ↩️ החזר מחופש
                       </button>}
+                      </div>
                     </div>
                   </div>
                 );
@@ -411,7 +501,7 @@ export default function VacationManager() {
       {showAddModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" dir="rtl">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-4">🏖️ שליחת כונן לחופש</h3>
+            <h3 className="text-lg font-bold text-gray-900 mb-4">{editingPerson ? '✏️ עריכת חופש' : '🏖️ שליחת כונן לחופש'}</h3>
             <form onSubmit={handleSendToVacation} className="space-y-4">
               {/* Contact Search with Autocomplete */}
               <div className="relative">
@@ -420,13 +510,14 @@ export default function VacationManager() {
                   type="text"
                   value={vacationForm.contact_search}
                   onChange={e => handleContactSearch(e.target.value)}
-                  onFocus={() => vacationForm.contact_search.length >= 2 && setShowContactSuggestions(true)}
+                  onFocus={() => !editingPerson && vacationForm.contact_search.length >= 2 && setShowContactSuggestions(true)}
                   onBlur={() => setTimeout(() => setShowContactSuggestions(false), 200)}
-                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  disabled={!!editingPerson}
+                  className={`w-full px-3 py-2 border rounded-lg text-sm ${editingPerson ? 'bg-gray-100 text-gray-600' : ''}`}
                   placeholder="התחל להקליד שם..."
                   required
                 />
-                {showContactSuggestions && contactSuggestions.length > 0 && (
+                {!editingPerson && showContactSuggestions && contactSuggestions.length > 0 && (
                   <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
                     {contactSuggestions.map(contact => (
                       <button
@@ -441,13 +532,13 @@ export default function VacationManager() {
                     ))}
                   </div>
                 )}
-                {vacationForm.contact_search && !vacationForm.contact_id && (
+                {!editingPerson && vacationForm.contact_search && !vacationForm.contact_id && (
                   <p className="text-xs text-blue-600 mt-1">💡 לא נמצא? הוסף טלפון למטה לרשומת חופשים (קטגוריה אופציונלי)</p>
                 )}
               </div>
 
               {/* Show phone and category fields if contact not found */}
-              {vacationForm.contact_search && !vacationForm.contact_id && (
+              {!editingPerson && vacationForm.contact_search && !vacationForm.contact_id && (
                 <>
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1">טלפון *</label>
@@ -512,13 +603,24 @@ export default function VacationManager() {
                 />
               </div>
 
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">מי מחליף? <span className="text-gray-400 font-normal">(טקסט חופשי, אופציונלי)</span></label>
+                <input
+                  type="text"
+                  value={vacationForm.replacement_note}
+                  onChange={e => setVacationForm({...vacationForm, replacement_note: e.target.value})}
+                  className="w-full px-3 py-2 border rounded-lg text-sm"
+                  placeholder="למשל: דוד בלסברג 050-1234567"
+                />
+              </div>
+
 
               <div className="flex gap-3 mt-6">
                 <button
                   type="submit"
                   className="flex-1 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-bold text-sm transition-all"
                 >
-                  🏖️ שלח לחופש
+                  {editingPerson ? '💾 שמור שינויים' : '🏖️ שלח לחופש'}
                 </button>
                 <button
                   type="button"
