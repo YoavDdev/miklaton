@@ -473,11 +473,13 @@ export default function ScreenPage() {
               vacation_start: vac.vacation_start,
               vacation_end: vac.vacation_end,
               vacation_reason: vac.vacation_reason,
+              replacement_note: vac.replacement_note,
               on_vacation: vac.on_vacation,
               updated_at: vac.updated_at,
               categories: []
             };
           }
+          if (vac.replacement_note && !grouped[key].replacement_note) grouped[key].replacement_note = vac.replacement_note;
           if (vac.call_category?.name) {
             grouped[key].categories.push(vac.call_category.name);
           }
@@ -871,6 +873,9 @@ export default function ScreenPage() {
                           {isReturned && <span className="text-[10px] bg-green-800/60 text-green-300 px-1 py-0.5 rounded shrink-0">חזר</span>}
                         </div>
                         <div className="text-xs text-gray-200 mt-0.5 font-mono">{dateRange}</div>
+                        {!isReturned && vac.replacement_note && (
+                          <div className="text-[11px] text-blue-300 mt-0.5 leading-tight">🔄 מחליף: {vac.replacement_note}</div>
+                        )}
                       </div>
                     );
                   })}
