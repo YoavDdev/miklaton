@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import appGuide from '@/data/app-guide.json';
+import sheltersData from '@/data/shelters.json';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -264,6 +265,42 @@ async function fetchLiveData() {
       });
     }
 
+    // 5. Panic buttons - emergency contacts per department / institution
+    const { data: panicButtons } = await supabase
+      .from('panic_buttons')
+      .select('name, category, address, contacts, operator_instructions')
+      .eq('is_active', true)
+      .order('name');
+
+    if (panicButtons && panicButtons.length > 0) {
+      liveContext += '\n## לחצני מצוקה (אחראים ואנשי קשר לפי אגף / מוסד):\n';
+      panicButtons.forEach(b => {
+        let contacts = b.contacts;
+        if (typeof contacts === 'string') { try { contacts = JSON.parse(contacts); } catch { contacts = []; } }
+        if (!Array.isArray(contacts)) contacts = [];
+        const contactStr = contacts
+          .filter(c => c && (c.name || c.phone))
+          .map(c => `${c.name || ''}${c.role ? ' (' + c.role + ')' : ''}${c.phone ? ' ' + c.phone : ''}`.trim())
+          .join(', ');
+        liveContext += `- ${b.name}`;
+        if (b.address) liveContext += ` | כתובת: ${b.address}`;
+        if (contactStr) liveContext += ` | אנשי קשר: ${contactStr}`;
+        if (b.operator_instructions) liveContext += ` | הוראות: ${b.operator_instructions}`;
+        liveContext += '\n';
+      });
+    }
+
+    // 6. Public shelters (static list)
+    if (Array.isArray(sheltersData) && sheltersData.length > 0) {
+      liveContext += '\n## מקלטים ציבוריים (לפי כתובת / שכונה):\n';
+      sheltersData.forEach(s => {
+        liveContext += `- מקלט ${s.number || ''}${s.name ? ' - ' + s.name : ''} | כתובת: ${s.address || ''}`;
+        if (s.neighborhood) liveContext += ` | שכונה: ${s.neighborhood}`;
+        if (s.directions) liveContext += ` | הגעה: ${s.directions}`;
+        liveContext += '\n';
+      });
+    }
+
   } catch (error) {
     console.error('Error fetching live data:', error);
     liveContext += '\n(שגיאה בטעינת מידע חי)\n';
@@ -309,6 +346,8 @@ const SYSTEM_PROMPT_BASE = `אתה עוזר AI מתקדם למוקדנים במ�
 - כששואלים "מי עובד היום" - הצג את כל רשימת העובדים ליום
 - "כוננים" = כוננות חירום, לא עובדים רגילים
 - כששואלים על גזם ברחוב ספציפי: חפש ברשימה, תן יום פינוי + יום הוצאה + אנשי קשר. מונוסון = שישי וראשון
+- כששואלים "מי אחראי על אגף X" / "לחצן מצוקה של Y" / על איש קשר במחלקה: חפש ברשימת "לחצני מצוקה" ותן את השם, התפקיד והטלפון. אם יש הוראות למוקדן - ציין אותן
+- כששואלים על מקלט לפי כתובת/שכונה: חפש ברשימת "מקלטים ציבוריים" ותן את מספר המקלט, הכתובת והוראות ההגעה. אם יש כמה קרובים - הצע את הרלוונטי לכתובת שנמסרה
 - זכור את ההקשר של השיחה ואל תחזור על עצמך`;
 
 // =====================================================
