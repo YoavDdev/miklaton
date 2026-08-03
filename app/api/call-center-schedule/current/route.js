@@ -114,10 +114,6 @@ export async function GET(request) {
     // Sort active shifts by start time
     activeShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-    console.log(`[Call Center API] Time: ${currentTime}`);
-    console.log(`[Call Center API] Active Shifts:`, activeShifts.map(s => `${s.name} (${s.startTime}-${s.endTime})`));
-    console.log(`[Call Center API] Next Shift:`, nextShift ? `${nextShift.name} (${nextShift.startTime})` : 'None');
-
     return NextResponse.json({ 
       success: true, 
       activeShifts: activeShifts,
