@@ -357,7 +357,7 @@ export default function SecurityWeeklySchedule({ departmentId }) {
                 <h3 className="font-bold text-gray-900">📥 ייבוא מ-Excel</h3>
                 <p className="text-xs text-gray-600 mt-1">העלה קובץ Excel של המשמרות ועדכן אוטומטית את כל השבוע</p>
               </div>
-              <ExcelTemplateDownloader staff={staff} shifts={shifts} />
+              <ExcelTemplateDownloader staff={staff} shifts={shifts} schedule={schedule} />
             </div>
             <ExcelImporter
               departmentId={departmentId}

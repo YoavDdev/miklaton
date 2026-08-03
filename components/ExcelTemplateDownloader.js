@@ -2,42 +2,51 @@
 
 import * as XLSX from 'xlsx';
 
-export default function ExcelTemplateDownloader({ staff, shifts }) {
+export default function ExcelTemplateDownloader({ staff, shifts, schedule }) {
   const generateTemplate = () => {
     const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
     
     // Create headers
     const headers = ['שם העובד', 'תפקיד', ...DAYS];
     
-    // Create rows with staff members
+    // Create rows with staff members and their existing shifts
     const rows = staff.map(member => {
-      return [
-        member.full_name,
-        member.role,
-        '', '', '', '', '', '', '' // Empty cells for each day
-      ];
+      const row = [member.full_name, member.role];
+      
+      // For each day, find if this staff member has a shift
+      for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
+        const dayShifts = schedule.filter(s => 
+          s.staff_id === member.id && 
+          s.day_of_week === dayIndex
+        );
+        
+        if (dayShifts.length === 0) {
+          row.push('');
+        } else if (dayShifts.length === 1) {
+          const shift = shifts.find(sh => sh.id === dayShifts[0].shift_id);
+          const backup = dayShifts[0].is_backup ? ' (חלופי)' : '';
+          row.push(shift ? `${shift.start_time}-${shift.end_time}${backup}` : '');
+        } else {
+          // Multiple shifts on same day - join with comma
+          const shiftTexts = dayShifts.map(ds => {
+            const shift = shifts.find(sh => sh.id === ds.shift_id);
+            const backup = ds.is_backup ? ' (חלופי)' : '';
+            return shift ? `${shift.start_time}-${shift.end_time}${backup}` : '';
+          });
+          row.push(shiftTexts.join(', '));
+        }
+      }
+      
+      return row;
     });
     
-    // Add example row
-    const exampleRow = [
-      '--- דוגמה ---',
-      'פיקוח',
-      '07:00-15:00',
-      '07:00-15:00 (חלופי)',
-      'בוקר',
-      '',
-      '15:00-23:00',
-      '',
-      ''
-    ];
-    
-    // Add instructions row
+    // Add instructions row at the top
     const instructionsRow = [
-      'הוראות: מלא בכל יום את השעות או סוג המשמרת (בוקר/צהריים/לילה)',
+      '📝 הוראות: ערוך את המשמרות | פורמט: 07:00-15:00 או בוקר | חלופי: הוסף (חלופי)',
       '',
-      'פורמט: 07:00-15:00',
-      'או: בוקר',
-      'חלופי: הוסף (חלופי)',
+      '',
+      '',
+      '',
       '',
       '',
       '',
@@ -47,7 +56,6 @@ export default function ExcelTemplateDownloader({ staff, shifts }) {
     // Combine all data
     const data = [
       headers,
-      exampleRow,
       instructionsRow,
       ...rows
     ];
