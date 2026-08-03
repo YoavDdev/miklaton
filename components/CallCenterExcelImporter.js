@@ -47,23 +47,28 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     const entries = [];
     const weekStartStr = formatDateForDB(currentWeekStart);
     
-    // Find the row with day names (should be row 7)
+    // Find the row with day names (should be row 7-8)
     // Look for a row that has "יום ראשון" in columns 3-9 (the day columns)
+    // Search only in first 30 rows to avoid finding wrong data later in file
     let dayRowIndex = -1;
-    for (let i = 0; i < rawData.length; i++) {
+    const searchLimit = Math.min(30, rawData.length);
+    
+    for (let i = 0; i < searchLimit; i++) {
       const row = rawData[i];
       if (!row) continue;
       
-      // Check if columns 3-9 contain day names
+      // Check if columns 3-9 contain day names in the correct order
       const dayColumns = row.slice(3, 10);
-      const hasAllDays = dayColumns.some(cell => 
+      const hasRishon = dayColumns.some(cell => 
         cell && cell.toString().includes('יום ראשון')
-      ) && dayColumns.some(cell => 
+      );
+      const hasSheni = dayColumns.some(cell => 
         cell && cell.toString().includes('יום שני')
       );
       
-      if (hasAllDays) {
+      if (hasRishon && hasSheni) {
         dayRowIndex = i;
+        console.log(`Found day row at index ${i} in first ${searchLimit} rows`);
         break;
       }
     }
@@ -77,10 +82,11 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     console.log(`Found day row at index ${dayRowIndex}`);
     console.log('Day row content:', rawData[dayRowIndex]);
     
-    // Process each row after dates row
+    // Process each row after dates row (limited to reasonable range)
     let lastShiftName = ''; // Remember last shift name for rows without shift type
+    const maxRowToProcess = Math.min(dayRowIndex + 20, rawData.length); // Process max 20 rows after day row
     
-    for (let rowIndex = dayRowIndex + 2; rowIndex < rawData.length; rowIndex++) {
+    for (let rowIndex = dayRowIndex + 2; rowIndex < maxRowToProcess; rowIndex++) {
       const row = rawData[rowIndex];
       if (!row || row.length === 0) continue;
       
