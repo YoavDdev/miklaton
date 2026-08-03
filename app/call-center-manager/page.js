@@ -779,8 +779,18 @@ export default function CallCenterManagerPage() {
         )}
 
         {/* Tab Content - Schedule */}
-        {activeTab === 'schedule' && user?.department_id && (
-          <CallCenterSchedule departmentId={user.department_id} />
+        {activeTab === 'schedule' && (
+          user?.department_id ? (
+            <CallCenterSchedule departmentId={user.department_id} />
+          ) : (
+            <div className="bg-white rounded-lg shadow p-8 text-center">
+              <div className="text-4xl mb-3">⚠️</div>
+              <p className="font-bold text-gray-900 mb-2">לא נמצאה מחלקה</p>
+              <p className="text-sm text-gray-600">המשתמש לא משויך למחלקת מוקד</p>
+              <p className="text-xs text-gray-400 mt-2">User: {user?.full_name || user?.username || 'Unknown'}</p>
+              <p className="text-xs text-gray-400">Department ID: {user?.department_id || 'None'}</p>
+            </div>
+          )
         )}
 
         {/* Tab Content - Surveys */}
