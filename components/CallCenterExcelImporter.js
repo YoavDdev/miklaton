@@ -121,8 +121,8 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       const row = rawData[rowIndex];
       if (!row || row.length === 0) continue;
       
-      const shiftTypeCell = row[1]?.toString().replace(/\n/g, ' ').trim();
-      const positionCell = row[2]?.toString().replace(/\n/g, ' ').trim();
+      const shiftTypeCell = row[0]?.toString().replace(/\n/g, ' ').replace(/\r/g, ' ').trim();
+      const positionCell = row[1]?.toString().replace(/\n/g, ' ').replace(/\r/g, ' ').trim();
       
       if (!shiftTypeCell && !positionCell) continue;
       
