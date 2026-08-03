@@ -60,6 +60,8 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     console.log(`Found day row at index ${dayRowIndex}`);
     
     // Process each row after dates row
+    let lastShiftName = ''; // Remember last shift name for rows without shift type
+    
     for (let rowIndex = dayRowIndex + 2; rowIndex < rawData.length; rowIndex++) {
       const row = rawData[rowIndex];
       if (!row || row.length === 0) continue;
@@ -74,11 +76,22 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       if (shiftTypeCell) {
         if (shiftTypeCell.includes('בוקר')) {
           shiftName = 'בוקר';
+          lastShiftName = shiftName; // Remember for next rows
         } else if (shiftTypeCell.includes('ביניים')) {
           shiftName = 'ביניים';
+          lastShiftName = shiftName;
         } else if (shiftTypeCell.includes('ערב')) {
           shiftName = 'ערב';
+          lastShiftName = shiftName;
+        } else if (shiftTypeCell.includes('לילה')) {
+          shiftName = 'לילה';
+          lastShiftName = shiftName;
         }
+      }
+      
+      // If no shift name in this row, use the last one
+      if (!shiftName && lastShiftName) {
+        shiftName = lastShiftName;
       }
       
       // Detect position from column 2
