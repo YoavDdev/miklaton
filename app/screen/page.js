@@ -881,19 +881,42 @@ export default function ScreenPage() {
                   {(currentTime.getHours() >= 21 || currentTime.getHours() < 5) && 'לילה טוב'}
                 </span>
                 <span className="text-gray-400">•</span>
-                {/* All staff in current shift */}
-                {[...callCenterShift.current.managers, ...(callCenterShift.current.reps || [])].map((name, idx) => (
+                {/* Managers with label */}
+                {callCenterShift.current.managers.map((name, idx) => (
                   <span key={idx} className="text-white font-medium">
-                    {name}{idx < [...callCenterShift.current.managers, ...(callCenterShift.current.reps || [])].length - 1 ? ',' : ''}
+                    {name} <span className="text-gray-400 text-xs">(אחמ"ש)</span>{idx < callCenterShift.current.managers.length - 1 ? ',' : ''}
                   </span>
                 ))}
+                {/* Representatives with label */}
+                {callCenterShift.current.reps && callCenterShift.current.reps.length > 0 && (
+                  <>
+                    {callCenterShift.current.managers.length > 0 && <span className="text-gray-500">,</span>}
+                    {callCenterShift.current.reps.map((name, idx) => (
+                      <span key={idx} className="text-white font-medium">
+                        {name} <span className="text-gray-400 text-xs">({callCenterShift.current.name})</span>{idx < callCenterShift.current.reps.length - 1 ? ',' : ''}
+                      </span>
+                    ))}
+                  </>
+                )}
                 {/* Next shift indicator */}
                 {callCenterShift.next && callCenterShift.next.managers && callCenterShift.next.managers.length > 0 && (
                   <>
                     <span className="text-gray-500">|</span>
                     <span className="text-blue-300 text-xs">
-                      ⏰ {callCenterShift.next.startTime}: {[...callCenterShift.next.managers, ...(callCenterShift.next.reps || [])].join(', ')}
+                      משמרת {callCenterShift.next.name} מגיעה:
                     </span>
+                    {callCenterShift.next.managers.map((name, idx) => (
+                      <span key={idx} className="text-blue-200 text-xs">
+                        {name} <span className="text-gray-400">(אחמ"ש)</span>{idx < callCenterShift.next.managers.length - 1 || (callCenterShift.next.reps && callCenterShift.next.reps.length > 0) ? ',' : ''}
+                      </span>
+                    ))}
+                    {callCenterShift.next.reps && callCenterShift.next.reps.length > 0 && 
+                      callCenterShift.next.reps.map((name, idx) => (
+                        <span key={idx} className="text-blue-200 text-xs">
+                          {name} <span className="text-gray-400">(נציג)</span>{idx < callCenterShift.next.reps.length - 1 ? ',' : ''}
+                        </span>
+                      ))
+                    }
                   </>
                 )}
               </div>
