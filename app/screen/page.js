@@ -83,6 +83,8 @@ export default function ScreenPage() {
   const [addShiftModal, setAddShiftModal] = useState({ open: false }); // add a new shift for a security staff member
   const [staffList, setStaffList] = useState([]); // security staff for the add-shift dropdown
   const [addShiftSaving, setAddShiftSaving] = useState(false);
+  const [callCenterShift, setCallCenterShift] = useState({ current: null, next: null }); // current and next call center shifts
+  const [callCenterDeptId, setCallCenterDeptId] = useState(null);
 
   // Live clock
   useEffect(() => {
@@ -286,6 +288,10 @@ export default function ScreenPage() {
     if (securityDeptId) fetchSecurityStatus();
   }, [securityDeptId]);
 
+  useEffect(() => {
+    if (callCenterDeptId) fetchCallCenterShift();
+  }, [callCenterDeptId]);
+
   // Realtime security daily order - only after securityDeptId is loaded
   useEffect(() => {
     if (!securityDeptId) return;
@@ -313,7 +319,8 @@ export default function ScreenPage() {
       fetchNotifications(),
       fetchDutyRoster(),
       fetchVacations(),
-      securityDeptIdRef.current ? fetchSecurityStatus() : Promise.resolve()
+      securityDeptIdRef.current ? fetchSecurityStatus() : Promise.resolve(),
+      callCenterDeptId ? fetchCallCenterShift() : Promise.resolve()
     ]);
     // Update timestamp to show screen is actively checking
     setLastSecurityUpdate(new Date());
@@ -343,6 +350,10 @@ export default function ScreenPage() {
         const secDept = data.data?.find(d => d.name?.includes('בטחון'));
         if (secDept) {
           setSecurityDeptId(secDept.id);
+        }
+        const callCenterDept = data.data?.find(d => d.name?.includes('מוקד'));
+        if (callCenterDept) {
+          setCallCenterDeptId(callCenterDept.id);
         }
       }
     } catch {}
@@ -449,6 +460,22 @@ export default function ScreenPage() {
         setWeather({ current: data.current, daily: data.daily || [], alerts: data.alerts || [] });
       }
     } catch {}
+  };
+
+  const fetchCallCenterShift = async () => {
+    try {
+      if (!callCenterDeptId) return;
+      const res = await fetch(`/api/call-center-schedule/current?department_id=${callCenterDeptId}`);
+      const data = await res.json();
+      if (data.success) {
+        setCallCenterShift({ 
+          current: data.current || null, 
+          next: data.next || null 
+        });
+      }
+    } catch (error) {
+      console.error('Error fetching call center shift:', error);
+    }
   };
 
   const fetchVacations = async () => {
@@ -1224,6 +1251,68 @@ export default function ScreenPage() {
                   </div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* Call Center Current Shift */}
+        {(callCenterShift.current || callCenterShift.next) && (
+          <div className="border-t border-white/10 shrink-0">
+            <div className="px-4 py-2 bg-gradient-to-l from-purple-900/40 to-blue-900/40 border-b border-white/10 flex items-center gap-2">
+              <span className="text-lg">🎧</span>
+              <h2 className="font-bold text-sm">מוקד 106</h2>
+            </div>
+            <div className="p-3 space-y-3">
+              {/* Current Shift */}
+              {callCenterShift.current && (
+                <div className="bg-gradient-to-br from-purple-900/30 to-blue-900/30 border border-purple-500/30 rounded-lg p-2.5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
+                    <span className="font-bold text-sm text-purple-200">משמרת כעת - {callCenterShift.current.name}</span>
+                  </div>
+                  {callCenterShift.current.managers && callCenterShift.current.managers.length > 0 && (
+                    <div className="mb-1.5">
+                      <div className="text-[10px] text-gray-400 mb-0.5">אחמ"ש:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {callCenterShift.current.managers.map((name, idx) => (
+                          <span key={idx} className="text-xs bg-blue-800/60 text-blue-200 px-2 py-0.5 rounded">
+                            👋 {name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {callCenterShift.current.reps && callCenterShift.current.reps.length > 0 && (
+                    <div>
+                      <div className="text-[10px] text-gray-400 mb-0.5">נציגים:</div>
+                      <div className="flex flex-wrap gap-1">
+                        {callCenterShift.current.reps.map((name, idx) => (
+                          <span key={idx} className="text-xs bg-green-800/60 text-green-200 px-2 py-0.5 rounded">
+                            📞 {name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Next Shift */}
+              {callCenterShift.next && (
+                <div className="bg-white/5 border border-white/10 rounded-lg p-2.5">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs text-gray-400">⏰ משמרת הבאה ({callCenterShift.next.startTime}) - {callCenterShift.next.name}</span>
+                  </div>
+                  {callCenterShift.next.managers && callCenterShift.next.managers.length > 0 && (
+                    <div className="text-[11px] text-gray-300 mb-0.5">
+                      🔄 {callCenterShift.next.managers.join(', ')}
+                      {callCenterShift.next.reps && callCenterShift.next.reps.length > 0 && 
+                        ` + ${callCenterShift.next.reps.join(', ')}`
+                      }
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
