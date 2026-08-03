@@ -25,7 +25,13 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { header: 1 });
+          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
+            header: 1,
+            defval: null,  // Keep empty cells as null
+            blankrows: true  // Include blank rows
+          });
+          console.log('Total rows read from Excel:', jsonData.length);
+          console.log('First 20 rows:', jsonData.slice(0, 20));
           resolve(jsonData);
         } catch (error) {
           reject(error);
