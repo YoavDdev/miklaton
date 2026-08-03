@@ -13,6 +13,7 @@ import WhatsAppDutyLinks from '@/components/WhatsAppDutyLinks';
 import KnowledgeBaseManager from '@/components/KnowledgeBaseManager';
 import GarbageScheduleInline from '@/components/GarbageScheduleInline';
 import GarbageStreetSearch from '@/components/GarbageStreetSearch';
+import CallCenterSchedule from '@/components/CallCenterSchedule';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -548,6 +549,16 @@ export default function CallCenterManagerPage() {
                 🚨 כוננות חירום
               </button>
               <button
+                onClick={() => setActiveTab('schedule')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'schedule'
+                    ? 'border-pink-600 text-pink-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                📅 סידור משמרות
+              </button>
+              <button
                 onClick={() => setActiveTab('messages')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'messages'
@@ -765,6 +776,11 @@ export default function CallCenterManagerPage() {
         {/* Tab Content - Emergency Shifts */}
         {activeTab === 'emergency-shifts' && (
           <OnCallManagerNew />
+        )}
+
+        {/* Tab Content - Schedule */}
+        {activeTab === 'schedule' && user?.department_id && (
+          <CallCenterSchedule departmentId={user.department_id} />
         )}
 
         {/* Tab Content - Surveys */}
