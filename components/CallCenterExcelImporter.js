@@ -40,8 +40,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
             jsonData.push(row);
           }
           
-          console.log(`Read ${jsonData.length} rows from Excel (including all blank rows)`);
-          console.log('First 10 rows:', jsonData.slice(0, 10).map((r, i) => `Row ${i}: ${JSON.stringify(r)}`).join('\n'));
+          console.log(`Read ${jsonData.length} rows from Excel`);
           resolve(jsonData);
         } catch (error) {
           reject(error);
