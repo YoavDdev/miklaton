@@ -75,6 +75,7 @@ export async function GET(request) {
 
     const shifts = Object.values(shiftGroups);
     
+    // First pass: find all currently active shifts
     for (const group of shifts) {
       const startTime = group.shift.start_time;
       const endTime = group.shift.end_time;
@@ -89,8 +90,14 @@ export async function GET(request) {
           reps: group.reps
         });
       }
+    }
+    
+    // Second pass: find the next shift that hasn't started yet
+    for (const group of shifts) {
+      const startTime = group.shift.start_time;
+      const endTime = group.shift.end_time;
       
-      // Check if this is the next shift
+      // Check if this shift hasn't started yet (future shift)
       if (currentTime < startTime) {
         if (!nextShift || startTime < nextShift.startTime) {
           nextShift = {
@@ -106,6 +113,10 @@ export async function GET(request) {
 
     // Sort active shifts by start time
     activeShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    console.log(`[Call Center API] Time: ${currentTime}`);
+    console.log(`[Call Center API] Active Shifts:`, activeShifts.map(s => `${s.name} (${s.startTime}-${s.endTime})`));
+    console.log(`[Call Center API] Next Shift:`, nextShift ? `${nextShift.name} (${nextShift.startTime})` : 'None');
 
     return NextResponse.json({ 
       success: true, 

@@ -467,7 +467,10 @@ export default function ScreenPage() {
       if (!callCenterDeptId) return;
       const res = await fetch(`/api/call-center-schedule/current?department_id=${callCenterDeptId}`);
       const data = await res.json();
+      console.log('📞 Call Center Shift Data:', data);
       if (data.success) {
+        console.log('Active Shifts:', data.activeShifts);
+        console.log('Next Shift:', data.next);
         setCallCenterShift({ 
           current: data.current || null, 
           next: data.next || null,
