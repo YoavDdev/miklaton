@@ -104,6 +104,15 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
         }
       }
       
+      // If we have shift name but no position, check if there's data in day columns
+      // If yes, assume it's a representative (נציג)
+      if (shiftName && !position) {
+        const hasData = row.slice(3, 10).some(cell => cell && cell.toString().trim() && cell.toString().trim() !== '-');
+        if (hasData) {
+          position = 'נציג';
+        }
+      }
+      
       // Skip if we don't have both shift and position
       if (!shiftName || !position) continue;
       
