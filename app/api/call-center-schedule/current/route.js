@@ -6,6 +6,10 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+// Force dynamic rendering - no caching
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 // GET - fetch current and next shift for today
 export async function GET(request) {
   try {
@@ -113,6 +117,11 @@ export async function GET(request) {
 
     // Sort active shifts by start time
     activeShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
+    console.log('[Call Center API] Current time:', currentTime);
+    console.log('[Call Center API] Active shifts count:', activeShifts.length);
+    console.log('[Call Center API] Active shifts:', JSON.stringify(activeShifts, null, 2));
+    console.log('[Call Center API] Next shift:', JSON.stringify(nextShift, null, 2));
 
     const response = NextResponse.json({ 
       success: true, 
