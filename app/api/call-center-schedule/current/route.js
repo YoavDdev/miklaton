@@ -69,8 +69,8 @@ export async function GET(request) {
       }
     });
 
-    // Find current and next shift
-    let currentShift = null;
+    // Find all active shifts and next shift
+    const activeShifts = [];
     let nextShift = null;
 
     const shifts = Object.values(shiftGroups);
@@ -79,15 +79,15 @@ export async function GET(request) {
       const startTime = group.shift.start_time;
       const endTime = group.shift.end_time;
       
-      // Check if current time is within this shift
+      // Check if current time is within this shift (support overlapping shifts)
       if (currentTime >= startTime && currentTime < endTime) {
-        currentShift = {
+        activeShifts.push({
           name: group.shift.name,
           startTime: startTime,
           endTime: endTime,
           managers: group.managers,
           reps: group.reps
-        };
+        });
       }
       
       // Check if this is the next shift
@@ -104,9 +104,13 @@ export async function GET(request) {
       }
     }
 
+    // Sort active shifts by start time
+    activeShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
+
     return NextResponse.json({ 
       success: true, 
-      current: currentShift,
+      activeShifts: activeShifts,
+      current: activeShifts[0] || null, // For backward compatibility
       next: nextShift
     });
   } catch (error) {

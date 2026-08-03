@@ -83,7 +83,7 @@ export default function ScreenPage() {
   const [addShiftModal, setAddShiftModal] = useState({ open: false }); // add a new shift for a security staff member
   const [staffList, setStaffList] = useState([]); // security staff for the add-shift dropdown
   const [addShiftSaving, setAddShiftSaving] = useState(false);
-  const [callCenterShift, setCallCenterShift] = useState({ current: null, next: null }); // current and next call center shifts
+  const [callCenterShift, setCallCenterShift] = useState({ current: null, next: null, activeShifts: [] }); // current and next call center shifts
   const [callCenterDeptId, setCallCenterDeptId] = useState(null);
 
   // Live clock
@@ -470,7 +470,8 @@ export default function ScreenPage() {
       if (data.success) {
         setCallCenterShift({ 
           current: data.current || null, 
-          next: data.next || null 
+          next: data.next || null,
+          activeShifts: data.activeShifts || []
         });
       }
     } catch (error) {
@@ -869,8 +870,8 @@ export default function ScreenPage() {
         {/* Main Content Area */}
         <div className="flex-1 px-8 pb-4 flex flex-col gap-4 min-h-0 overflow-hidden">
 
-          {/* Call Center Shifts - minimal single line */}
-          {callCenterShift.current && callCenterShift.current.managers && callCenterShift.current.managers.length > 0 && (
+          {/* Call Center Shifts - minimal single line showing all active shifts */}
+          {callCenterShift.activeShifts && callCenterShift.activeShifts.some(s => s.managers?.length > 0) && (
             <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 border border-purple-500/20 rounded-lg px-4 py-2 shrink-0">
               <div className="flex items-center justify-center gap-3 text-sm flex-wrap">
                 <span className="text-lg">🎧</span>
@@ -881,23 +882,31 @@ export default function ScreenPage() {
                   {(currentTime.getHours() >= 21 || currentTime.getHours() < 5) && 'לילה טוב'}
                 </span>
                 <span className="text-gray-400">•</span>
-                {/* Managers with label */}
-                {callCenterShift.current.managers.map((name, idx) => (
-                  <span key={idx} className="text-white font-medium">
-                    {name} <span className="text-gray-400 text-xs">(אחמ"ש)</span>{idx < callCenterShift.current.managers.length - 1 ? ',' : ''}
-                  </span>
-                ))}
-                {/* Representatives with label */}
-                {callCenterShift.current.reps && callCenterShift.current.reps.length > 0 && (
-                  <>
-                    {callCenterShift.current.managers.length > 0 && <span className="text-gray-500">,</span>}
-                    {callCenterShift.current.reps.map((name, idx) => (
+                {/* Display all active shifts */}
+                {callCenterShift.activeShifts.filter(s => s.managers?.length > 0).map((shift, shiftIdx) => (
+                  <span key={shiftIdx} className="contents">
+                    {/* Managers with label */}
+                    {shift.managers.map((name, idx) => (
                       <span key={idx} className="text-white font-medium">
-                        {name} <span className="text-gray-400 text-xs">({callCenterShift.current.name})</span>{idx < callCenterShift.current.reps.length - 1 ? ',' : ''}
+                        {name} <span className="text-gray-400 text-xs">(אחמ"ש)</span>{idx < shift.managers.length - 1 ? ',' : ''}
                       </span>
                     ))}
-                  </>
-                )}
+                    {/* Representatives with label */}
+                    {shift.reps && shift.reps.length > 0 && (
+                      <>
+                        {shift.managers.length > 0 && <span className="text-gray-500">,</span>}
+                        {shift.reps.map((name, idx) => (
+                          <span key={idx} className="text-white font-medium">
+                            {name} <span className="text-gray-400 text-xs">({shift.name})</span>{idx < shift.reps.length - 1 ? ',' : ''}
+                          </span>
+                        ))}
+                      </>
+                    )}
+                    {shiftIdx < callCenterShift.activeShifts.filter(s => s.managers?.length > 0).length - 1 && (
+                      <span className="text-gray-500">,</span>
+                    )}
+                  </span>
+                ))}
                 {/* Next shift indicator */}
                 {callCenterShift.next && callCenterShift.next.managers && callCenterShift.next.managers.length > 0 && (
                   <>
