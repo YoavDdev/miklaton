@@ -25,11 +25,22 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
           const data = new Uint8Array(e.target.result);
           const workbook = XLSX.read(data, { type: 'array' });
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-          const jsonData = XLSX.utils.sheet_to_json(firstSheet, { 
-            header: 1,
-            defval: null,  // Keep empty cells as null
-            blankrows: true  // Include blank rows
-          });
+          
+          // Get the range and read ALL rows including empty ones
+          const range = XLSX.utils.decode_range(firstSheet['!ref']);
+          const jsonData = [];
+          
+          for (let R = range.s.r; R <= range.e.r; ++R) {
+            const row = [];
+            for (let C = range.s.c; C <= range.e.c; ++C) {
+              const cellAddress = XLSX.utils.encode_cell({ r: R, c: C });
+              const cell = firstSheet[cellAddress];
+              row.push(cell ? cell.v : null);
+            }
+            jsonData.push(row);
+          }
+          
+          console.log(`Read ${jsonData.length} rows from Excel (including all blank rows)`);
           resolve(jsonData);
         } catch (error) {
           reject(error);
