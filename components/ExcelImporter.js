@@ -53,15 +53,19 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
       const name = row[0]?.toString().trim();
       if (!name || name.length < 2) continue; // Skip empty or invalid names
       
-      // Find matching staff member
+      // Try to find matching staff member
       const staffMember = staff.find(s => 
         s.full_name?.includes(name) || name.includes(s.full_name)
       );
       
+      // If not found, use manual name (for temporary workers, trainees, etc.)
       if (!staffMember) {
-        console.log(`⚠️ Staff member not found: ${name}`);
-        continue;
+        console.log(`ℹ️ Using manual name for: ${name} (not in staff list)`);
       }
+      
+      const staffId = staffMember?.id || null;
+      const staffName = staffMember?.full_name || name;
+      const defaultRole = row[1]?.toString().trim() || staffMember?.role || 'פיקוח';
       
       // Parse shifts for each day (columns 2-8 or based on pattern)
       for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
@@ -69,7 +73,7 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
         if (!cellValue || cellValue === '-' || cellValue === '') continue;
         
         // Parse shift from cell (e.g., "07:00-15:00", "בוקר", "07:00-15:00 (פיקוח)")
-        const shiftInfo = parseShiftInfo(cellValue, staffMember.role);
+        const shiftInfo = parseShiftInfo(cellValue, defaultRole);
         if (!shiftInfo) continue;
         
         // Find matching shift definition
@@ -81,8 +85,8 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
         
         if (matchingShift) {
           entries.push({
-            staff_id: staffMember.id,
-            staff_name: staffMember.full_name,
+            staff_id: staffId, // Can be null for manual entries
+            staff_name: staffName, // Manual name if staff not found
             shift_id: matchingShift.id,
             day_of_week: dayIndex,
             is_backup: shiftInfo.isBackup || false
@@ -226,6 +230,7 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
             <div className="bg-gradient-to-l from-green-600 to-blue-600 text-white p-4">
               <h3 className="text-lg font-bold">תצוגה מקדימה - {previewData.fileName}</h3>
               <p className="text-sm opacity-90">נמצאו {previewData.entries.length} משמרות לייבוא</p>
+              <p className="text-xs opacity-75 mt-1">💡 עובדים שמסומנים (ידני) אינם ברשימה הרשמית - מתלמדים/זמניים</p>
             </div>
             
             <div className="p-4 max-h-[50vh] overflow-y-auto">
@@ -234,9 +239,13 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
                   const shift = shifts.find(s => s.id === entry.shift_id);
                   const dayNames = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
                   
+                  const isManual = !entry.staff_id;
                   return (
-                    <div key={idx} className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm">
-                      <span className="font-semibold">{entry.staff_name}</span>
+                    <div key={idx} className={`flex items-center justify-between p-2 rounded text-sm ${isManual ? 'bg-purple-50 border border-purple-200' : 'bg-gray-50'}`}>
+                      <span className="font-semibold flex items-center gap-1">
+                        {entry.staff_name}
+                        {isManual && <span className="text-purple-600 text-xs">(ידני)</span>}
+                      </span>
                       <span className="text-gray-600">יום {dayNames[entry.day_of_week]}</span>
                       <span className="text-blue-600">{shift?.start_time} - {shift?.end_time}</span>
                       {entry.is_backup && <span className="text-orange-600 text-xs">(חלופי)</span>}

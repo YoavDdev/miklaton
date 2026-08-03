@@ -28,7 +28,8 @@ export async function POST(request) {
       department_id,
       week_start,
       shift_id: entry.shift_id,
-      staff_id: entry.staff_id,
+      staff_id: entry.staff_id || null, // Can be null for manual entries
+      staff_name: entry.staff_name || null, // Manual name for trainees/temporary workers
       day_of_week: entry.day_of_week,
       is_backup: entry.is_backup || false,
       notes: entry.notes || null
