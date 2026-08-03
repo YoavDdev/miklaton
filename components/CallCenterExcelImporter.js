@@ -30,8 +30,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
             defval: null,  // Keep empty cells as null
             blankrows: true  // Include blank rows
           });
-          console.log('Total rows read from Excel:', jsonData.length);
-          console.log('First 20 rows:', jsonData.slice(0, 20));
           resolve(jsonData);
         } catch (error) {
           reject(error);
@@ -57,8 +55,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       const row = rawData[i];
       if (!row) continue;
       
-      console.log(`Row ${i}:`, row);
-      
       // Check if ANY cell contains day names (not just columns 3-9)
       const hasRishon = row.some(cell => 
         cell && cell.toString().includes('יום ראשון')
@@ -69,8 +65,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       
       if (hasRishon && hasSheni) {
         dayRowIndex = i;
-        console.log(`✅ Found day row at index ${i} in first ${searchLimit} rows`);
-        console.log(`Day row content:`, row);
+        console.log(`✅ Found day row at index ${i}`);
         break;
       }
     }
@@ -106,8 +101,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       
       const shiftTypeCell = row[1]?.toString().replace(/\n/g, ' ').trim();
       const positionCell = row[2]?.toString().replace(/\n/g, ' ').trim();
-      
-      console.log(`Row ${rowIndex}: shift=[${shiftTypeCell}] position=[${positionCell}] data=`, row.slice(dayStartCol, dayStartCol + 7));
       
       if (!shiftTypeCell && !positionCell) continue;
       
@@ -163,8 +156,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
         console.warn(`Shift not found: ${shiftName}`);
         continue;
       }
-      
-      console.log(`Processing row ${rowIndex}: ${shiftName} - ${position}`);
       
       // Parse staff for each day (7 days starting from dayStartCol)
       for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
