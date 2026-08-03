@@ -69,6 +69,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     }
     
     console.log(`Found day row at index ${dayRowIndex}`);
+    console.log('Day row content:', rawData[dayRowIndex]);
     
     // Process each row after dates row
     let lastShiftName = ''; // Remember last shift name for rows without shift type
@@ -79,6 +80,8 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       
       const shiftTypeCell = row[1]?.toString().replace(/\n/g, ' ').trim();
       const positionCell = row[2]?.toString().replace(/\n/g, ' ').trim();
+      
+      console.log(`Row ${rowIndex}: shift=[${shiftTypeCell}] position=[${positionCell}] data=`, row.slice(3, 10));
       
       if (!shiftTypeCell && !positionCell) continue;
       
