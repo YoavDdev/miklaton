@@ -465,7 +465,9 @@ export default function ScreenPage() {
   const fetchCallCenterShift = async () => {
     try {
       if (!callCenterDeptId) return;
-      const res = await fetch(`/api/call-center-schedule/current?department_id=${callCenterDeptId}`);
+      const res = await fetch(`/api/call-center-schedule/current?department_id=${callCenterDeptId}`, {
+        cache: 'no-store'
+      });
       const data = await res.json();
       if (data.success) {
         setCallCenterShift({ 

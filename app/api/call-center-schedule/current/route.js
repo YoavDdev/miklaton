@@ -114,12 +114,19 @@ export async function GET(request) {
     // Sort active shifts by start time
     activeShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-    return NextResponse.json({ 
+    const response = NextResponse.json({ 
       success: true, 
       activeShifts: activeShifts,
       current: activeShifts[0] || null, // For backward compatibility
       next: nextShift
     });
+    
+    // Prevent caching to ensure fresh data
+    response.headers.set('Cache-Control', 'no-store, no-cache, must-revalidate');
+    response.headers.set('Pragma', 'no-cache');
+    response.headers.set('Expires', '0');
+    
+    return response;
   } catch (error) {
     console.error('Error fetching current shift:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
