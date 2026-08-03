@@ -475,9 +475,10 @@ export default function ScreenPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setCallCenterShift({ 
-          current: data.current || null, 
+        setCallCenterShift({
+          current: data.current || null,
           next: data.next || null,
+          nextShifts: data.nextShifts || (data.next ? [data.next] : []),
           activeShifts: data.activeShifts || []
         });
       }
@@ -912,27 +913,27 @@ export default function ScreenPage() {
                     </>
                   );
                 })()}
-                {/* Next shift indicator */}
-                {callCenterShift.next && callCenterShift.next.managers && callCenterShift.next.managers.length > 0 && (
-                  <>
-                    <span className="text-gray-500">|</span>
-                    <span className="text-blue-300 text-xs font-medium">
-                      משמרת {callCenterShift.next.name} מגיעה:
-                    </span>
-                    {callCenterShift.next.managers.map((name, idx) => (
-                      <span key={idx} className="text-blue-200 text-sm font-medium">
-                        {name} <span className="text-gray-400 text-xs">(אחמ"ש)</span>{idx < callCenterShift.next.managers.length - 1 || (callCenterShift.next.reps && callCenterShift.next.reps.length > 0) ? ',' : ''}
+                {/* Upcoming shifts - all remaining shifts today (evening, night, etc.) */}
+                {(callCenterShift.nextShifts || [])
+                  .filter(shift => (shift.managers?.length || 0) + (shift.reps?.length || 0) > 0)
+                  .map((nextShift, shiftIdx) => (
+                    <span key={`next-${shiftIdx}`} className="flex items-center gap-2 flex-wrap">
+                      <span className="text-gray-500">|</span>
+                      <span className="text-blue-300 text-xs font-medium">
+                        משמרת {nextShift.name} מגיעה:
                       </span>
-                    ))}
-                    {callCenterShift.next.reps && callCenterShift.next.reps.length > 0 && 
-                      callCenterShift.next.reps.map((name, idx) => (
-                        <span key={idx} className="text-blue-200 text-sm font-medium">
-                          {name}{idx < callCenterShift.next.reps.length - 1 ? ',' : ''}
+                      {(nextShift.managers || []).map((name, idx) => (
+                        <span key={`m-${idx}`} className="text-blue-200 text-sm font-medium">
+                          {name} <span className="text-gray-400 text-xs">(אחמ"ש)</span>{idx < nextShift.managers.length - 1 || (nextShift.reps && nextShift.reps.length > 0) ? ',' : ''}
                         </span>
-                      ))
-                    }
-                  </>
-                )}
+                      ))}
+                      {(nextShift.reps || []).map((name, idx) => (
+                        <span key={`r-${idx}`} className="text-blue-200 text-sm font-medium">
+                          {name}{idx < nextShift.reps.length - 1 ? ',' : ''}
+                        </span>
+                      ))}
+                    </span>
+                  ))}
               </div>
             </div>
           )}
