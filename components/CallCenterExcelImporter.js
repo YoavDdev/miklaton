@@ -66,8 +66,8 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       const row = rawData[rowIndex];
       if (!row || row.length === 0) continue;
       
-      const shiftTypeCell = row[1]?.toString().trim();
-      const positionCell = row[2]?.toString().trim();
+      const shiftTypeCell = row[1]?.toString().replace(/\n/g, ' ').trim();
+      const positionCell = row[2]?.toString().replace(/\n/g, ' ').trim();
       
       if (!shiftTypeCell && !positionCell) continue;
       
@@ -97,6 +97,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       // Detect position from column 2
       let position = '';
       if (positionCell) {
+        // Match אחמ"ש with or without colons/quotes
         if (positionCell.includes('אחמ')) {
           position = 'אחמ"ש';
         } else if (positionCell.includes('נציג')) {
