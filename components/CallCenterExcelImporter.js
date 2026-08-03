@@ -57,17 +57,21 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     const entries = [];
     const weekStartStr = formatDateForDB(currentWeekStart);
     
-    // Find the row with day names (should be row 7-8)
-    // Look for a row that has "יום ראשון" in columns 3-9 (the day columns)
-    // Search only in first 30 rows to avoid finding wrong data later in file
-    let dayRowIndex = -1;
-    const searchLimit = Math.min(30, rawData.length);
+    // Get the expected date for Sunday of this week (format: DD.MM)
+    const weekDate = new Date(currentWeekStart);
+    const expectedDate = `${String(weekDate.getDate()).padStart(2, '0')}.${String(weekDate.getMonth() + 1).padStart(2, '0')}`;
     
-    for (let i = 0; i < searchLimit; i++) {
+    console.log(`Looking for week starting with date: ${expectedDate}`);
+    
+    // Find the row with day names that matches our week's dates
+    // Search through the entire file as there might be multiple week tables
+    let dayRowIndex = -1;
+    
+    for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
       if (!row) continue;
       
-      // Check if ANY cell contains day names (not just columns 3-9)
+      // Check if this row has day names
       const hasRishon = row.some(cell => 
         cell && cell.toString().includes('יום ראשון')
       );
@@ -76,9 +80,15 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       );
       
       if (hasRishon && hasSheni) {
-        dayRowIndex = i;
-        console.log(`✅ Found day row at index ${i}`);
-        break;
+        // Found a day row - check if the next row (dates row) matches our week
+        const nextRow = rawData[i + 1];
+        if (nextRow && nextRow.some(cell => cell && cell.toString().includes(expectedDate))) {
+          dayRowIndex = i;
+          console.log(`✅ Found matching day row at index ${i} for week ${expectedDate}`);
+          break;
+        } else {
+          console.log(`Found day row at ${i} but dates don't match our week`);
+        }
       }
     }
     
