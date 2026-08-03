@@ -20,11 +20,12 @@ export async function GET(request) {
       return NextResponse.json({ success: false, error: 'department_id required' }, { status: 400 });
     }
 
-    const now = new Date();
+    // Server runs in UTC on Vercel - convert to Israel timezone (same pattern as duty-roster)
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'Asia/Jerusalem' }));
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
     const currentTime = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}:00`;
-    
+
     const dayOfWeek = now.getDay();
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
