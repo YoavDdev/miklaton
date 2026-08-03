@@ -84,6 +84,18 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     console.log(`Found day row at index ${dayRowIndex}`);
     console.log('Day row content:', rawData[dayRowIndex]);
     
+    // Find which column has "יום ראשון" - that's where the days start
+    const dayRow = rawData[dayRowIndex];
+    const dayStartCol = dayRow.findIndex(cell => cell && cell.toString().includes('יום ראשון'));
+    
+    if (dayStartCol === -1) {
+      console.error('Could not find day start column');
+      toast.error('לא נמצאה עמודת היום הראשון');
+      return entries;
+    }
+    
+    console.log(`Days start at column ${dayStartCol}`);
+    
     // Process each row after dates row (limited to reasonable range)
     let lastShiftName = ''; // Remember last shift name for rows without shift type
     const maxRowToProcess = Math.min(dayRowIndex + 20, rawData.length); // Process max 20 rows after day row
@@ -95,7 +107,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       const shiftTypeCell = row[1]?.toString().replace(/\n/g, ' ').trim();
       const positionCell = row[2]?.toString().replace(/\n/g, ' ').trim();
       
-      console.log(`Row ${rowIndex}: shift=[${shiftTypeCell}] position=[${positionCell}] data=`, row.slice(3, 10));
+      console.log(`Row ${rowIndex}: shift=[${shiftTypeCell}] position=[${positionCell}] data=`, row.slice(dayStartCol, dayStartCol + 7));
       
       if (!shiftTypeCell && !positionCell) continue;
       
@@ -154,9 +166,9 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       
       console.log(`Processing row ${rowIndex}: ${shiftName} - ${position}`);
       
-      // Parse staff for each day (columns 3-9 for Sun-Sat)
+      // Parse staff for each day (7 days starting from dayStartCol)
       for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
-        const cellValue = row[dayIndex + 3]?.toString().trim();
+        const cellValue = row[dayIndex + dayStartCol]?.toString().trim();
         if (!cellValue || cellValue === '-' || cellValue === '') continue;
         
         // Clean the name (remove newlines)
