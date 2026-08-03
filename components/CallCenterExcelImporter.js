@@ -57,18 +57,20 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       const row = rawData[i];
       if (!row) continue;
       
-      // Check if columns 3-9 contain day names in the correct order
-      const dayColumns = row.slice(3, 10);
-      const hasRishon = dayColumns.some(cell => 
+      console.log(`Row ${i}:`, row);
+      
+      // Check if ANY cell contains day names (not just columns 3-9)
+      const hasRishon = row.some(cell => 
         cell && cell.toString().includes('יום ראשון')
       );
-      const hasSheni = dayColumns.some(cell => 
+      const hasSheni = row.some(cell => 
         cell && cell.toString().includes('יום שני')
       );
       
       if (hasRishon && hasSheni) {
         dayRowIndex = i;
-        console.log(`Found day row at index ${i} in first ${searchLimit} rows`);
+        console.log(`✅ Found day row at index ${i} in first ${searchLimit} rows`);
+        console.log(`Day row content:`, row);
         break;
       }
     }
