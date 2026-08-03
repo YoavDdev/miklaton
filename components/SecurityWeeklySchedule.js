@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
+import ExcelImporter from './ExcelImporter';
+import ExcelTemplateDownloader from './ExcelTemplateDownloader';
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const DAYS_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
@@ -346,6 +348,24 @@ export default function SecurityWeeklySchedule({ departmentId }) {
             <button onClick={goToNextWeek} className="px-3 py-2 bg-blue-100 active:bg-blue-200 text-blue-700 rounded-lg font-bold text-sm">
               שבוע הבא ←
             </button>
+          </div>
+
+          {/* Excel Import */}
+          <div className="bg-gradient-to-l from-green-50 to-blue-50 border-2 border-green-200 rounded-lg p-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3">
+              <div>
+                <h3 className="font-bold text-gray-900">📥 ייבוא מ-Excel</h3>
+                <p className="text-xs text-gray-600 mt-1">העלה קובץ Excel של המשמרות ועדכן אוטומטית את כל השבוע</p>
+              </div>
+              <ExcelTemplateDownloader staff={staff} shifts={shifts} />
+            </div>
+            <ExcelImporter
+              departmentId={departmentId}
+              currentWeekStart={currentWeekStart}
+              staff={staff}
+              shifts={shifts}
+              onImportComplete={fetchSchedule}
+            />
           </div>
 
           {/* Schedule Tables */}

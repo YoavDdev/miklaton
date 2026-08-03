@@ -105,14 +105,29 @@ export async function PATCH(request) {
   }
 }
 
-// DELETE - remove a schedule entry
+// DELETE - remove a schedule entry or bulk delete for a week
 export async function DELETE(request) {
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const departmentId = searchParams.get('department_id');
+    const weekStart = searchParams.get('week_start');
 
+    // Bulk delete for entire week (for Excel import)
+    if (departmentId && weekStart) {
+      const { error } = await supabase
+        .from('security_weekly_schedule')
+        .delete()
+        .eq('department_id', departmentId)
+        .eq('week_start', weekStart);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, message: 'Week schedule cleared' });
+    }
+
+    // Single entry delete
     if (!id) {
-      return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
+      return NextResponse.json({ success: false, error: 'id or (department_id + week_start) required' }, { status: 400 });
     }
 
     const { error } = await supabase
