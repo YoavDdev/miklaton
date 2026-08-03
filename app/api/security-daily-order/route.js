@@ -6,7 +6,7 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-// GET - fetch daily order for a specific date
+// GET - fetch daily order for a specific date (auto-merge with weekly schedule)
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -17,35 +17,103 @@ export async function GET(request) {
       return NextResponse.json({ success: false, error: 'department_id and order_date required' }, { status: 400 });
     }
 
-    // Get or create the daily order
-    let { data: order, error } = await supabase
+    // 1. Get weekly schedule for this day
+    const date = new Date(orderDate + 'T00:00:00');
+    const dayOfWeek = date.getDay();
+    
+    // Calculate week_start for the schedule query
+    const weekStartDate = new Date(date);
+    weekStartDate.setDate(weekStartDate.getDate() - dayOfWeek);
+    const weekStartStr = `${weekStartDate.getFullYear()}-${String(weekStartDate.getMonth() + 1).padStart(2, '0')}-${String(weekStartDate.getDate()).padStart(2, '0')}`;
+    
+    const { data: scheduleEntries, error: scheduleError } = await supabase
+      .from('security_weekly_schedule')
+      .select(`
+        *,
+        shift:security_shifts(*),
+        staff:security_staff(*)
+      `)
+      .eq('department_id', departmentId)
+      .eq('week_start', weekStartStr)
+      .eq('day_of_week', dayOfWeek);
+    
+    if (scheduleError) throw scheduleError;
+
+    // 2. Get saved daily order details
+    let { data: order, error: orderError } = await supabase
       .from('security_daily_orders')
       .select('*')
       .eq('department_id', departmentId)
       .eq('order_date', orderDate)
       .single();
 
-    if (error && error.code === 'PGRST116') {
-      // Not found - return empty
-      return NextResponse.json({ success: true, data: null, entries: [] });
+    // If order not found, that's ok - we'll still return schedule entries
+    const orderExists = order && !orderError;
+    
+    let savedEntries = [];
+    if (orderExists) {
+      const { data: entries, error: entriesError } = await supabase
+        .from('security_daily_order_entries')
+        .select(`
+          *,
+          staff:security_staff(*)
+        `)
+        .eq('order_id', order.id)
+        .order('category')
+        .order('display_order');
+      
+      if (entriesError) throw entriesError;
+      savedEntries = entries || [];
     }
-    if (error) throw error;
 
-    // Get entries
-    const { data: entries, error: entriesError } = await supabase
-      .from('security_daily_order_entries')
-      .select(`
-        *,
-        staff:security_staff(*)
-      `)
-      .eq('order_id', order.id)
-      .order('category')
-      .order('display_order');
+    // 3. Merge: weekly schedule + saved details
+    const savedEntriesMap = new Map(savedEntries.map(e => [`${e.staff_id}-${e.start_time}`, e]));
+    
+    const merged = (scheduleEntries || []).map(entry => {
+      const startTime = entry.shift?.start_time || '07:00';
+      const endTime = entry.shift?.end_time || '15:00';
+      const category = entry.shift?.category || entry.staff?.role || 'פיקוח';
+      
+      // Check if we have saved details for this staff+time
+      const savedDetail = savedEntriesMap.get(`${entry.staff_id}-${startTime}`);
+      
+      return {
+        id: savedDetail?.id || null,
+        staff_id: entry.staff_id,
+        staff_name: entry.staff?.full_name || '',
+        category,
+        role_title: category === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני',
+        vehicle: savedDetail?.vehicle || '',
+        start_time: startTime,
+        end_time: endTime,
+        is_backup: entry.is_backup || false,
+        tasks: savedDetail?.tasks || [],
+        special_notes: savedDetail?.special_notes || '',
+        display_order: savedDetail?.display_order || 0,
+        staff: entry.staff,
+        from_schedule: true
+      };
+    });
+    
+    // 4. Add any manual entries that were saved but not in schedule
+    savedEntries.forEach(saved => {
+      const key = `${saved.staff_id}-${saved.start_time}`;
+      const existsInSchedule = merged.some(m => `${m.staff_id}-${m.start_time}` === key);
+      if (!existsInSchedule) {
+        merged.push({
+          ...saved,
+          from_schedule: false
+        });
+      }
+    });
 
-    if (entriesError) throw entriesError;
-
-    return NextResponse.json({ success: true, data: order, entries: entries || [] });
+    return NextResponse.json({ 
+      success: true, 
+      data: orderExists ? order : null, 
+      entries: merged 
+    });
   } catch (error) {
+    console.error('Error in GET security-daily-order:', error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

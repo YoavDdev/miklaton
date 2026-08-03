@@ -773,33 +773,85 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
   const [showPreview, setShowPreview] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  // Load order when date changes
+  // Load order when date changes OR schedule changes
   useEffect(() => {
     if (departmentId && selectedDate) {
       loadOrder();
     }
-  }, [departmentId, selectedDate]);
+  }, [departmentId, selectedDate, schedule, shifts, staff]);
 
   const loadOrder = async () => {
     setLoading(true);
     try {
+      // 1. Load weekly schedule entries for this day
+      const date = new Date(selectedDate + 'T00:00:00');
+      const dayOfWeek = date.getDay();
+      const dayEntries = schedule.filter(s => s.day_of_week === dayOfWeek);
+      
+      console.log('🔍 DEBUG פקודת יום:');
+      console.log('📅 תאריך נבחר:', selectedDate, 'יום בשבוע:', dayOfWeek);
+      console.log('📊 סידור שבועי כולל:', schedule.length, 'רשומות');
+      console.log('📋 משמרות להיום:', dayEntries.length);
+      console.log('👥 עובדים:', staff.length);
+      console.log('⏰ סוגי משמרות:', shifts.length);
+      
+      // 2. Load saved daily order details (vehicle, tasks, notes)
       const res = await fetch(`/api/security-daily-order?department_id=${departmentId}&order_date=${selectedDate}`);
       const data = await res.json();
-      if (data.success && data.data) {
-        setGeneralNotes(data.data.general_notes || '');
-        setSignoffMessage(data.data.signoff_message || 'יום טוב לכולם, סעו בזהירות, שמרו על עצמכם');
-        setEntries(data.entries.map(e => ({
-          ...e,
-          tasks: e.tasks || []
-        })));
-      } else {
-        // No order found for this date - clear entries
-        setGeneralNotes('');
-        setSignoffMessage('יום טוב לכולם, סעו בזהירות, שמרו על עצמכם');
-        setEntries([]);
-      }
+      
+      const savedEntries = data.success && data.data ? data.entries : [];
+      const savedEntriesMap = new Map(savedEntries.map(e => [`${e.staff_id}-${e.start_time}`, e]));
+      
+      // 3. Merge: weekly schedule + saved details
+      const merged = dayEntries.map(entry => {
+        const shift = shifts.find(s => s.id === entry.shift_id);
+        const staffMember = staff.find(s => s.id === entry.staff_id);
+        const category = shift?.category || staffMember?.role || 'פיקוח';
+        const startTime = shift?.start_time || '07:00';
+        const endTime = shift?.end_time || '15:00';
+        const defaultTasks = category === 'שיטור' ? [...tasksShitur] : [...tasksPikuach];
+        
+        // Check if we have saved details for this staff+time
+        const savedDetail = savedEntriesMap.get(`${entry.staff_id}-${startTime}`);
+        
+        return {
+          id: savedDetail?.id || `auto-${entry.id}`,
+          staff_id: entry.staff_id,
+          staff_name: staffMember?.full_name || '',
+          category,
+          role_title: category === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני',
+          vehicle: savedDetail?.vehicle || '',
+          start_time: startTime,
+          end_time: endTime,
+          is_backup: entry.is_backup || false,
+          tasks: savedDetail?.tasks || defaultTasks,
+          special_notes: savedDetail?.special_notes || '',
+          display_order: savedDetail?.display_order || 0,
+          from_schedule: true // Mark as auto-loaded from schedule
+        };
+      });
+      
+      // 4. Add any manual entries that were saved but not in schedule
+      savedEntries.forEach(saved => {
+        const key = `${saved.staff_id}-${saved.start_time}`;
+        const existsInSchedule = merged.some(m => `${m.staff_id}-${m.start_time}` === key);
+        if (!existsInSchedule) {
+          merged.push({
+            ...saved,
+            tasks: saved.tasks || [],
+            from_schedule: false // Manual entry
+          });
+        }
+      });
+      
+      console.log('✅ סה"כ רשומות שמועברות ל-entries:', merged.length);
+      console.log('📝 רשומות:', merged);
+      
+      setEntries(merged);
+      setGeneralNotes(data.success && data.data ? data.data.general_notes || '' : '');
+      setSignoffMessage(data.success && data.data ? data.data.signoff_message || 'יום טוב לכולם, סעו בזהירות, שמרו על עצמכם' : 'יום טוב לכולם, סעו בזהירות, שמרו על עצמכם');
     } catch (error) {
-      console.error('Error loading daily order:', error);
+      console.error('❌ Error loading daily order:', error);
     } finally {
       setLoading(false);
     }
@@ -1016,6 +1068,17 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
 
   return (
     <div className="space-y-4">
+      {/* Info banner */}
+      <div className="bg-gradient-to-l from-green-50 to-blue-50 border-2 border-green-200 rounded-lg p-3">
+        <div className="flex items-start gap-2">
+          <span className="text-lg">🔄</span>
+          <div className="text-xs sm:text-sm">
+            <p className="font-bold text-gray-900 mb-1">עדכון אוטומטי מסידור השבועי</p>
+            <p className="text-gray-700">המשמרות מתעדכנות אוטומטית מהטאב &quot;סידור עבודה שבועי&quot;. כאן תוכל להוסיף רכב, משימות והערות לכל עובד.</p>
+          </div>
+        </div>
+      </div>
+
       {/* Date selector + actions */}
       <div className="bg-white rounded-lg shadow p-4">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
@@ -1055,9 +1118,6 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
             >›</button>
           </div>
           <div className="flex gap-2">
-            <button onClick={pullFromWeeklySchedule} className="px-4 py-2 bg-orange-600 active:bg-orange-700 text-white rounded-lg font-semibold text-sm">
-              📥 משוך מסידור שבועי
-            </button>
             <button onClick={saveOrder} className={`px-4 py-2 rounded-lg font-semibold text-sm ${saved ? 'bg-green-100 text-green-700' : 'bg-blue-600 text-white active:bg-blue-700'}`}>
               {saved ? '✅ נשמר' : '💾 שמור'}
             </button>
@@ -1092,7 +1152,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
             <div className="divide-y divide-gray-100">
               {pikuachEntries.length === 0 ? (
                 <div className="p-6 text-center text-gray-400 text-sm">
-                  אין שיבוצים. לחץ &quot;+ הוסף עובד&quot; או עבור לטאב סידור שבועי כדי למשוך אוטומטית.
+                  אין שיבוצים. שבץ עובדים בטאב &quot;סידור עבודה שבועי&quot; והם יופיעו כאן אוטומטית, או לחץ &quot;+ הוסף עובד&quot; להוספה ידנית.
                 </div>
               ) : (
                 pikuachEntries.map((entry, idx) => {
@@ -1194,9 +1254,12 @@ function DailyEntryCard({ entry, idx, staff, vehicles, availableTasks, onUpdate,
   };
 
   return (
-    <div className="p-3 sm:p-4">
+    <div className={`p-3 sm:p-4 ${entry.from_schedule ? 'bg-blue-50/30' : ''}`}>
       {/* Header row */}
       <div className="flex items-start gap-2 mb-2">
+        {entry.from_schedule && (
+          <span className="text-blue-500 text-xs mt-1.5" title="משמרת מהסידור השבועי">🔄</span>
+        )}
         <div className="flex-1 grid grid-cols-2 sm:grid-cols-4 gap-2">
           {/* Staff selector */}
           <select
