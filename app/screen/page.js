@@ -85,6 +85,10 @@ export default function ScreenPage() {
   const [addShiftSaving, setAddShiftSaving] = useState(false);
   const [callCenterShift, setCallCenterShift] = useState({ current: null, next: null, activeShifts: [] }); // current and next call center shifts
   const [callCenterDeptId, setCallCenterDeptId] = useState(null);
+  const callCenterDeptIdRef = useRef(callCenterDeptId);
+  useEffect(() => {
+    callCenterDeptIdRef.current = callCenterDeptId;
+  }, [callCenterDeptId]);
 
   // Live clock
   useEffect(() => {
@@ -320,7 +324,7 @@ export default function ScreenPage() {
       fetchDutyRoster(),
       fetchVacations(),
       securityDeptIdRef.current ? fetchSecurityStatus() : Promise.resolve(),
-      callCenterDeptId ? fetchCallCenterShift() : Promise.resolve()
+      callCenterDeptIdRef.current ? fetchCallCenterShift() : Promise.resolve()
     ]);
     // Update timestamp to show screen is actively checking
     setLastSecurityUpdate(new Date());
@@ -464,8 +468,9 @@ export default function ScreenPage() {
 
   const fetchCallCenterShift = async () => {
     try {
-      if (!callCenterDeptId) return;
-      const res = await fetch(`/api/call-center-schedule/current?department_id=${callCenterDeptId}`, {
+      const deptId = callCenterDeptIdRef.current;
+      if (!deptId) return;
+      const res = await fetch(`/api/call-center-schedule/current?department_id=${deptId}`, {
         cache: 'no-store'
       });
       const data = await res.json();
