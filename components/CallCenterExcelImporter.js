@@ -42,10 +42,21 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     const weekStartStr = formatDateForDB(currentWeekStart);
     
     // Find the row with day names (should be row 7)
+    // Look for a row that has "יום ראשון" in columns 3-9 (the day columns)
     let dayRowIndex = -1;
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
-      if (row && row.some(cell => cell && cell.toString().includes('יום ראשון'))) {
+      if (!row) continue;
+      
+      // Check if columns 3-9 contain day names
+      const dayColumns = row.slice(3, 10);
+      const hasAllDays = dayColumns.some(cell => 
+        cell && cell.toString().includes('יום ראשון')
+      ) && dayColumns.some(cell => 
+        cell && cell.toString().includes('יום שני')
+      );
+      
+      if (hasAllDays) {
         dayRowIndex = i;
         break;
       }
