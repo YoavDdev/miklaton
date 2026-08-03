@@ -41,7 +41,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     const entries = [];
     const weekStartStr = formatDateForDB(currentWeekStart);
     
-    // Find the row with day names
+    // Find the row with day names (should be row 7)
     let dayRowIndex = -1;
     for (let i = 0; i < rawData.length; i++) {
       const row = rawData[i];
@@ -53,40 +53,46 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     
     if (dayRowIndex === -1) {
       console.error('Could not find day row');
+      toast.error('לא נמצאה שורת הימים בקובץ');
       return entries;
     }
     
-    // Process each shift type row
+    console.log(`Found day row at index ${dayRowIndex}`);
+    
+    // Process each row after dates row
     for (let rowIndex = dayRowIndex + 2; rowIndex < rawData.length; rowIndex++) {
       const row = rawData[rowIndex];
       if (!row || row.length === 0) continue;
       
       const shiftTypeCell = row[1]?.toString().trim();
-      if (!shiftTypeCell) continue;
-      
-      // Detect shift type
-      let shiftName = '';
-      let position = '';
-      
-      if (shiftTypeCell.includes('בוקר') || shiftTypeCell.includes('07:00-15:00')) {
-        shiftName = 'בוקר';
-      } else if (shiftTypeCell.includes('ביניים') || shiftTypeCell.includes('11:00-19:00')) {
-        shiftName = 'ביניים';
-      } else if (shiftTypeCell.includes('ערב') || shiftTypeCell.includes('15:00-23:00')) {
-        shiftName = 'ערב';
-      } else {
-        continue;
-      }
-      
-      // Detect position (אחמ"ש / נציג)
       const positionCell = row[2]?.toString().trim();
-      if (positionCell && positionCell.includes('אחמ')) {
-        position = 'אחמ"ש';
-      } else if (positionCell && positionCell.includes('נציג')) {
-        position = 'נציג';
-      } else {
-        continue;
+      
+      if (!shiftTypeCell && !positionCell) continue;
+      
+      // Detect shift type from column 1
+      let shiftName = '';
+      if (shiftTypeCell) {
+        if (shiftTypeCell.includes('בוקר')) {
+          shiftName = 'בוקר';
+        } else if (shiftTypeCell.includes('ביניים')) {
+          shiftName = 'ביניים';
+        } else if (shiftTypeCell.includes('ערב')) {
+          shiftName = 'ערב';
+        }
       }
+      
+      // Detect position from column 2
+      let position = '';
+      if (positionCell) {
+        if (positionCell.includes('אחמ')) {
+          position = 'אחמ"ש';
+        } else if (positionCell.includes('נציג')) {
+          position = 'נציג';
+        }
+      }
+      
+      // Skip if we don't have both shift and position
+      if (!shiftName || !position) continue;
       
       // Find matching shift
       const matchingShift = shifts.find(s => s.name === shiftName);
@@ -95,20 +101,27 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
         continue;
       }
       
+      console.log(`Processing row ${rowIndex}: ${shiftName} - ${position}`);
+      
       // Parse staff for each day (columns 3-9 for Sun-Sat)
       for (let dayIndex = 0; dayIndex < 7; dayIndex++) {
         const cellValue = row[dayIndex + 3]?.toString().trim();
         if (!cellValue || cellValue === '-' || cellValue === '') continue;
         
+        // Clean the name (remove newlines)
+        const cleanName = cellValue.replace(/\n/g, ' ').trim();
+        
         // Try to find matching staff member
-        const staffMember = staff.find(s => 
-          s.full_name?.includes(cellValue) || cellValue.includes(s.full_name) ||
-          s.full_name?.split(' ')[0] === cellValue.split(' ')[0] // Match first name
-        );
+        const staffMember = staff.find(s => {
+          if (!s.full_name) return false;
+          const staffFirstName = s.full_name.split(' ')[0];
+          const cellFirstName = cleanName.split(' ')[0];
+          return staffFirstName === cellFirstName || s.full_name.includes(cleanName) || cleanName.includes(s.full_name);
+        });
         
         entries.push({
           staff_id: staffMember?.id || null,
-          staff_name: staffMember?.full_name || cellValue,
+          staff_name: staffMember?.full_name || cleanName,
           shift_id: matchingShift.id,
           day_of_week: dayIndex,
           position
@@ -116,6 +129,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       }
     }
     
+    console.log(`Parsed ${entries.length} total entries`);
     return entries;
   };
 
