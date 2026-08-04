@@ -913,9 +913,10 @@ export default function ScreenPage() {
                     </>
                   );
                 })()}
-                {/* Upcoming shifts - all remaining shifts today (evening, night, etc.) */}
+                {/* Next shift only - the closest upcoming shift today */}
                 {(callCenterShift.nextShifts || [])
                   .filter(shift => (shift.managers?.length || 0) + (shift.reps?.length || 0) > 0)
+                  .slice(0, 1)
                   .map((nextShift, shiftIdx) => (
                     <span key={`next-${shiftIdx}`} className="flex items-center gap-2 flex-wrap">
                       <span className="text-gray-500">|</span>
