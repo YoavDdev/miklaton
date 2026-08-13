@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAuth } from '@/lib/auth';
+import { verifyAuth, requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -10,11 +10,8 @@ const supabase = createClient(
 // GET - Fetch daily updates (active by default, or history)
 export async function GET(request) {
   try {
-    // Optional auth - allow without auth for testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);
     const showHistory = searchParams.get('history') === 'true';
@@ -60,16 +57,9 @@ export async function GET(request) {
 // POST - Create new daily update
 export async function POST(request) {
   try {
-    // Optional auth - allow without auth for testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
-
     // Only operators and call_center_managers can create updates
-    // if (!['operator', 'call_center_manager', 'admin'].includes(authResult.user.role)) {
-    //   return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    // }
+    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const {

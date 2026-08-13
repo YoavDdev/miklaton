@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,6 +10,8 @@ const supabase = createClient(
 // POST - bulk insert multiple schedule entries (for Excel import)
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, week_start, entries } = body;
 

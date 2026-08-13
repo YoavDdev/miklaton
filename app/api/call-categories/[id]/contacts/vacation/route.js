@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAuth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -10,11 +10,8 @@ const supabase = createClient(
 // POST - Send contact on vacation
 export async function POST(request, { params }) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const { contact_id, vacation_start, vacation_end, reason, replacement_contact_id, replacement_note } = body;
@@ -61,11 +58,8 @@ export async function POST(request, { params }) {
 // DELETE - Return contact from vacation
 export async function DELETE(request, { params }) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);
     const contactId = searchParams.get('contact_id');

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -30,6 +31,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { department_id, full_name, phone, role } = body;
 
@@ -52,6 +56,9 @@ export async function POST(request) {
 
 export async function PATCH(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { id, department_id, full_name, phone, role, active } = body;
 
@@ -75,6 +82,9 @@ export async function PATCH(request) {
 
 export async function DELETE(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,6 +34,9 @@ export async function GET(request) {
 // POST - Create new on-call contact
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { name, phone, municipality_id, department_id, on_vacation, vacation_start, vacation_end, vacation_reason, replacement_contact_id, replacement_note } = body;
 

@@ -6,6 +6,8 @@
 
 # חלק א' — אבטחת ה-API
 
+> ✅ שלבים 1-2 בוצעו במלואם; שלב 3 בוצע לכל פעולות הכתיבה. פירוט: [09-security-implementation.md](./09-security-implementation.md)
+
 ## 🔍 אבחון: למה האימות מנוטרל?
 
 זה **שורש הבעיה** וחשוב להבין אותו לפני התיקונים:
@@ -32,10 +34,10 @@
 
 ## שלב 1 — תשתית (חצי יום עבודה) 🔴 קריטי
 
-- [ ] **1.1 תיקון `verifyAuth` ב-`lib/auth.js`** — קריאת הטוקן מהעוגייה `auth-token` קודם, ואז מ-header (לתאימות). זו התשתית לכל השאר.
-- [ ] **1.2 הוספת helper לבדיקת תפקיד** — למשל `requireRole(request, ['admin', 'call_center_manager'])` שמחזיר את המשתמש או תשובת 401/403 — כדי שכל route יגן על עצמו בשורה אחת אחידה.
-- [ ] **1.3 הסרת ה-fallback של `JWT_SECRET`** — במקום ברירת מחדל, לזרוק שגיאה אם המשתנה לא מוגדר. לוודא שהוא מוגדר ב-Vercel.
-- [ ] **1.4 סיבוב סודות שנחשפו:**
+- [x] **1.1 תיקון `verifyAuth` ב-`lib/auth.js`** — קריאת הטוקן מהעוגייה `auth-token` קודם, ואז מ-header (לתאימות). זו התשתית לכל השאר.
+- [x] **1.2 הוספת helper לבדיקת תפקיד** — למשל `requireRole(request, ['admin', 'call_center_manager'])` שמחזיר את המשתמש או תשובת 401/403 — כדי שכל route יגן על עצמו בשורה אחת אחידה.
+- [x] **1.3 הסרת ה-fallback של `JWT_SECRET`** — במקום ברירת מחדל, לזרוק שגיאה אם המשתנה לא מוגדר. לוודא שהוא מוגדר ב-Vercel.
+- [x] **1.4 סיבוב סודות שנחשפו:** *(הקובץ נוקה — נותר לשנות את הסיסמאות בפועל!)*
   - `.env.example` מכיל סיסמאות אמיתיות (`APP_PASSWORD`, `ADMIN_PASSWORD`) שנמצאות ב-git — להחליף לערכי דוגמה **ולשנות את הסיסמאות בפועל**.
   - מומלץ גם לחדש את `JWT_SECRET` (ינתק את כולם פעם אחת — לתאם).
 
@@ -43,9 +45,9 @@
 
 אחרי שלב 1.1 אפשר פשוט להסיר את ההערות:
 
-- [ ] `call-categories/route.js` — GET מאומת לכל מחובר; POST/PUT/DELETE ל-`call_center_manager`+`admin`
-- [ ] `call-categories/[id]/contacts/*` (4 קבצים) — כנ"ל
-- [ ] `daily-updates/route.js` — GET לכל מחובר; POST/PUT/DELETE לפי התפקידים שכבר מוגדרים ב-PUT/DELETE
+- [x] `call-categories/route.js` — GET מאומת לכל מחובר; POST/PUT/DELETE ל-`call_center_manager`+`admin`
+- [x] `call-categories/[id]/contacts/*` (4 קבצים) — כנ"ל
+- [x] `daily-updates/route.js` — GET לכל מחובר; POST/PUT/DELETE לפי התפקידים שכבר מוגדרים ב-PUT/DELETE
 
 ## שלב 3 — הוספת אימות ל-routes הפתוחים (1-2 ימים) 🔴
 

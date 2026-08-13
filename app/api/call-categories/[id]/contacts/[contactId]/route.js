@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -26,6 +27,9 @@ async function syncShabbatObserverToContacts(supabase, name, phone, isObserver) 
 // PUT - Update contact
 export async function PUT(request, { params }) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const { id: categoryId, contactId } = params;
     const body = await request.json();
     const shabbatObserver = body.shabbat_observer || false;
@@ -69,6 +73,9 @@ export async function PUT(request, { params }) {
 // DELETE - Delete contact
 export async function DELETE(request, { params }) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const { id: categoryId, contactId } = params;
 
     const { error } = await supabase

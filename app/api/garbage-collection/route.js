@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -45,6 +46,9 @@ export async function GET(request) {
 // POST - Add new schedule entry
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { street_name, collection_day, collection_day_hebrew, takeout_day_hebrew, collection_time, collection_type, zone, notes } = body;
 
@@ -79,6 +83,9 @@ export async function POST(request) {
 // PUT - Update schedule entry
 export async function PUT(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { id, ...updates } = body;
 
@@ -107,6 +114,9 @@ export async function PUT(request) {
 // DELETE - Remove schedule entry
 export async function DELETE(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

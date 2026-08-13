@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -41,6 +42,9 @@ export async function GET(request) {
 // POST - create a new knowledge base entry
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { title, content, category, tags, contacts, created_by } = body;
 
@@ -77,6 +81,9 @@ export async function POST(request) {
 // PUT - update an existing knowledge base entry
 export async function PUT(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { id, title, content, category, tags, contacts, updated_by } = body;
 
@@ -114,6 +121,9 @@ export async function PUT(request) {
 // DELETE - soft delete (set is_active to false)
 export async function DELETE(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -139,6 +140,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { contact_id, department_id, day_of_week, start_hour, end_hour, notes, week_start_date } = body;
 
@@ -164,6 +168,9 @@ export async function POST(request) {
 
 export async function PATCH(request) {
   try {
+    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { id, contact_id, day_of_week, start_hour, end_hour, notes, active } = body;
 
@@ -186,6 +193,7 @@ export async function PATCH(request) {
 }
 
 export async function DELETE(request) {
+  // TODO: אבטחה - נשאר פתוח כי דף /duty-form הציבורי משתמש בו. ראה docs/09-security-implementation.md
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

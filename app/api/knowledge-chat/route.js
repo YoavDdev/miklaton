@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 import appGuide from '@/data/app-guide.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -380,6 +381,9 @@ const SYSTEM_PROMPT_BASE = `אתה עוזר AI מתקדם למוקדנים במ�
 
 export async function POST(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     if (!OPENAI_API_KEY) {
       return NextResponse.json({ success: false, error: 'OpenAI API key not configured' }, { status: 500 });
     }

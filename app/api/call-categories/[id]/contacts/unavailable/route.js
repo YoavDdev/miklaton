@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAuth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -10,11 +10,8 @@ const supabase = createClient(
 // POST - Mark contact as unavailable
 export async function POST(request, { params }) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const { contact_id, unavailable_until, reason } = body;
@@ -55,11 +52,8 @@ export async function POST(request, { params }) {
 // DELETE - Mark contact as available again
 export async function DELETE(request, { params }) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);
     const contactId = searchParams.get('contact_id');

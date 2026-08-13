@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { verifyAuth } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,11 +28,8 @@ async function resolveMunicipalityId(municipalityId) {
 // GET - Get all call categories with contacts
 export async function GET(request) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);
     const municipalityId = searchParams.get('municipality_id');
@@ -256,11 +253,8 @@ export async function GET(request) {
 // POST - Create new category
 export async function POST(request) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     // if (!['call_center_manager', 'admin'].includes(authResult.user.role)) {
     //   return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
@@ -327,11 +321,8 @@ export async function POST(request) {
 // PUT - Update category
 export async function PUT(request) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     // if (!['call_center_manager', 'admin'].includes(authResult.user.role)) {
     //   return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
@@ -374,11 +365,8 @@ export async function PUT(request) {
 // DELETE - Delete category
 export async function DELETE(request) {
   try {
-    // TODO: Re-enable authentication after testing
-    // const authResult = await verifyAuth(request);
-    // if (!authResult.valid) {
-    //   return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    // }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     // if (!['call_center_manager', 'admin'].includes(authResult.user.role)) {
     //   return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });

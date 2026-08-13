@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/auth';
 
 // Create Supabase client locally to ensure env vars are available at runtime
 const getSupabase = () => {
@@ -50,6 +51,9 @@ export async function GET() {
 // POST new notification
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    if (auth.error) return auth.error;
+
     const supabase = getSupabase();
     if (!supabase) {
       return NextResponse.json({ 
@@ -97,6 +101,9 @@ export async function POST(request) {
 // DELETE notification by ID
 export async function DELETE(request) {
   try {
+    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    if (auth.error) return auth.error;
+
     const supabase = getSupabase();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

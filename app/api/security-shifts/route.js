@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -35,6 +36,8 @@ export async function GET(request) {
 // POST - create new shift type
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, category, name, start_time, end_time, display_order } = body;
 
@@ -66,6 +69,8 @@ export async function POST(request) {
 // PATCH - update shift type
 export async function PATCH(request) {
   try {
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    if (auth.error) return auth.error;
     const body = await request.json();
     const { id, name, category, start_time, end_time, display_order, active } = body;
 
@@ -99,6 +104,8 @@ export async function PATCH(request) {
 // DELETE - deactivate shift type
 export async function DELETE(request) {
   try {
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

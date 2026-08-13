@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/auth';
 
 // Create Supabase client at runtime to ensure env vars are available
 const getSupabase = () => {
@@ -52,6 +53,9 @@ export async function GET() {
 
 export async function POST(request) {
   try {
+    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    if (auth.error) return auth.error;
+
     const supabase = getSupabase();
     const body = await request.json();
     const { shelterNumber, isOpen, updatedBy } = body;
