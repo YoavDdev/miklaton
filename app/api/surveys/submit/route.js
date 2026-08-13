@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit } from '@/lib/rate-limit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,6 +10,9 @@ const supabase = createClient(
 // POST - Submit survey response (public, no auth required)
 export async function POST(request) {
   try {
+    const limited = rateLimit(request, 'survey-submit', { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
+
     const {
       token,
       respondent_name,

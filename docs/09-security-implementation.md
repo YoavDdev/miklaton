@@ -71,12 +71,30 @@ if (auth.error) return auth.error;   // 401 אם לא מחובר, 403 אם אי�
 ### 5. Events
 נתיבי האירועים (`journal`, `upload`, `join`) נשארו כמו שהם — בנויים לאורחים עם טוקן אירוע. שלב הבא: לוודא שכל פעולה דורשת את טוקן האירוע ולא רק את ה-ID.
 
-## מה עוד לא בוצע (משלב 4 בתוכנית)
-- Rate limiting על login / register / knowledge-chat / surveys-submit
-- הגבלת סוג/גודל קובץ ב-events/upload
-- סקירת RLS מלאה ב-Supabase (סעיף 4 למעלה)
-- Security headers ב-next.config.js
+## מה תוקן — שלב 4: הקשחות
+
+### Rate limiting (`lib/rate-limit.js`)
+Limiter בזיכרון לפי IP (sliding window), הוחל על:
+| Endpoint | מגבלה |
+|----------|--------|
+| `POST /api/auth/login` | 10 לדקה |
+| `POST /api/auth/register` | 5 לדקה |
+| `POST /api/surveys/submit` | 5 לדקה |
+| `POST /api/knowledge-chat` | 20 לדקה (אחרי אימות) |
+
+הערה: ב-Vercel המונה הוא per-instance — הגנה בסיסית נגד brute-force. לשדרוג עתידי: Upstash Redis.
+
+### העלאת תמונות (`/api/events/upload`)
+- כבר היו: בדיקת `image/*` ומקסימום 10MB
+- נוסף: סניטציה של `event_id` בנתיב הקובץ (מניעת path traversal) + whitelist לסיומות
+
+### Security headers (`next.config.js`)
+`X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Referrer-Policy`, `Permissions-Policy` — על כל הדפים.
+
+## מה עוד לא בוצע
+- סקירת RLS מלאה ב-Supabase (סעיף 4 ב"החלטות פתוחות" — **החשוב ביותר שנותר**)
 - הסרת מנגנון `APP_PASSWORD`/`ADMIN_PASSWORD` הישן
+- CSP (Content-Security-Policy) מלא — דורש מיפוי מקורות (Leaflet tiles, Supabase, fonts)
 
 ## איך לבדוק (רגרסיה)
 1. התחברות כמוקדן → `/operator`: מדריך שיחות נטען, עדכונים יומיים, סטטוס מקלטים ניתן לשינוי, לחצני מצוקה, צ'אט AI עונה

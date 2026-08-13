@@ -26,8 +26,15 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'Image too large (max 10MB)' }, { status: 400 });
     }
 
-    const ext = file.name?.split('.').pop() || 'jpg';
-    const fileName = `${eventId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    // Sanitize path parts (prevent path traversal)
+    const safeEventId = String(eventId).replace(/[^a-zA-Z0-9-]/g, '');
+    const allowedExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'];
+    const rawExt = (file.name?.split('.').pop() || 'jpg').toLowerCase();
+    const ext = allowedExts.includes(rawExt) ? rawExt : 'jpg';
+    if (!safeEventId) {
+      return NextResponse.json({ success: false, error: 'Invalid event_id' }, { status: 400 });
+    }
+    const fileName = `${safeEventId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
 
     const buffer = Buffer.from(await file.arrayBuffer());
 

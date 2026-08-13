@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { rateLimit } from '@/lib/rate-limit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -8,6 +9,9 @@ const supabase = createClient(
 
 export async function POST(request) {
   try {
+    const limited = rateLimit(request, 'register', { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
+
     const { email, password, fullName, phone, role } = await request.json();
 
     // Validation

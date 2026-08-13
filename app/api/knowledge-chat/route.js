@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import appGuide from '@/data/app-guide.json';
 import sheltersData from '@/data/shelters.json';
 
@@ -383,6 +384,9 @@ export async function POST(request) {
   try {
     const auth = await requireRole(request);
     if (auth.error) return auth.error;
+
+    const limited = rateLimit(request, 'knowledge-chat', { limit: 20, windowMs: 60_000 });
+    if (limited) return limited;
 
     if (!OPENAI_API_KEY) {
       return NextResponse.json({ success: false, error: 'OpenAI API key not configured' }, { status: 500 });

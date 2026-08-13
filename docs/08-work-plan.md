@@ -79,11 +79,11 @@
 
 ## שלב 4 — הקשחות נוספות (יום) 🟡
 
-- [ ] **Rate limiting** על `login`, `register`, `knowledge-chat`, `surveys/submit` (למשל `@upstash/ratelimit` או פתרון פשוט בזיכרון per-IP).
+- [x] **Rate limiting** על `login`, `register`, `knowledge-chat`, `surveys/submit` (למשל `@upstash/ratelimit` או פתרון פשוט בזיכרון per-IP).
 - [ ] **אימות קלט** — נקודות שמקבלות טקסט חופשי שמוצג לאחרים (journal, notifications, knowledge-base): הגבלת אורך + סניטציה.
-- [ ] **`events/upload`** — הגבלת סוג קובץ (תמונות בלבד) וגודל.
+- [x] **`events/upload`** — הגבלת סוג קובץ (תמונות בלבד) וגודל + סניטציית נתיב.
 - [ ] **RLS ב-Supabase** — רוב ה-routes משתמשים ב-service role שעוקף RLS; לוודא שה-anon key לא מאפשר גישה ישירה לטבלאות מהדפדפן (הקומפוננטות שיוצרות Supabase client ישירות — `SecurityFieldStatus`, `ActiveEventBanner`, דפי אירועים — צריכות RLS מתאים לקריאה בלבד).
-- [ ] **Security headers** ב-`next.config.js` — `X-Frame-Options`, `Content-Security-Policy` בסיסי.
+- [x] **Security headers** ב-`next.config.js` — `X-Frame-Options`, `Content-Security-Policy` בסיסי.
 - [ ] **מחיקת מנגנון הסיסמאות הישן** — `verifyOperatorPassword`/`verifyAdminPassword` ו-`APP_PASSWORD`/`ADMIN_PASSWORD` אם אינם בשימוש.
 
 ## סדר ביצוע מומלץ ובדיקות
