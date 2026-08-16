@@ -1,14 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRoleOrScreen } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 // PATCH - update a single entry (change times, remove, etc.) + log the change
 export async function PATCH(request) {
   try {
+    const auth = await requireRoleOrScreen(request, ['operator', 'call_center_manager', 'sector_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const {
       entry_id,
@@ -151,6 +155,9 @@ export async function PATCH(request) {
 // POST - add a single new shift entry to a day's order (get-or-create the order)
 export async function POST(request) {
   try {
+    const auth = await requireRoleOrScreen(request, ['operator', 'call_center_manager', 'sector_manager']);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { department_id, order_date, staff_id, staff_name, role_title, category, start_time, end_time } = body;
 
@@ -217,6 +224,9 @@ export async function POST(request) {
 // GET - get change history for an entry or order
 export async function GET(request) {
   try {
+    const auth = await requireRoleOrScreen(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const entryId = searchParams.get('entry_id');
     const orderId = searchParams.get('order_id');

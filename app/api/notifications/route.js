@@ -1,11 +1,11 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireRoleOrScreen } from '@/lib/auth';
 
 // Create Supabase client locally to ensure env vars are available at runtime
 const getSupabase = () => {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   
   if (!supabaseUrl || !supabaseKey) {
     throw new Error('Missing Supabase environment variables');
@@ -15,9 +15,12 @@ const getSupabase = () => {
 };
 
 // GET all notifications
-export async function GET() {
+export async function GET(request) {
   const supabase = getSupabase();
   try {
+    const auth = await requireRoleOrScreen(request);
+    if (auth.error) return auth.error;
+
     if (!supabase) {
       return NextResponse.json({ 
         notifications: [],

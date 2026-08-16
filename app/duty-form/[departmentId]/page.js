@@ -12,6 +12,12 @@ const SHIFT_PRESETS = [
   { label: 'לילה', start: 0, end: 8, icon: '🌙', desc: '00-08' },
 ];
 
+// הטוקן החתום מהקישור (?t=...) - נשלח לשרת בכל בקשה לאימות הגישה למכלול
+function getFormToken() {
+  if (typeof window === 'undefined') return '';
+  return new URLSearchParams(window.location.search).get('t') || '';
+}
+
 function makeDaysMap() {
   const days = {};
   for (let i = 0; i < 7; i++) days[i] = { active: false, shifts: [{ start: 8, end: 8 }] };
@@ -46,7 +52,7 @@ export default function DutyFormPage({ params }) {
 
   const fetchDepartmentData = async () => {
     try {
-      const res = await fetch(`/api/duty-form?departmentId=${departmentId}`);
+      const res = await fetch(`/api/duty-form?departmentId=${departmentId}&t=${getFormToken()}`);
       const data = await res.json();
       if (!data.success) { setError('מכלול לא נמצא'); setLoading(false); return; }
 
@@ -92,7 +98,7 @@ export default function DutyFormPage({ params }) {
   const handleDeleteDuty = async (dutyId) => {
     setDeletingDuty(dutyId);
     try {
-      const res = await fetch(`/api/duty-roster?id=${dutyId}`, { method: 'DELETE' });
+      const res = await fetch(`/api/duty-roster?id=${dutyId}&t=${getFormToken()}`, { method: 'DELETE' });
       const data = await res.json();
       if (data.success) {
         setExistingDuties(prev => prev.filter(d => d.id !== dutyId));
@@ -211,6 +217,7 @@ export default function DutyFormPage({ params }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           departmentId,
+          token: getFormToken(),
           entries: [{
             contact_id: contactId,
             dutyType: entry.dutyType,
@@ -222,7 +229,7 @@ export default function DutyFormPage({ params }) {
       const data = await res.json();
       if (data.success) {
         // Refresh duties from server
-        const refreshRes = await fetch(`/api/duty-form?departmentId=${departmentId}`);
+        const refreshRes = await fetch(`/api/duty-form?departmentId=${departmentId}&t=${getFormToken()}`);
         const refreshData = await refreshRes.json();
         if (refreshData.success) {
           setExistingDuties(refreshData.data.existingDuties || []);
@@ -360,6 +367,7 @@ export default function DutyFormPage({ params }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           departmentId,
+          token: getFormToken(),
           newContacts: [{
             full_name: nc.full_name,
             phone: nc.phone,
@@ -373,7 +381,7 @@ export default function DutyFormPage({ params }) {
       const data = await res.json();
       if (data.success) {
         // Refresh everything
-        const refreshRes = await fetch(`/api/duty-form?departmentId=${departmentId}`);
+        const refreshRes = await fetch(`/api/duty-form?departmentId=${departmentId}&t=${getFormToken()}`);
         const refreshData = await refreshRes.json();
         if (refreshData.success) {
           const dept = refreshData.data.department;

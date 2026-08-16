@@ -1,9 +1,10 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { requireRoleOrScreen } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 function getIsraelDateString(date = new Date()) {
@@ -32,6 +33,9 @@ function wasUpdatedWithinLast24Hours(updatedAt) {
 // GET - Get all active vacations across all categories
 export async function GET(request) {
   try {
+    const auth = await requireRoleOrScreen(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const municipalityId = searchParams.get('municipality_id');
     const includeRecentlyReturned = searchParams.get('include_recently_returned') === 'true';

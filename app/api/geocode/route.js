@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import sheltersData from '@/data/shelters.json';
 
-const GOOGLE_API_KEY = 'AIzaSyBFHEh5vEiL57bG-q4TwfzbsFLmJRTKlmA';
+const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export async function GET(request) {
   const { searchParams } = new URL(request.url);
@@ -9,6 +9,11 @@ export async function GET(request) {
 
   if (!query) {
     return NextResponse.json({ error: 'Missing query parameter' }, { status: 400 });
+  }
+
+  if (!GOOGLE_API_KEY) {
+    console.error('GOOGLE_MAPS_API_KEY is not set - geocoding disabled');
+    return NextResponse.json([]);
   }
 
   try {

@@ -14,6 +14,7 @@ const ROUTE_PERMISSIONS = {
   '/dashboard': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
   '/profile': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
   '/change-password': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  '/on-call': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
 };
 
 // redirect לפי role - 7 תפקידים
@@ -30,8 +31,43 @@ const ROLE_REDIRECTS = {
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
+  // מסך המוקד: גישה עם טוקן מסך קבוע (?key=... פעם אחת => עוגייה) או משתמש מחובר
+  if (pathname.startsWith('/screen')) {
+    const screenToken = process.env.SCREEN_TOKEN;
+    const keyParam = request.nextUrl.searchParams.get('key');
+
+    // הגיע עם ?key= תקין - קובעים עוגייה ומנקים את ה-key מה-URL
+    if (screenToken && keyParam === screenToken) {
+      const cleanUrl = request.nextUrl.clone();
+      cleanUrl.searchParams.delete('key');
+      const response = NextResponse.redirect(cleanUrl);
+      response.cookies.set('screen-key', keyParam, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 60 * 60 * 24 * 365, // שנה - מסך תצוגה קבוע
+        path: '/',
+      });
+      return response;
+    }
+
+    // עוגיית מסך קיימת ותקינה
+    const cookieKey = request.cookies.get('screen-key')?.value;
+    if (screenToken && cookieKey === screenToken) {
+      return NextResponse.next();
+    }
+
+    // אחרת - גם משתמש מחובר רשאי לצפות במסך
+    const authToken = request.cookies.get('auth-token')?.value;
+    if (authToken && (await verifyTokenEdge(authToken))) {
+      return NextResponse.next();
+    }
+
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
   // בדיקה אם הנתיב מוגן
-  const protectedRoute = Object.keys(ROUTE_PERMISSIONS).find(route => 
+  const protectedRoute = Object.keys(ROUTE_PERMISSIONS).find(route =>
     pathname.startsWith(route)
   );
 
@@ -53,12 +89,14 @@ export async function middleware(request) {
 
     // בדיקת סטטוס בזמן אמת מה-DB (השעיה מיידית)
     try {
+      // service role (עוקף RLS) עם fallback ל-anon - הקריאה רצה בצד השרת בלבד
+      const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
       const statusResponse = await fetch(
         `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/user_profiles?id=eq.${decoded.userId}&select=status`,
         {
           headers: {
-            'apikey': process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`
           }
         }
       );
@@ -108,5 +146,9 @@ export const config = {
     '/dashboard/:path*',
     '/profile/:path*',
     '/change-password',
+    '/screen/:path*',
+    '/screen',
+    '/on-call',
+    '/on-call-query',
   ],
 };

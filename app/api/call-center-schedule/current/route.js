@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRoleOrScreen } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 // Force dynamic rendering - no caching
@@ -13,6 +14,9 @@ export const revalidate = 0;
 // GET - fetch current and next shift for today
 export async function GET(request) {
   try {
+    const auth = await requireRoleOrScreen(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const departmentId = searchParams.get('department_id');
 

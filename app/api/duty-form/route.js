@@ -1,9 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { verifyAuth, verifyDutyFormToken } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 // GET - fetch department info + contacts + full duty roster for the form
@@ -16,6 +17,15 @@ export async function GET(request) {
       return NextResponse.json(
         { success: false, error: 'departmentId is required' },
         { status: 400 }
+      );
+    }
+
+    // גישה: משתמש מחובר, או טוקן חתום מהקישור שנשלח למנהל המכלול
+    const authResult = await verifyAuth(request);
+    if (!authResult.valid && !verifyDutyFormToken(departmentId, searchParams.get('t'))) {
+      return NextResponse.json(
+        { success: false, error: 'קישור לא תקין - יש לבקש קישור חדש מהמוקד' },
+        { status: 401 }
       );
     }
 
@@ -66,12 +76,21 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { departmentId, entries, newContacts, submittedBy } = body;
+    const { departmentId, entries, newContacts, submittedBy, token } = body;
 
     if (!departmentId) {
       return NextResponse.json(
         { success: false, error: 'departmentId is required' },
         { status: 400 }
+      );
+    }
+
+    // גישה: משתמש מחובר, או טוקן חתום מהקישור שנשלח למנהל המכלול
+    const authResult = await verifyAuth(request);
+    if (!authResult.valid && !verifyDutyFormToken(departmentId, token)) {
+      return NextResponse.json(
+        { success: false, error: 'קישור לא תקין - יש לבקש קישור חדש מהמוקד' },
+        { status: 401 }
       );
     }
 

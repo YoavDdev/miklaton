@@ -8,11 +8,13 @@ export default function WhatsAppDutyLinks() {
   const [baseUrl, setBaseUrl] = useState('');
   const [copied, setCopied] = useState(null);
   const [sentStatus, setSentStatus] = useState({});
+  const [formTokens, setFormTokens] = useState({});
 
   useEffect(() => {
     // Detect current base URL
     setBaseUrl(window.location.origin);
     fetchDepartments();
+    fetchFormTokens();
 
     // Load sent status from localStorage
     const saved = localStorage.getItem('dutyLinksSentStatus');
@@ -36,8 +38,22 @@ export default function WhatsAppDutyLinks() {
     setLoading(false);
   };
 
+  // הקישור כולל טוקן חתום (?t=) - בלעדיו הטופס לא ייפתח
+  const fetchFormTokens = async () => {
+    try {
+      const res = await fetch('/api/duty-form/links');
+      const data = await res.json();
+      if (data.success) {
+        setFormTokens(data.tokens || {});
+      }
+    } catch (error) {
+      console.error('Failed to fetch duty form tokens:', error);
+    }
+  };
+
   const getFormUrl = (deptId) => {
-    return `${baseUrl}/duty-form/${deptId}`;
+    const token = formTokens[deptId];
+    return `${baseUrl}/duty-form/${deptId}${token ? `?t=${token}` : ''}`;
   };
 
   const getWhatsAppMessage = (dept) => {

@@ -71,20 +71,20 @@
 
 ### ⚠️ החלטות מוצרים שצריך לקבל (לא רק קוד)
 
-- [ ] **4.1 דפים ציבוריים שניזונים מ-API פתוח:**
-  - `/screen` (מסך המוקד) — צורך security-daily-order, call-center-schedule, duty-roster בלי התחברות. **אפשרויות:** (א) להשאיר GET ציבורי לנתונים האלה; (ב) טוקן קבוע למסך (`?key=...`); (ג) משתמש ייעודי למסך. **מומלץ: ב'.**
-  - `/on-call`, `/on-call-query` — חושפים טלפונים של עובדים. **מומלץ:** להכניס ל-middleware (דורש התחברות) — מוקדנים ממילא מחוברים.
-  - `/duty-form/[departmentId]` — נשלח למנהלי מחלקות ב-WhatsApp בלי חשבון. **מומלץ:** להוסיף טוקן חתום לקישור במקום ID גלוי, או להשאיר ולקבל את הסיכון במודע.
-- [ ] **4.2 אירועי חירום** — `event/live/[token]` בנוי לאורחים דרך טוקן. לוודא שכל ה-API של האירועים דורש לפחות את הטוקן של האירוע (ולא פתוח לכל מזהה אירוע), במיוחד `events/[id]` (GET), `journal`, `upload`.
+- [x] **4.1 דפים ציבוריים שניזונים מ-API פתוח:** ✅ בוצע (אוגוסט 2026):
+  - `/screen` — מומש טוקן קבוע (`SCREEN_TOKEN`, אפשרות ב'): `?key=` פעם אחת ⇒ עוגייה, וה-GET-ים + כתיבת המשמרות מכבדים אותו (`requireRoleOrScreen`).
+  - `/on-call`, `/on-call-query` — נכנסו ל-middleware (דורשים התחברות).
+  - `/duty-form/[departmentId]` — קישור עם טוקן חתום (HMAC, `DUTY_FORM_SECRET`) במקום ID גלוי.
+- [ ] **4.2 אירועי חירום** — `event/live/[token]` בנוי לאורחים דרך טוקן. לוודא שכל ה-API של האירועים דורש לפחות את הטוקן של האירוע (ולא פתוח לכל מזהה אירוע), במיוחד `events/[id]` (GET), `journal`, `upload`. **הפריט הפתוח האחרון** — כולל העברת הכתיבות הישירות של דפי האירועים ל-API וסגירת ה-RLS על טבלאות האירועים.
 
 ## שלב 4 — הקשחות נוספות (יום) 🟡
 
 - [x] **Rate limiting** על `login`, `register`, `knowledge-chat`, `surveys/submit` (למשל `@upstash/ratelimit` או פתרון פשוט בזיכרון per-IP).
 - [ ] **אימות קלט** — נקודות שמקבלות טקסט חופשי שמוצג לאחרים (journal, notifications, knowledge-base): הגבלת אורך + סניטציה.
 - [x] **`events/upload`** — הגבלת סוג קובץ (תמונות בלבד) וגודל + סניטציית נתיב.
-- [ ] **RLS ב-Supabase** — רוב ה-routes משתמשים ב-service role שעוקף RLS; לוודא שה-anon key לא מאפשר גישה ישירה לטבלאות מהדפדפן (הקומפוננטות שיוצרות Supabase client ישירות — `SecurityFieldStatus`, `ActiveEventBanner`, דפי אירועים — צריכות RLS מתאים לקריאה בלבד).
+- [x] **RLS ב-Supabase** — ✅ בוצע (אוגוסט 2026): כל ה-routes עברו ל-service role, הכתיבות הישירות של `sector-manager` הועברו ל-API, ונכתבה מיגרציה `20260813_rls_anon_lockdown.sql` (anon = קריאה בלבד; טבלאות אירועים נשארו פתוחות עד ריפקטור Events). **נותר: להריץ את המיגרציה ב-Supabase אחרי פריסה.**
 - [x] **Security headers** ב-`next.config.js` — `X-Frame-Options`, `Content-Security-Policy` בסיסי.
-- [ ] **מחיקת מנגנון הסיסמאות הישן** — `verifyOperatorPassword`/`verifyAdminPassword` ו-`APP_PASSWORD`/`ADMIN_PASSWORD` אם אינם בשימוש.
+- [x] **מחיקת מנגנון הסיסמאות הישן** — ✅ נמחקו `verifyOperatorPassword`/`verifyAdminPassword` (לא היו בשימוש). יש למחוק את `APP_PASSWORD`/`ADMIN_PASSWORD` גם מ-Vercel ומ-`.env.local`.
 
 ## סדר ביצוע מומלץ ובדיקות
 
