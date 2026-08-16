@@ -45,10 +45,11 @@ export async function POST(request) {
       );
     }
 
-    // שליפת פרופיל המשתמש
+    // שליפת פרופיל המשתמש - עמודות מפורשות בלבד, כך שההתחברות עובדת
+    // גם אם ה-API רץ עם ה-anon key (שמוגבל ברמת עמודה אחרי הקשחת ה-RLS)
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select('id, full_name, role, status')
       .eq('id', authData.user.id)
       .single();
 
