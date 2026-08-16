@@ -217,6 +217,14 @@ export default function OperatorPage() {
             <GarbageStreetSearch />
           </div>
           <div className="flex items-center gap-2 shrink-0">
+            <a
+              href="/screen"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 bg-white/10 hover:bg-white/20 border-white/20 text-white"
+            >
+              🖥️ <span className="hidden sm:inline">מסך תצוגה</span>
+            </a>
             <button
               onClick={toggleWarMode}
               className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold transition-all border-2 ${
