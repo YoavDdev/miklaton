@@ -1,15 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireRoleOrScreen, verifyDutyFormToken } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
 // Get current on-call personnel based on current day and hour
 export async function GET(request) {
   try {
+    const auth = await requireRoleOrScreen(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const getCurrentOnly = searchParams.get('current') === 'true';
 
@@ -144,6 +147,28 @@ export async function POST(request) {
     if (auth.error) return auth.error;
 
     const body = await request.json();
+
+    // הוספה מרובה (למשל כונן קבוע 24/7 - שבע רשומות, אחת לכל יום)
+    if (Array.isArray(body.entries)) {
+      const rows = body.entries.map(e => ({
+        contact_id: e.contact_id,
+        department_id: e.department_id,
+        day_of_week: e.day_of_week,
+        start_hour: e.start_hour,
+        end_hour: e.end_hour,
+        notes: e.notes,
+        week_start_date: e.week_start_date ?? null,
+      }));
+
+      const { data, error } = await supabase
+        .from('duty_roster')
+        .insert(rows)
+        .select();
+
+      if (error) throw error;
+      return NextResponse.json({ success: true, data });
+    }
+
     const { contact_id, department_id, day_of_week, start_hour, end_hour, notes, week_start_date } = body;
 
     const insertData = { contact_id, department_id, day_of_week, start_hour, end_hour, notes };
@@ -172,11 +197,14 @@ export async function PATCH(request) {
     if (auth.error) return auth.error;
 
     const body = await request.json();
-    const { id, contact_id, day_of_week, start_hour, end_hour, notes, active } = body;
+    const { id, contact_id, day_of_week, start_hour, end_hour, notes, active, week_start_date } = body;
+
+    const updateData = { contact_id, day_of_week, start_hour, end_hour, notes, active };
+    if (week_start_date !== undefined) updateData.week_start_date = week_start_date;
 
     const { data, error } = await supabase
       .from('duty_roster')
-      .update({ contact_id, day_of_week, start_hour, end_hour, notes, active })
+      .update(updateData)
       .eq('id', id)
       .select()
       .single();
@@ -193,10 +221,65 @@ export async function PATCH(request) {
 }
 
 export async function DELETE(request) {
-  // TODO: אבטחה - נשאר פתוח כי דף /duty-form הציבורי משתמש בו. ראה docs/09-security-implementation.md
   try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+
+    // מחיקה מרוכזת של כוננויות שבוע שלם (לייבוא מ-Excel) - לא נוגעת בכוננים קבועים
+    if (searchParams.get('bulk') === 'true') {
+      if (auth.error) return auth.error;
+      const departmentId = searchParams.get('department_id');
+      const weekStartDate = searchParams.get('week_start_date');
+      if (!departmentId || !weekStartDate) {
+        return NextResponse.json({ success: false, error: 'department_id and week_start_date required' }, { status: 400 });
+      }
+
+      const { error } = await supabase
+        .from('duty_roster')
+        .delete()
+        .eq('department_id', departmentId)
+        .eq('week_start_date', weekStartDate);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    // מחיקת כוננות קבועה (כל הרשומות ללא week_start_date) - למנהלים מחוברים בלבד
+    if (searchParams.get('permanent') === 'true') {
+      if (auth.error) return auth.error;
+      const contactId = searchParams.get('contact_id');
+      const departmentId = searchParams.get('department_id');
+      if (!contactId || !departmentId) {
+        return NextResponse.json({ success: false, error: 'contact_id and department_id required' }, { status: 400 });
+      }
+
+      const { error } = await supabase
+        .from('duty_roster')
+        .delete()
+        .eq('contact_id', contactId)
+        .eq('department_id', departmentId)
+        .is('week_start_date', null);
+
+      if (error) throw error;
+      return NextResponse.json({ success: true });
+    }
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
+    }
+
+    // מותר: מנהל מחובר, או טוקן חתום של המכלול שאליו שייכת התורנות (מדף /duty-form)
+    if (auth.error) {
+      const { data: duty } = await supabase
+        .from('duty_roster')
+        .select('department_id')
+        .eq('id', id)
+        .single();
+      if (!duty || !verifyDutyFormToken(duty.department_id, searchParams.get('t'))) {
+        return auth.error;
+      }
+    }
 
     const { error } = await supabase
       .from('duty_roster')

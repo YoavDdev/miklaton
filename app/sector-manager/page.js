@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js';
 import toast, { Toaster } from 'react-hot-toast';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import SecurityWeeklySchedule from '@/components/SecurityWeeklySchedule';
+import DutyRosterExcelImporter from '@/components/DutyRosterExcelImporter';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -473,13 +474,16 @@ export default function SectorManagerPage() {
       week_start_date: null
     }));
 
-    const { error } = await supabase
-      .from('duty_roster')
-      .insert(entries);
+    const res = await fetch('/api/duty-roster', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ entries }),
+    });
+    const result = await res.json();
 
-    if (error) {
+    if (!result.success) {
       toast.error('שגיאה ביצירת כוננות קבועה');
-      console.error(error);
+      console.error(result.error);
     } else {
       toast.success('✅ כונן קבוע 24/7 נוסף בהצלחה!');
       setShowPermanentModal(false);
@@ -492,16 +496,15 @@ export default function SectorManagerPage() {
     if (!confirm('האם להסיר את הכוננות הקבועה של איש קשר זה?')) return;
     
     const deptId = activeDepartmentId || user.department_id;
-    const { error } = await supabase
-      .from('duty_roster')
-      .delete()
-      .eq('contact_id', contactId)
-      .eq('department_id', deptId)
-      .is('week_start_date', null);
+    const res = await fetch(
+      `/api/duty-roster?permanent=true&contact_id=${contactId}&department_id=${deptId}`,
+      { method: 'DELETE' }
+    );
+    const result = await res.json();
 
-    if (error) {
+    if (!result.success) {
       toast.error('שגיאה בהסרת כוננות קבועה');
-      console.error(error);
+      console.error(result.error);
     } else {
       toast.success('כוננות קבועה הוסרה ✅');
       loadDutyRoster();
@@ -518,19 +521,21 @@ export default function SectorManagerPage() {
       return;
     }
 
-    const { data, error } = await supabase
-      .from('contacts')
-      .insert([{
+    const res = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         department_id: activeDepartmentId || user.department_id,
         full_name: contactForm.full_name,
         phone: contactForm.phone,
         role: contactForm.role
-      }])
-      .select();
+      }),
+    });
+    const result = await res.json();
 
-    if (error) {
+    if (!result.success) {
       toast.error('שגיאה בהוספת איש קשר');
-      console.error(error);
+      console.error(result.error);
     } else {
       toast.success('איש קשר נוסף בהצלחה! 👤');
       setShowAddContactModal(false);
@@ -561,9 +566,10 @@ export default function SectorManagerPage() {
     // Format week_start_date for DB (YYYY-MM-DD) in local timezone
     const weekStartStr = formatDateForDB(currentWeekStart);
 
-    const { data, error } = await supabase
-      .from('duty_roster')
-      .insert([{
+    const res = await fetch('/api/duty-roster', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
         department_id: activeDepartmentId || user.department_id,
         contact_id: quickAddData.contactId,
         day_of_week: quickAddData.dayIndex,
@@ -571,12 +577,13 @@ export default function SectorManagerPage() {
         end_hour: endHour,
         notes: notes,
         week_start_date: weekStartStr
-      }])
-      .select();
+      }),
+    });
+    const result = await res.json();
 
-    if (error) {
+    if (!result.success) {
       toast.error('שגיאה בהוספת כוננות');
-      console.error(error);
+      console.error(result.error);
     } else {
       const label = quickAddData.usePreset ? SHIFT_PRESETS[quickAddData.shiftType].label : 'כונן';
       toast.success(`${label} נוסף בהצלחה!`);
@@ -664,21 +671,24 @@ export default function SectorManagerPage() {
     // Format week_start_date for DB (YYYY-MM-DD) in local timezone
     const weekStartStr = formatDateForDB(currentWeekStart);
 
-    const { error } = await supabase
-      .from('duty_roster')
-      .update({
+    const res = await fetch('/api/duty-roster', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: editData.dutyId,
         contact_id: editData.contactId,
         day_of_week: editData.dayIndex,
         start_hour: startHour,
         end_hour: endHour,
         notes: notes,
         week_start_date: weekStartStr
-      })
-      .eq('id', editData.dutyId);
+      }),
+    });
+    const result = await res.json();
 
-    if (error) {
+    if (!result.success) {
       toast.error('שגיאה בעדכון כוננות');
-      console.error(error);
+      console.error(result.error);
     } else {
       toast.success('✅ הכוננות עודכנה בהצלחה!');
       setShowEditModal(false);
@@ -699,12 +709,10 @@ export default function SectorManagerPage() {
   const handleDeleteDuty = async (dutyId) => {
     if (!confirm('האם למחוק תורנות זו?')) return;
 
-    const { error } = await supabase
-      .from('duty_roster')
-      .delete()
-      .eq('id', dutyId);
+    const res = await fetch(`/api/duty-roster?id=${dutyId}`, { method: 'DELETE' });
+    const result = await res.json();
 
-    if (error) {
+    if (!result.success) {
       toast.error('שגיאה במחיקת תורנות');
     } else {
       toast.success('תורנות נמחקה ✅');
@@ -715,12 +723,10 @@ export default function SectorManagerPage() {
   const handleDeleteContact = async (contactId) => {
     if (!confirm('האם למחוק איש קשר זה?')) return;
 
-    const { error } = await supabase
-      .from('contacts')
-      .delete()
-      .eq('id', contactId);
+    const res = await fetch(`/api/contacts?id=${contactId}`, { method: 'DELETE' });
+    const result = await res.json();
 
-    if (error) {
+    if (!result.success) {
       toast.error('שגיאה במחיקת איש קשר');
     } else {
       toast.success('איש קשר נמחק ✅');
@@ -858,6 +864,19 @@ export default function SectorManagerPage() {
               
               <div className="mt-2 sm:mt-3 text-xs sm:text-sm text-purple-700 bg-purple-50 rounded-lg px-2 sm:px-3 py-1.5 sm:py-2">
                 💡 <strong>טיפ:</strong> <span className="hidden sm:inline">לחץ על תא ריק בלוח כדי להוסיף כונן | לחץ על כונן קיים כדי לערוך או למחוק</span><span className="sm:hidden">הקש להוספת/עריכת כונן</span>
+              </div>
+
+              {/* Excel import/export */}
+              <div className="mt-2 sm:mt-3 flex items-center gap-2 flex-wrap">
+                <DutyRosterExcelImporter
+                  departmentId={activeDepartmentId || user?.department_id}
+                  currentWeekStart={currentWeekStart}
+                  weekDates={weekDates}
+                  contacts={contacts}
+                  dutyRoster={dutyRoster}
+                  onImportComplete={loadDutyRoster}
+                />
+                <span className="text-[10px] sm:text-xs text-gray-500">מלא את הלוח באקסל והעלה - המשמרות יתעדכנו אוטומטית</span>
               </div>
             </div>
 

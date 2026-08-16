@@ -364,7 +364,7 @@ export default function SecurityWeeklySchedule({ departmentId }) {
               currentWeekStart={currentWeekStart}
               staff={staff}
               shifts={shifts}
-              onImportComplete={fetchSchedule}
+              onImportComplete={() => { fetchShifts(); fetchSchedule(); }}
             />
           </div>
 
@@ -676,7 +676,7 @@ function ExcelTable({ title, titleBg, shifts, weekDates, staff, allStaff, getCel
                                   onLeave ? 'text-red-500 line-through bg-red-50' :
                                   entry.is_backup ? 'text-orange-700' : 'text-gray-900'
                                 }`}>
-                                  {entry.staff?.full_name}
+                                  {entry.staff?.full_name || entry.staff_name}
                                   {onLeave && <span className="text-[9px] text-red-500 no-underline"> 🏖️</span>}
                                   {entry.is_backup && !onLeave && <span className="text-[9px] text-orange-600"> (חלופי)</span>}
                                 </div>
@@ -699,7 +699,7 @@ function ExcelTable({ title, titleBg, shifts, weekDates, staff, allStaff, getCel
                               {entries.map(entry => (
                                 <div key={entry.id} className="flex items-center justify-between py-0.5">
                                   <span className="text-xs font-medium text-gray-800">
-                                    {entry.staff?.full_name} {entry.is_backup ? '(חלופי)' : ''}
+                                    {entry.staff?.full_name || entry.staff_name} {entry.is_backup ? '(חלופי)' : ''}
                                   </span>
                                   <button
                                     onClick={(e) => { e.stopPropagation(); onRemove(entry.id); }}
