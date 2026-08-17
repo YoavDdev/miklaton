@@ -91,6 +91,13 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // הגבלת אורך — מוצג למוקדנים ולמסך
+    if (title.length > 200 || (description && description.length > 2000) || (address && address.length > 300)) {
+      return NextResponse.json({
+        error: 'כותרת עד 200 תווים, תיאור עד 2000, כתובת עד 300'
+      }, { status: 400 });
+    }
+
     // Validate times
     if (new Date(start_time) >= new Date(end_time)) {
       return NextResponse.json({

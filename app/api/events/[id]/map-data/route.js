@@ -49,6 +49,12 @@ export async function PUT(request, { params }) {
     const body = await request.json();
     const { event_locations, road_blocks } = body;
 
+    // הגבלת גודל — מונע ניפוח שרירותי של ה-JSON ע"י מחזיק טוקן
+    const totalSize = JSON.stringify(event_locations || []).length + JSON.stringify(road_blocks || []).length;
+    if (totalSize > 200_000) {
+      return NextResponse.json({ success: false, error: 'נתוני מפה גדולים מדי' }, { status: 400 });
+    }
+
     const updateData = {};
     if (event_locations !== undefined) updateData.event_locations = event_locations;
     if (road_blocks !== undefined) updateData.road_blocks = road_blocks;

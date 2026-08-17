@@ -46,6 +46,11 @@ export async function POST(request, { params }) {
       return NextResponse.json({ success: false, error: 'Event not found' }, { status: 404 });
     }
 
+    // אין הצטרפות לאירוע סגור
+    if (event.status === 'closed') {
+      return NextResponse.json({ success: false, error: 'האירוע נסגר - לא ניתן להצטרף' }, { status: 400 });
+    }
+
     // Check if already a participant
     const { data: existingParticipant } = await supabase
       .from('event_participants')
