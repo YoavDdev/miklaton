@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { cookies } from 'next/headers';
-import { verifyToken } from '@/lib/auth';
+import { requireEventAccess } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -10,9 +9,11 @@ const supabase = createClient(
 
 // GET - קבלת מידע מפה
 export async function GET(request, { params }) {
-  const { id } = params;
-
   try {
+    const { id } = await params;
+    const access = await requireEventAccess(request, id);
+    if (access.error) return access.error;
+
     const { data, error } = await supabase
       .from('emergency_events')
       .select('event_locations, road_blocks')
@@ -37,18 +38,12 @@ export async function GET(request, { params }) {
 
 // PUT - עדכון מידע מפה
 export async function PUT(request, { params }) {
-  const { id } = params;
-
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
+    const { id } = await params;
+    const access = await requireEventAccess(request, id);
+    if (access.error) return access.error;
+    if (access.event.status === 'closed') {
+      return NextResponse.json({ success: false, error: 'Event is closed' }, { status: 400 });
     }
 
     const body = await request.json();
