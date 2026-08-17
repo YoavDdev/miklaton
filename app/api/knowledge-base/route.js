@@ -58,6 +58,14 @@ export async function POST(request) {
       );
     }
 
+    // הגבלת אורך — התוכן מוזרם גם לצ'אט ה-AI (עלות טוקנים) ומוצג למוקדנים
+    if (title.length > 300 || content.length > 20000 || (category && category.length > 100)) {
+      return NextResponse.json(
+        { success: false, error: 'כותרת עד 300 תווים, תוכן עד 20,000 תווים, קטגוריה עד 100' },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabase
       .from('knowledge_base')
       .insert({
@@ -93,6 +101,16 @@ export async function PUT(request) {
     if (!id) {
       return NextResponse.json(
         { success: false, error: 'id is required' },
+        { status: 400 }
+      );
+    }
+
+    // אותן מגבלות אורך כמו ביצירה
+    if ((title !== undefined && title.length > 300) ||
+        (content !== undefined && content.length > 20000) ||
+        (category !== undefined && category && category.length > 100)) {
+      return NextResponse.json(
+        { success: false, error: 'כותרת עד 300 תווים, תוכן עד 20,000 תווים, קטגוריה עד 100' },
         { status: 400 }
       );
     }

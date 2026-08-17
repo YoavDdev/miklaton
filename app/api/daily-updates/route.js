@@ -91,6 +91,13 @@ export async function POST(request) {
       }, { status: 400 });
     }
 
+    // הגבלת אורך — מוצג למוקדנים ולמסך
+    if (title.length > 200 || (description && description.length > 2000) || (address && address.length > 300)) {
+      return NextResponse.json({
+        error: 'כותרת עד 200 תווים, תיאור עד 2000, כתובת עד 300'
+      }, { status: 400 });
+    }
+
     // Validate times
     if (new Date(start_time) >= new Date(end_time)) {
       return NextResponse.json({
@@ -145,14 +152,29 @@ export async function PUT(request) {
     }
 
     const body = await request.json();
-    const { id, ...updates } = body;
+    const { id } = body;
 
     if (!id) {
       return NextResponse.json({ error: 'Update ID required' }, { status: 400 });
     }
 
-    // Add updated_by
-    updates.updated_by = authResult.user.id;
+    // allowlist של שדות + אותן מגבלות אורך כמו ביצירה
+    const ALLOWED_FIELDS = ['title', 'description', 'type', 'address', 'lat', 'lng', 'start_time', 'end_time', 'municipality_id'];
+    const updates = {};
+    for (const f of ALLOWED_FIELDS) {
+      if (body[f] !== undefined) updates[f] = body[f];
+    }
+
+    if ((updates.title !== undefined && updates.title.length > 200) ||
+        (updates.description && updates.description.length > 2000) ||
+        (updates.address && updates.address.length > 300)) {
+      return NextResponse.json({
+        error: 'כותרת עד 200 תווים, תיאור עד 2000, כתובת עד 300'
+      }, { status: 400 });
+    }
+
+    // Add updated_by (השדה ב-JWT הוא userId)
+    updates.updated_by = authResult.user.userId;
 
     const { data, error } = await supabase
       .from('daily_updates')

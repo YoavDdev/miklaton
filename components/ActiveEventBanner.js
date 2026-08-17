@@ -41,7 +41,7 @@ export default function ActiveEventBanner() {
       // Fetch details (including journal) for each active event in the same tick
       for (const ev of activeEvents) {
         try {
-          const detailRes = await fetch(`/api/events/${ev.id}`);
+          const detailRes = await fetch(`/api/events/${ev.id}?light=1`);
           const detailJson = await detailRes.json();
           if (!detailJson.success) continue;
 

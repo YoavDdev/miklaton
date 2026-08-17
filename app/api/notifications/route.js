@@ -68,8 +68,15 @@ export async function POST(request) {
     const { title, message, type, author, expires_at, start_date, end_date } = body;
 
     if (!title || !message) {
-      return NextResponse.json({ 
-        error: 'Title and message are required' 
+      return NextResponse.json({
+        error: 'Title and message are required'
+      }, { status: 400 });
+    }
+
+    // הגבלת אורך — התוכן מוצג לכל המוקד ולמסך הקיר
+    if (title.length > 200 || message.length > 2000) {
+      return NextResponse.json({
+        error: 'כותרת עד 200 תווים, הודעה עד 2000 תווים'
       }, { status: 400 });
     }
 

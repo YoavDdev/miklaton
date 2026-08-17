@@ -21,8 +21,8 @@ export async function PATCH(request, { params }) {
     const body = await request.json();
     const updates = {};
     if (typeof body.is_pinned === 'boolean') updates.is_pinned = body.is_pinned;
-    if (body.task_status !== undefined) updates.task_status = body.task_status;
-    if (body.assigned_to !== undefined) updates.assigned_to = body.assigned_to;
+    if (body.task_status !== undefined) updates.task_status = String(body.task_status).slice(0, 40);
+    if (body.assigned_to !== undefined) updates.assigned_to = body.assigned_to === null ? null : String(body.assigned_to).slice(0, 120);
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ success: false, error: 'No valid fields' }, { status: 400 });

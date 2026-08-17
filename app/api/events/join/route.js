@@ -20,7 +20,9 @@ export async function POST(request) {
 
   try {
     const body = await request.json();
-    const { invite_token, phone, guest_name, action } = body;
+    const { invite_token, phone, action } = body;
+    // הגבלת אורך שם אורח — מוצג לכל משתתפי האירוע
+    const guest_name = body.guest_name ? String(body.guest_name).slice(0, 80) : body.guest_name;
 
     if (!invite_token || !phone) {
       return NextResponse.json({ success: false, error: 'Token and phone required' }, { status: 400 });
@@ -171,6 +173,11 @@ export async function POST(request) {
 
     // Step 2: Confirm join
     if (action === 'confirm') {
+      // אין הצטרפות לאירוע סגור (הקישור נשאר תקף לצפייה בלבד)
+      if (event.status === 'closed') {
+        return NextResponse.json({ success: false, error: 'האירוע נסגר - לא ניתן להצטרף', event: publicEvent(event) }, { status: 400 });
+      }
+
       const participantData = {
         event_id: event.id,
         phone: normalizedPhone,
