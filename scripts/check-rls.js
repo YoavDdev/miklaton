@@ -16,18 +16,11 @@ const path = require('path');
 
 // ── המדיניות המוצהרת ──────────────────────────────────────────────
 
-// פתוחות לקריאה לאנונימי בכוונה: הדפדפן קורא אותן ישירות / דרך realtime.
-const ANON_READABLE = [
-  'contacts',
-  'departments',
-  'duty_roster',
-  'call_category_contacts',
-  'general_notifications',
-  'on_call_contacts',
-  'security_daily_order_entries',
-  'security_daily_orders',
-  'war_mode',
-];
+// פתוחות לקריאה לאנונימי בכוונה. אלה בדיוק ארבע הטבלאות שנמצאות בפרסום
+// supabase_realtime, ולכן היחידות שמנוי מהדפדפן באמת מקבל עליהן עדכונים.
+// חמש טבלאות נוספות היו פתוחות עד YOA-18 בלי שאיש השתמש בהן (המנויים עליהן
+// לא נורו מעולם) - הרשאתן בוטלה ב-20260817231500_revoke_unused_anon_grants.
+const ANON_READABLE = ['contacts', 'departments', 'duty_roster', 'war_mode'];
 
 // user_profiles: הרשאות ברמת עמודה - רק אלה חשופות לאנונימי.
 const ANON_COLUMNS = { user_profiles: ['id', 'full_name', 'role', 'status'] };

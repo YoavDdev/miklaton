@@ -2862,10 +2862,6 @@ ALTER TABLE ONLY "public"."user_profiles"
 
 
 
-CREATE POLICY "anon_read_only" ON "public"."call_category_contacts" FOR SELECT USING (true);
-
-
-
 CREATE POLICY "anon_read_only" ON "public"."contacts" FOR SELECT USING (true);
 
 
@@ -2875,22 +2871,6 @@ CREATE POLICY "anon_read_only" ON "public"."departments" FOR SELECT USING (true)
 
 
 CREATE POLICY "anon_read_only" ON "public"."duty_roster" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "anon_read_only" ON "public"."general_notifications" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "anon_read_only" ON "public"."on_call_contacts" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "anon_read_only" ON "public"."security_daily_order_entries" FOR SELECT USING (true);
-
-
-
-CREATE POLICY "anon_read_only" ON "public"."security_daily_orders" FOR SELECT USING (true);
 
 
 
@@ -3399,7 +3379,7 @@ GRANT ALL ON TABLE "public"."call_categories" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_category_contacts" TO "anon";
+GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."call_category_contacts" TO "anon";
 GRANT ALL ON TABLE "public"."call_category_contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_category_contacts" TO "service_role";
 
@@ -3489,7 +3469,7 @@ GRANT ALL ON TABLE "public"."garbage_collection_schedule" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."general_notifications" TO "anon";
+GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."general_notifications" TO "anon";
 GRANT ALL ON TABLE "public"."general_notifications" TO "authenticated";
 GRANT ALL ON TABLE "public"."general_notifications" TO "service_role";
 
@@ -3519,7 +3499,7 @@ GRANT ALL ON TABLE "public"."municipalities" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."on_call_contacts" TO "anon";
+GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."on_call_contacts" TO "anon";
 GRANT ALL ON TABLE "public"."on_call_contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."on_call_contacts" TO "service_role";
 
@@ -3585,13 +3565,13 @@ GRANT ALL ON TABLE "public"."sector_weekly_schedule" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_daily_order_entries" TO "anon";
+GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."security_daily_order_entries" TO "anon";
 GRANT ALL ON TABLE "public"."security_daily_order_entries" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_daily_order_entries" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_daily_orders" TO "anon";
+GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."security_daily_orders" TO "anon";
 GRANT ALL ON TABLE "public"."security_daily_orders" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_daily_orders" TO "service_role";
 
@@ -3692,11 +3672,6 @@ GRANT SELECT("role") ON TABLE "public"."user_profiles" TO "authenticated";
 
 GRANT SELECT("status") ON TABLE "public"."user_profiles" TO "anon";
 GRANT SELECT("status") ON TABLE "public"."user_profiles" TO "authenticated";
-
-
-
-GRANT SELECT("must_change_password") ON TABLE "public"."user_profiles" TO "anon";
-GRANT SELECT("must_change_password") ON TABLE "public"."user_profiles" TO "authenticated";
 
 
 
