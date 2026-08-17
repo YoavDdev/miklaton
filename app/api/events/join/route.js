@@ -1,13 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { rateLimit } from '@/lib/rate-limit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+const publicEvent = (e) => e && ({
+  id: e.id, title: e.title, description: e.description, severity: e.severity,
+  status: e.status, event_type: e.event_type, created_at: e.created_at,
+  created_by_name: e.created_by_name,
+});
+
 // POST - join event via invite token + phone
 export async function POST(request) {
+  const limited = rateLimit(request, 'event-join', { limit: 10, windowMs: 60_000 });
+  if (limited) return limited;
+
   try {
     const body = await request.json();
     const { invite_token, phone, guest_name, action } = body;
@@ -61,7 +71,7 @@ export async function POST(request) {
         return NextResponse.json({
           success: true,
           data: { ...existingParticipant, status: 'declined' },
-          event,
+          event: publicEvent(event),
           message: 'declined',
         });
       }
@@ -70,7 +80,7 @@ export async function POST(request) {
       return NextResponse.json({
         success: true,
         data: existingParticipant,
-        event,
+        event: publicEvent(event),
         message: 'already_joined',
       });
     }
@@ -125,7 +135,7 @@ export async function POST(request) {
 
       if (error) throw error;
 
-      return NextResponse.json({ success: true, data, event, message: 'declined' });
+      return NextResponse.json({ success: true, data, event: publicEvent(event), message: 'declined' });
     }
 
     // Step 1: Lookup phone
@@ -147,14 +157,14 @@ export async function POST(request) {
             role: matchedContact.role,
             department: matchedContact.departments?.name,
           },
-          event: { id: event.id, title: event.title, severity: event.severity, status: event.status },
+          event: publicEvent(event),
         });
       } else {
         console.log('[JOIN] No contact match found for phone:', normalizedPhone);
         return NextResponse.json({
           success: true,
           found: false,
-          event: { id: event.id, title: event.title, severity: event.severity, status: event.status },
+          event: publicEvent(event),
         });
       }
     }
@@ -198,7 +208,7 @@ export async function POST(request) {
         content: `${participantData.display_name} הצטרף/ה לאירוע`,
       });
 
-      return NextResponse.json({ success: true, data, event, message: 'joined' });
+      return NextResponse.json({ success: true, data, event: publicEvent(event), message: 'joined' });
     }
 
     return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });

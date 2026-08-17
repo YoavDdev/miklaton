@@ -1,25 +1,18 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
-import { cookies } from 'next/headers';
+import { requireRole, generateEventToken } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
-function generateToken(length = 12) {
-  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-  let result = '';
-  for (let i = 0; i < length; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return result;
-}
-
 // GET - list events
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
@@ -44,16 +37,8 @@ export async function GET(request) {
 // POST - create event
 export async function POST(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
-    }
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
 
     const body = await request.json();
     const { title, description, severity, event_type } = body;
@@ -66,10 +51,10 @@ export async function POST(request) {
     const { data: userProfile } = await supabase
       .from('user_profiles')
       .select('full_name')
-      .eq('id', decoded.userId)
+      .eq('id', auth.user.userId)
       .single();
 
-    const invite_token = generateToken();
+    const invite_token = generateEventToken();
 
     const { data, error } = await supabase
       .from('emergency_events')
@@ -79,7 +64,7 @@ export async function POST(request) {
         severity: severity || 'medium',
         event_type: event_type || 'general',
         invite_token,
-        created_by: decoded.userId,
+        created_by: auth.user.userId,
         created_by_name: userProfile?.full_name || 'לא ידוע',
       })
       .select()
@@ -90,9 +75,9 @@ export async function POST(request) {
     // Auto-add creator as participant
     await supabase.from('event_participants').insert({
       event_id: data.id,
-      user_id: decoded.userId,
+      user_id: auth.user.userId,
       display_name: userProfile?.full_name || 'לא ידוע',
-      role: decoded.role,
+      role: auth.user.role,
       status: 'confirmed',
     });
 
@@ -113,19 +98,12 @@ export async function POST(request) {
 // PATCH - close/update event
 export async function PATCH(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    if (!token) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
-
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 });
-    }
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+    const decoded = auth.user;
 
     const body = await request.json();
-    const { id, status } = body;
+    const { id, status, summary } = body;
 
     if (status === 'closed') {
       // Only creator, admin, or operator can close
@@ -152,6 +130,7 @@ export async function PATCH(request) {
           closed_at: new Date().toISOString(),
           closed_by: decoded.userId,
           closed_by_name: userProfile?.full_name || 'לא ידוע',
+          ...(summary !== undefined ? { summary } : {}),
         })
         .eq('id', id)
         .select()
@@ -170,6 +149,18 @@ export async function PATCH(request) {
       return NextResponse.json({ success: true, data });
     }
 
+    if (summary !== undefined) {
+      const { data: event } = await supabase
+        .from('emergency_events').select('created_by').eq('id', id).single();
+      if (event?.created_by !== decoded.userId && decoded.role !== 'admin' && decoded.role !== 'operator') {
+        return NextResponse.json({ success: false, error: 'אין הרשאה' }, { status: 403 });
+      }
+      const { data, error } = await supabase
+        .from('emergency_events').update({ summary }).eq('id', id).select().single();
+      if (error) throw error;
+      return NextResponse.json({ success: true, data });
+    }
+
     return NextResponse.json({ success: false, error: 'Invalid action' }, { status: 400 });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
@@ -179,12 +170,9 @@ export async function PATCH(request) {
 // DELETE - delete a closed event
 export async function DELETE(request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get('auth-token')?.value;
-    const decoded = verifyToken(token);
-    if (!decoded) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
-    }
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+    const decoded = auth.user;
 
     const { id } = await request.json();
     if (!id) {
