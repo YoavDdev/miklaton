@@ -8,6 +8,7 @@ const supabase = createClient(
 );
 
 const MAX_CONTENT_LENGTH = 5000;
+const ALLOWED_ENTRY_TYPES = ['update', 'urgent', 'decision', 'task', 'location', 'quick', 'map_marker'];
 
 // POST - add journal entry (identity is derived server-side)
 export async function POST(request, { params }) {
@@ -51,16 +52,18 @@ export async function POST(request, { params }) {
       }
       const { data: p } = await supabase
         .from('event_participants')
-        .select('id, display_name, role, field_status')
+        .select('id, display_name, role, department, field_status')
         .eq('id', participant_id).eq('event_id', event_id).single();
       if (!p) {
         return NextResponse.json({ success: false, error: 'משתתף לא נמצא באירוע' }, { status: 403 });
       }
       resolvedParticipantId = p.id;
       author_name = p.display_name;
-      author_role = p.role || null;
+      author_role = p.department || p.role || null;
       author_field_status = p.field_status || null;
     }
+
+    const safeEntryType = ALLOWED_ENTRY_TYPES.includes(entry_type) ? entry_type : 'update';
 
     const { data, error } = await supabase
       .from('event_journal')
@@ -69,14 +72,14 @@ export async function POST(request, { params }) {
         participant_id: resolvedParticipantId,
         author_name,
         author_role,
-        entry_type: entry_type || 'update',
+        entry_type: safeEntryType,
         content: content || '',
         image_url: image_url || null,
         location_lat: location_lat || null,
         location_lng: location_lng || null,
         location_address: location_address || null,
         assigned_to: assigned_to || null,
-        task_status: entry_type === 'task' ? (task_status || 'pending') : null,
+        task_status: safeEntryType === 'task' ? (task_status || 'pending') : null,
         author_field_status,
       })
       .select()

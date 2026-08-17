@@ -15,13 +15,25 @@ export async function PATCH(request, { params }) {
     const access = await requireEventAccess(request, eventId);
     if (access.error) return access.error;
 
+    if (access.event.status === 'closed') {
+      return NextResponse.json({ success: false, error: 'Event is closed' }, { status: 400 });
+    }
+
     const body = await request.json();
     const updates = {};
     if (body.field_status !== undefined) {
       updates.field_status = body.field_status;
       updates.field_status_updated_at = new Date().toISOString();
     }
-    if (body.display_name !== undefined) updates.display_name = body.display_name;
+    if (body.display_name !== undefined) {
+      if (!access.user) {
+        return NextResponse.json({ success: false, error: 'אין הרשאה לשינוי שם' }, { status: 403 });
+      }
+      if (body.display_name.length > 80) {
+        return NextResponse.json({ success: false, error: 'שם ארוך מדי' }, { status: 400 });
+      }
+      updates.display_name = body.display_name;
+    }
 
     if (Object.keys(updates).length === 0) {
       return NextResponse.json({ success: false, error: 'No valid fields' }, { status: 400 });

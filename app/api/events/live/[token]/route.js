@@ -12,7 +12,9 @@ const normalizePhone = (p) => (p || '').replace(/[-\s]/g, '');
 // GET - כל נתוני האירוע לדף האורח. הטוקן בנתיב הוא האישור.
 export async function GET(request, { params }) {
   try {
-    const limited = rateLimit(request, 'event-live', { limit: 60, windowMs: 60_000 });
+    // מוגבל גבוה: מכשירים מאחורי CGNAT של ספקים סלולריים חולקים IP בין
+    // עשרות אורחים בו-זמנית, והדף הזה פועל בפולינג של 6 בקשות לדקה למשתמש + כתיבות
+    const limited = rateLimit(request, 'event-live', { limit: 300, windowMs: 60_000 });
     if (limited) return limited;
 
     const { token } = await params;
