@@ -87,7 +87,9 @@
 - **הסכמה לא ניתנת לשחזור מהריפו.** `RUN_MIGRATIONS_ORDER.md` מכסה 4 מתוך 70 קובצי SQL; 14 טבלאות נוצרות בסקריפטים מחוץ ל-migrations; שתי מיגרציות `20260510` כפולות שאי אפשר להריץ יחד; מיגרציה הרסנית (`20260511_remove_oncall_tables.sql`) שמעולם לא הורצה ואסור שתרוץ; `operator_tasks` ו-`departments` מוגדרות פעמיים בסכמות סותרות — המצב החי הוא היברידי שאף קובץ לא משחזר.
 - **שתי טבלאות רפאים בקוד:** `notifications` (surveys/submit כותב אליה — לא קיימת, נכשל בשקט) ו-`users` (`/api/tasks` עושה עליה join — לא קיימת; ה-route כנראה שבור).
 - **טבלאות מתות:** `operator_shifts`, `shift_messages` — אפס שימוש בקוד.
-- **RLS אחרי מיגרציית הנעילה (טרם הורצה בפרודקשן — YOA-6):** 32 טבלאות נעולות לגמרי; 9 קריאה-בלבד (בשביל Realtime); `user_profiles` עם הרשאות עמודתיות; **3 טבלאות האירועים פתוחות לגמרי ל-anon** (זמנית, עד YOA-5). **המיגרציה לא נוגעת ב-Storage** — ההעלאה הציבורית ל-bucket נשארת.
+- **RLS אחרי מיגרציית הנעילה — ✅ אומתה כרצה בפרודקשן (2026-08-17):** כל הטבלאות RLS-on ומספרי ה-policies תואמים בדיוק לחלוקה: 32+ נעולות לגמרי; 9 קריאה-בלבד (בשביל Realtime); `user_profiles` עם הרשאות עמודתיות; **3 טבלאות האירועים פתוחות לגמרי ל-anon** (זמנית, עד YOA-5). **המיגרציה לא נוגעת ב-Storage** — ההעלאה הציבורית ל-bucket נשארת. (YOA-6 למעשה הושלם.)
+- **Schema drift אמיתי (אומת מול פרודקשן):** בפרודקשן קיימות 3 טבלאות שאף קובץ SQL בריפו לא יוצר — `sector_daily_tasks`, `sector_staff`, `sector_weekly_schedule` (במקביל ל-`security_*`). מחזק את אי-יכולת השחזור (YOA-13).
+- **הכפילויות — אומתו מול פרודקשן:** `operator_tasks` החי = Definition A (13 עמודות, עם `municipality_id`) → מתנגש עם `/api/operator/tasks` שכותב סטטוסים בעברית; `departments` = היברידי (9 עמ' + `municipality_id`). `notifications`/`users` (טבלאות רפאים) אינן קיימות גם בפרודקשן.
 - **סיסמאות זמניות בטקסט גלוי** ב-`password_resets.temp_password_plain`, ללא ניקוי.
 
 ## F. מוכנות רב-רשותית (Tenant Readiness)
@@ -95,7 +97,7 @@
 **סיווג: לא בטוח לפריסה רב-רשותית (unsafe for multi-tenant deployment).** קיים שלד חלקי — אבל הוא מת בפועל:
 
 1. **זהות הרשות נקבעת בצד הלקוח:** `NEXT_PUBLIC_MUNICIPALITY_ID` (env) → `localStorage` → ואפילו פרמטר URL במסך (`/screen?municipality_id=` נכתב ישר ל-localStorage). ה-JWT לא נושא tenant. אין שום מקור אמת צד-שרת.
-2. **בלבול slug/UUID:** ה-env מספק slug (`yehud`), 9 מ-10 עמודות ה-tenant הן UUID; רק route אחד ממיר. ב-`.env.local` המשתנה מוגדר פעמיים (UUID ואז slug — ה-slug מנצח).
+2. **בלבול slug/UUID:** ה-env אמור לספק UUID; 9 מ-10 עמודות ה-tenant הן UUID; רק route אחד ממיר slug→UUID. **בפרודקשן `NEXT_PUBLIC_MUNICIPALITY_ID` הוא UUID תקין** (אומת 2026-08-17) — אך ב-`.env.local` המקומי הוא מוגדר פעמיים (UUID ואז `yehud` — ה-slug מנצח), פצצת-זמן אם ישוכפל לסביבה אחרת.
 3. **`user_profiles.municipality_id` קיים אך מת:** לא נכתב באף יצירת משתמש, לא נקרא באף שאילתה.
 4. **17 טבלאות בלי שיוך רשות בכלל** — כולל כל האירועים, הסקרים, מאגר הידע, סטטוס מקלטים, הודעות, מצב מלחמה.
 5. **19 טבלאות עם שרשרת FK לרשות — שאף שאילתה לא עוברת בה**; ו-4 routes מרכזיים (departments, on-call-contacts, panic-buttons, operator/tasks) מחזירים נתונים חוצי-רשות בלי סינון.
@@ -171,7 +173,10 @@ CSP חסר ב-headers · rate limiting בזיכרון פר-instance · audit_log
 
 ## K. לא נודע (UNVERIFIED)
 
-- מצב הפרודקשן בפועל: אילו מיגרציות הורצו, איזו גרסת `operator_tasks`/`departments` חיה, האם מיגרציית הנעילה הורצה, ערכי env ב-Vercel (כולל האם `SUPABASE_SERVICE_ROLE_KEY` מוגדר — קריטי בגלל ה-fallback השקט), הגדרות דומיין/DNS.
+- ~~מצב הפרודקשן: מיגרציות, גרסת operator_tasks/departments, מיגרציית הנעילה~~ ✅ אומת 2026-08-17 (ראה E).
+- ~~ערכי env ב-Vercel~~ ✅ אומת 2026-08-17: `SUPABASE_SERVICE_ROLE_KEY` **מוגדר** (ה-fallback השקט לא מתממש בפרודקשן); `NEXT_PUBLIC_MUNICIPALITY_ID` = **UUID** בפרודקשן (בעיית ה-slug/UUID קיימת רק ב-`.env.local` המקומי שמגדיר אותו פעמיים); `APP_PASSWORD`/`ADMIN_PASSWORD` **נמחקו** מ-Vercel; `JWT_SECRET`/`SCREEN_TOKEN`/`DUTY_FORM_SECRET` סובבו/נוספו ב-Aug 13.
+- ~~מפתח Google~~ ✅ אומת 2026-08-17: מפתח יחיד ("Maps Platform API Key"), API restriction ל-32 APIs אך **ללא Application restriction** — חשוף לשימוש מכל מקור, והמפתח דלף ל-git ולנתיב ה-proxy הפתוח `/api/geocode`. דורש רוטציה + הגבלה (YOA-7).
+- נותר לא-נודע: הגדרות דומיין/DNS, ומקור שלוש טבלאות ה-`sector_*` (drift).
 - האם מפתח ה-Google שנחשף סובב; האם ל-`GOOGLE_MAPS_API_KEY` יש הגבלות.
 - תוכן הדאטה החי (כמה משתמשים/אירועים/רשומות; האם `municipality_id` אוכלס ידנית איפשהו).
 - האם קואורדינטת מקלט 1003 (15 ק"מ צפונית) היא שגיאה או מיקום מכוון.
