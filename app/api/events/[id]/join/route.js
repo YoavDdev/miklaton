@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,29 +10,24 @@ const supabase = createClient(
 // POST - join event for authenticated user
 export async function POST(request, { params }) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { id: eventId } = params;
     const body = await request.json();
-    const { user_id, display_name, role, department, phone } = body;
-
-    if (!user_id) {
-      return NextResponse.json({ success: false, error: 'User ID required' }, { status: 400 });
-    }
-
-    // Validate UUID format
-    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-    if (!uuidRegex.test(user_id)) {
-      return NextResponse.json({ success: false, error: 'Invalid user ID format' }, { status: 400 });
-    }
+    const { display_name, role, department, phone } = body;
+    const userId = auth.user.userId;
 
     // If display_name is a UUID or empty, fetch real name from user_profiles
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
     let finalDisplayName = display_name;
     if (!display_name || uuidRegex.test(display_name)) {
       const { data: profile } = await supabase
         .from('user_profiles')
         .select('full_name')
-        .eq('id', user_id)
+        .eq('id', userId)
         .single();
-      
+
       if (profile?.full_name) {
         finalDisplayName = profile.full_name;
       } else {
@@ -55,7 +51,7 @@ export async function POST(request, { params }) {
       .from('event_participants')
       .select('*')
       .eq('event_id', eventId)
-      .eq('user_id', user_id)
+      .eq('user_id', userId)
       .single();
 
     if (existingParticipant) {
@@ -69,7 +65,7 @@ export async function POST(request, { params }) {
     // Add new participant
     const participantData = {
       event_id: eventId,
-      user_id,
+      user_id: userId,
       display_name: finalDisplayName,
       role: role || 'participant',
       department: department || null,
