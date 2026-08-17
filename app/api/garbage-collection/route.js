@@ -49,7 +49,7 @@ export async function GET(request) {
 // POST - Add new schedule entry
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager']);
+    const auth = await requireRole(request, ['call_center_manager', 'operator']);
     if (auth.error) return auth.error;
 
     const body = await request.json();
@@ -86,7 +86,7 @@ export async function POST(request) {
 // PUT - Update schedule entry
 export async function PUT(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager']);
+    const auth = await requireRole(request, ['call_center_manager', 'operator']);
     if (auth.error) return auth.error;
 
     const body = await request.json();
@@ -117,7 +117,7 @@ export async function PUT(request) {
 // DELETE - Remove schedule entry
 export async function DELETE(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager']);
+    const auth = await requireRole(request, ['call_center_manager', 'operator']);
     if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);
