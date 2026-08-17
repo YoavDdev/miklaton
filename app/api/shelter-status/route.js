@@ -17,8 +17,14 @@ const getSupabase = () => {
   });
 };
 
-export async function GET() {
+export async function GET(request) {
   try {
+    // שומר על צורת התשובה { statuses } גם בכישלון אימות - הצרכנים לא בודקים סטטוס
+    const auth = await requireRole(request);
+    if (auth.error) {
+      return NextResponse.json({ statuses: {}, error: 'לא מחובר' }, { status: 401 });
+    }
+
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('shelter_status')

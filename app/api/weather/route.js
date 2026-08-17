@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireRoleOrScreen } from '@/lib/auth';
 
 const LAT = 32.0333;
 const LON = 34.8833;
@@ -41,8 +42,11 @@ function buildAlerts(hourly, daily) {
   return { alerts, next24hSummary: { maxWind, maxGust, totalRain, maxTemp, minTemp }, dailyTomorrow };
 }
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const auth = await requireRoleOrScreen(request);
+    if (auth.error) return auth.error;
+
     const url = `https://api.open-meteo.com/v1/forecast?latitude=${LAT}&longitude=${LON}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,wind_gusts_10m&hourly=temperature_2m,weather_code,wind_speed_10m,wind_gusts_10m,rain,showers&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,wind_speed_10m_max&timezone=Asia/Jerusalem&forecast_days=3`;
     const res = await fetch(url, { next: { revalidate: 600 } });
     if (!res.ok) throw new Error('Open-Meteo request failed');

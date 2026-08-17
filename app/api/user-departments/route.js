@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -7,11 +8,20 @@ const supabase = createClient(
 
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
 
     if (!userId) {
       return Response.json({ error: 'userId is required' }, { status: 400 });
+    }
+
+    // משתמש רגיל רואה רק את המחלקות של עצמו; אדמין ומנהלת מוקד - של כולם
+    const canViewOthers = ['admin', 'call_center_manager'].includes(auth.user.role);
+    if (!canViewOthers && userId !== auth.user.userId) {
+      return Response.json({ error: 'אין הרשאה לצפות במחלקות של משתמש אחר' }, { status: 403 });
     }
 
     // שלוף את המחלקות של המשתמש - bypasses RLS with service role

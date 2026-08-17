@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, requireRole } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -10,20 +10,15 @@ const supabase = createClient(
 // GET - רשימת כל המשתמשים (Admin או מנהלת מוקד)
 export async function GET(request) {
   try {
-    const token = request.cookies.get('auth-token')?.value;
-    const decoded = verifyToken(token);
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
-    if (!decoded || (decoded.role !== 'admin' && decoded.role !== 'call_center_manager')) {
-      return NextResponse.json(
-        { error: 'אין הרשאה - נדרש Admin או מנהלת מוקד' },
-        { status: 403 }
-      );
-    }
+    // מנהלת מוקד מקבלת רק את השדות הדרושים לשיבוץ משימות; אדמין - הכל
+    const isAdmin = auth.user.role === 'admin';
 
-    // שליפת כל המשתמשים עם הפרופילים שלהם
     const { data: profiles, error } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select(isAdmin ? '*' : 'id, full_name, role, status, department_id')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -34,11 +29,15 @@ export async function GET(request) {
       );
     }
 
-    // שליפת מידע נוסף מ-auth.users
+    if (!isAdmin) {
+      return NextResponse.json({ success: true, users: profiles });
+    }
+
+    // שליפת מידע נוסף מ-auth.users (אדמין בלבד)
     const usersWithAuth = await Promise.all(
       profiles.map(async (profile) => {
         const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
-        
+
         return {
           ...profile,
           email: authUser?.user?.email,

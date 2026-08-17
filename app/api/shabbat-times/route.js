@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 // Yehud-Monosson geonameid
 const YEHUD_GEONAMEID = '294891';
@@ -6,8 +7,11 @@ const YEHUD_GEONAMEID = '294891';
 let cache = null;
 let cacheDate = null;
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const today = new Date().toISOString().split('T')[0];
 
     // Return cache if same day

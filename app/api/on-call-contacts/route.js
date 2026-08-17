@@ -10,6 +10,9 @@ const supabase = createClient(
 // GET - Get all on-call contacts
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { data, error } = await supabase
       .from('on_call_contacts')
       .select('*')

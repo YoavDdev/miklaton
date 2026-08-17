@@ -10,6 +10,9 @@ const supabase = createClient(
 // GET - fetch shift types by department
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const departmentId = searchParams.get('department_id');
 

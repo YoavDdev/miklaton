@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { requireRole } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -7,15 +7,11 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-// GET - קבלת סשנים פעילים
+// GET - קבלת סשנים פעילים (רשימת כל המוקדנים המחוברים - למנהלת המוקד)
 export async function GET(request) {
   try {
-    const token = request.cookies.get('auth-token')?.value;
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-      return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
-    }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     // רק מוקדנים פעילים - סשן שהיה פעיל ב-15 דקות האחרונות
     const fifteenMinutesAgo = new Date(Date.now() - 15 * 60 * 1000).toISOString();
@@ -69,12 +65,9 @@ export async function GET(request) {
 // POST - יצירת/עדכון סשן (heartbeat)
 export async function POST(request) {
   try {
-    const token = request.cookies.get('auth-token')?.value;
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-      return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
-    }
+    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    if (auth.error) return auth.error;
+    const decoded = auth.user;
 
     // בדוק אם יש סשנים פעילים (שימוש ב-limit במקום single כדי למנוע שגיאה בכפילויות)
     const { data: activeSessions } = await supabase
@@ -139,12 +132,9 @@ export async function POST(request) {
 // DELETE - סיום סשן
 export async function DELETE(request) {
   try {
-    const token = request.cookies.get('auth-token')?.value;
-    const decoded = verifyToken(token);
-
-    if (!decoded) {
-      return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
-    }
+    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    if (auth.error) return auth.error;
+    const decoded = auth.user;
 
     const { error } = await supabase
       .from('operator_sessions')

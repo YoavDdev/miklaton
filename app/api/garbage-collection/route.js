@@ -10,6 +10,9 @@ const supabase = createClient(
 // GET - Fetch garbage collection schedule
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const street = searchParams.get('street');
     const day = searchParams.get('day');

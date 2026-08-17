@@ -10,6 +10,9 @@ const supabase = createClient(
 // GET - fetch schedule for a specific week
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const departmentId = searchParams.get('department_id');
     const weekStart = searchParams.get('week_start');
