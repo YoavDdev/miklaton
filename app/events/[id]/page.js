@@ -179,20 +179,7 @@ export default function EventDetailPage() {
         body: JSON.stringify({ field_status: newStatus }),
       });
 
-      // Add system message with status encoded in content
-      const displayName = userName || 'משתמש';
-      const requestBody = {
-        participant_id: myParticipantId,
-        entry_type: 'system',
-        content: `STATUS:${newStatus}:${displayName}`,
-      };
-
-      await fetch(`/api/events/${eventId}/journal`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-
+      // Server generates the system journal entry for the status change.
       // Refresh journal to show the new message
       await refreshJournal();
     } catch (err) {

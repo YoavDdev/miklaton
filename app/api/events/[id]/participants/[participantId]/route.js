@@ -49,6 +49,26 @@ export async function PATCH(request, { params }) {
 
     if (error) throw error;
 
+    if (body.field_status !== undefined && data) {
+      // רישום אירוע יומן system בצד השרת (לא תלוי בקלט הלקוח)
+      supabase
+        .from('event_journal')
+        .insert({
+          event_id: eventId,
+          participant_id: participantId,
+          author_name: 'מערכת',
+          entry_type: 'system',
+          content: `STATUS:${body.field_status}:${data.display_name}`,
+          author_field_status: body.field_status,
+        })
+        .then(({ error: journalError }) => {
+          if (journalError) console.error('Failed to write status journal entry:', journalError);
+        })
+        .catch((journalError) => {
+          console.error('Failed to write status journal entry:', journalError);
+        });
+    }
+
     if (access.guest && data) {
       const { phone, guest_phone, ...rest } = data;
       return NextResponse.json({ success: true, data: rest });
