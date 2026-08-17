@@ -10,7 +10,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "db:rls-check": "node scripts/check-rls.js",
-    "db:lint-migrations": "node scripts/lint-migrations.js"
+    "db:lint-migrations": "node scripts/lint-migrations.js",
+    "db:check-drift": "node scripts/check-schema-drift.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
