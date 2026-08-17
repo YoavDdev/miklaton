@@ -19,7 +19,7 @@ export default function ActiveEventBanner() {
   const [newEvent, setNewEvent] = useState({ title: '', description: '', severity: 'medium', event_type: 'general' });
   const toastIdRef = useRef(0);
   const knownEntryIdsRef = useRef(new Set());
-  const initializedRef = useRef(false);
+  const seededEventsRef = useRef(new Set());
 
   useEffect(() => {
     fetchActiveEvents();
@@ -46,14 +46,18 @@ export default function ActiveEventBanner() {
           if (!detailJson.success) continue;
 
           const journal = detailJson.data.journal || [];
-          // journal.length drives the unread badge; last-seen entries are tracked
-          // so we only toast for entries that arrived since the previous poll.
+          // Last-seen entries are tracked per-event so we only toast for entries
+          // that arrived since the previous poll, not every historical entry
+          // the first time we see a given event (avoids a toast flood when a
+          // new event with pre-existing journal entries becomes active).
+          const isFirstSightingOfEvent = !seededEventsRef.current.has(ev.id);
+
           journal.forEach(entry => {
             if (knownEntryIdsRef.current.has(entry.id)) return;
             knownEntryIdsRef.current.add(entry.id);
 
-            // Skip toasting for the entries discovered on the very first poll
-            if (!initializedRef.current) return;
+            // Skip toasting for entries discovered the first time we see this event
+            if (isFirstSightingOfEvent) return;
             if (entry.entry_type === 'system') return;
 
             const id = ++toastIdRef.current;
@@ -69,9 +73,10 @@ export default function ActiveEventBanner() {
               setToasts(prev => prev.filter(t => t.id !== id));
             }, 5000);
           });
+
+          seededEventsRef.current.add(ev.id);
         } catch {}
       }
-      initializedRef.current = true;
     } catch {}
   };
 
