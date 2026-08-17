@@ -105,6 +105,16 @@ export async function PUT(request) {
       );
     }
 
+    // אותן מגבלות אורך כמו ביצירה
+    if ((title !== undefined && title.length > 300) ||
+        (content !== undefined && content.length > 20000) ||
+        (category !== undefined && category && category.length > 100)) {
+      return NextResponse.json(
+        { success: false, error: 'כותרת עד 300 תווים, תוכן עד 20,000 תווים, קטגוריה עד 100' },
+        { status: 400 }
+      );
+    }
+
     const updateData = { updated_at: new Date().toISOString() };
     if (title !== undefined) updateData.title = title;
     if (content !== undefined) updateData.content = content;
