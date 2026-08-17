@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireEventAccess } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -14,6 +15,12 @@ export async function POST(request) {
 
     if (!file || !eventId) {
       return NextResponse.json({ success: false, error: 'File and event_id required' }, { status: 400 });
+    }
+
+    const access = await requireEventAccess(request, String(eventId));
+    if (access.error) return access.error;
+    if (access.event.status === 'closed') {
+      return NextResponse.json({ success: false, error: 'Event is closed' }, { status: 400 });
     }
 
     // Validate file type
