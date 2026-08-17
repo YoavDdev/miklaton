@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, signToken, validatePassword } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -11,6 +12,10 @@ const supabase = createClient(
 export async function POST(request) {
   console.log('🔵 API /api/profile/change-password - התחלה');
   try {
+    // הגנה מפני ניחוש סיסמה נוכחית (הנתיב מאמת currentPassword מול Supabase)
+    const limited = rateLimit(request, 'change-password', { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
+
     const token = request.cookies.get('auth-token')?.value;
     console.log('🔑 Token exists:', !!token);
 
@@ -41,32 +46,28 @@ export async function POST(request) {
       );
     }
 
-    if (newPassword.length < 6) {
+    // מדיניות סיסמאות אחידה (8 תווים + מורכבות) — זהה להרשמה ולנתיב change-password
+    const passwordErrors = validatePassword(newPassword);
+    if (passwordErrors.length > 0) {
       return NextResponse.json(
-        { error: 'סיסמה חדשה חייבת להכיל לפחות 6 תווים' },
+        { error: 'סיסמה לא תקינה', details: passwordErrors },
         { status: 400 }
       );
     }
 
-    // שליפת המשתמש מ-auth.users (email נמצא רק שם)
-    const { data: authData } = await supabase.auth.admin.listUsers();
-    const authUser = authData.users.find(u => u.id === decoded.userId);
-    console.log('🔐 Auth user found:', !!authUser, 'email:', authUser?.email);
-
-    if (!authUser) {
-      console.log('❌ משתמש לא נמצא ב-auth.users');
-      return NextResponse.json(
-        { error: 'משתמש לא נמצא במערכת האימות' },
-        { status: 404 }
-      );
-    }
-
-    // אימות סיסמה נוכחית - ניסיון התחברות
-    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-      email: authUser.email,
+    // אימות סיסמה נוכחית — על client חד-פעמי, כדי לא "להרעיל" את ה-client
+    // המשותף ב-session של המשתמש (הכתיבות למטה חייבות service role).
+    // האימייל מגיע מה-JWT (נחתם ב-login) — בלי listUsers על כל המשתמשים.
+    const verifyClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+    const { data: signInData, error: signInError } = await verifyClient.auth.signInWithPassword({
+      email: decoded.email,
       password: currentPassword
     });
-    console.log('🔓 Password verification - error:', signInError?.message, 'success:', !!signInData.user);
+    console.log('🔓 Password verification - error:', signInError?.message, 'success:', !!signInData?.user);
 
     if (signInError || !signInData.user) {
       console.log('❌ סיסמה נוכחית שגויה');
@@ -102,9 +103,28 @@ export async function POST(request) {
       .eq('id', decoded.userId);
 
     console.log('🎉 הכל הצליח!');
-    return NextResponse.json({
+    // הנפקת טוקן חדש בלי דגל mustChangePassword (ראה auth/change-password)
+    const freshToken = signToken({
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+      isAdmin: decoded.isAdmin,
+      fullName: decoded.fullName,
+      username: decoded.username,
+      mustChangePassword: false,
+    });
+
+    const response = NextResponse.json({
       message: 'סיסמה שונתה בהצלחה'
     });
+    response.cookies.set('auth-token', freshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 8, // 8 hours
+      path: '/',
+    });
+    return response;
 
   } catch (error) {
     console.error('❌❌❌ Change password API error:', error);

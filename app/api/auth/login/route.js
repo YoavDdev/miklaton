@@ -8,6 +8,17 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+/**
+ * client חד-פעמי לאימות סיסמה בלבד. חובה להפריד: signInWithPassword על
+ * ה-client המשותף "מרעיל" אותו ב-session של המשתמש, וכל הקריאות הבאות
+ * (גם בבקשות אחרות באותו instance!) רצות כ-authenticated במקום service role.
+ */
+const createVerifyClient = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
+
 export async function POST(request) {
   try {
     const limited = rateLimit(request, 'login', { limit: 10, windowMs: 60_000 });
@@ -22,8 +33,8 @@ export async function POST(request) {
       );
     }
 
-    // התחברות דרך Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    // התחברות דרך Supabase Auth — על client חד-פעמי נפרד
+    const { data: authData, error: authError } = await createVerifyClient().auth.signInWithPassword({
       email,
       password
     });
@@ -87,14 +98,15 @@ export async function POST(request) {
 
     const mustChangePassword = !!resetData;
 
-    // יצירת JWT token
-    const token = signToken({ 
+    // יצירת JWT token — mustChangePassword נחתם כדי שה-middleware יוכל לאכוף החלפה
+    const token = signToken({
       userId: authData.user.id,
       email: authData.user.email,
       role: profile.role,
       isAdmin: profile.role === 'admin',
       fullName: profile.full_name || '',
       username: profile.full_name || authData.user.email?.split('@')[0] || '',
+      mustChangePassword,
     });
 
     // Audit log for successful login
