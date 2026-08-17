@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, requireRole } from '@/lib/auth';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -10,18 +10,11 @@ const supabase = createClient(
 // GET - רשימת כל המשתמשים (Admin או מנהלת מוקד)
 export async function GET(request) {
   try {
-    const token = request.cookies.get('auth-token')?.value;
-    const decoded = verifyToken(token);
-
-    if (!decoded || (decoded.role !== 'admin' && decoded.role !== 'call_center_manager')) {
-      return NextResponse.json(
-        { error: 'אין הרשאה - נדרש Admin או מנהלת מוקד' },
-        { status: 403 }
-      );
-    }
+    const auth = await requireRole(request, ['call_center_manager']);
+    if (auth.error) return auth.error;
 
     // מנהלת מוקד מקבלת רק את השדות הדרושים לשיבוץ משימות; אדמין - הכל
-    const isAdmin = decoded.role === 'admin';
+    const isAdmin = auth.user.role === 'admin';
 
     const { data: profiles, error } = await supabase
       .from('user_profiles')

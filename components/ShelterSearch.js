@@ -47,6 +47,9 @@ export default function ShelterSearch({ compact = false }) {
   const loadShelterStatuses = async () => {
     try {
       const response = await fetch('/api/shelter-status');
+      // בכישלון (למשל פקיעת התחברות) שומרים על הסטטוסים האחרונים הידועים
+      // במקום להציג את כל המקלטים כסגורים
+      if (!response.ok) return;
       const data = await response.json();
       setShelterStatuses(data.statuses || {});
     } catch (error) {

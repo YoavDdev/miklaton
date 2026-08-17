@@ -37,7 +37,7 @@ export async function GET(request) {
       .order('created_at', { ascending: false });
 
     if (myTasks) {
-      query = query.eq('assigned_to', authResult.user.id);
+      query = query.eq('assigned_to', authResult.user.userId);
     } else if (assignedTo) {
       query = query.eq('assigned_to', assignedTo);
     }
@@ -103,8 +103,8 @@ export async function POST(request) {
       .from('operator_tasks')
       .insert({
         municipality_id,
-        assigned_to: assigned_to || authResult.user.id, // Default to self
-        created_by: authResult.user.id,
+        assigned_to: assigned_to || authResult.user.userId, // Default to self
+        created_by: authResult.user.userId,
         title,
         description,
         priority: priority || 'medium',
@@ -150,7 +150,8 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
     }
 
-    // בדיקת בעלות: רק היוצר, המשויך או אדמין/מנהלת מוקד רשאים לעדכן (תואם ל-DELETE)
+    // בדיקת בעלות: היוצר או המשויך רשאים לעדכן; אדמין ומנהלת מוקד - כל משימה.
+    // (DELETE למטה מצומצם יותר בכוונה: יוצר-או-אדמין בלבד)
     const requester = authResult.user;
     if (requester.role !== 'admin' && requester.role !== 'call_center_manager') {
       const { data: existing } = await supabase
@@ -159,7 +160,7 @@ export async function PUT(request) {
         .eq('id', id)
         .single();
 
-      const requesterId = requester.userId || requester.id;
+      const requesterId = requester.userId;
       if (!existing || (existing.created_by !== requesterId && existing.assigned_to !== requesterId)) {
         return NextResponse.json({ error: 'אין הרשאה לעדכן משימה זו' }, { status: 403 });
       }
@@ -168,7 +169,7 @@ export async function PUT(request) {
     // If marking as completed, set completed_at and completed_by
     if (status === 'completed') {
       updates.completed_at = new Date().toISOString();
-      updates.completed_by = authResult.user.id;
+      updates.completed_by = authResult.user.userId;
       updates.status = 'completed';
     } else if (status) {
       updates.status = status;
@@ -225,7 +226,7 @@ export async function DELETE(request) {
       .eq('id', id)
       .single();
 
-    if (task && task.created_by !== authResult.user.id && authResult.user.role !== 'admin') {
+    if (task && task.created_by !== authResult.user.userId && authResult.user.role !== 'admin') {
       return NextResponse.json({ error: 'Only task creator can delete' }, { status: 403 });
     }
 

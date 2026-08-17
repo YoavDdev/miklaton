@@ -6,12 +6,15 @@ import { rateLimit } from '@/lib/rate-limit';
 const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export async function GET(request) {
+  // הצרכנים (ShelterSearch, AddressInput) מניחים שהתשובה היא תמיד מערך -
+  // לכן גם שגיאות אימות/קצב מוחזרות בגוף מערך ריק
   const auth = await requireRole(request);
-  if (auth.error) return auth.error;
+  if (auth.error) return NextResponse.json([], { status: 401 });
 
-  // מגן על מכסת ה-Geocoding של Google (עלות כספית)
-  const limited = rateLimit(request, 'geocode', { limit: 30, windowMs: 60_000 });
-  if (limited) return limited;
+  // מגן על מכסת ה-Geocoding של Google (עלות כספית).
+  // המפתח פר-משתמש ולא פר-IP - כל המוקד יושב מאחורי NAT אחד
+  const limited = rateLimit(request, `geocode:${auth.user.userId}`, { limit: 30, windowMs: 60_000 });
+  if (limited) return NextResponse.json([], { status: 429, headers: { 'Retry-After': '60' } });
 
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
