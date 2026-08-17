@@ -68,12 +68,16 @@ export async function POST(request, { params }) {
 
     if (updateError) {
       console.error('Reset password error:', updateError);
-      // ביטול הרישום שנוצר — הסיסמה לא שונתה בפועל
+      // ביטול הרישום והדגל שנוצרו — הסיסמה לא שונתה בפועל
       await supabase
         .from('password_resets')
         .update({ used_at: new Date().toISOString() })
         .eq('user_id', userId)
         .is('used_at', null);
+      await supabase
+        .from('user_profiles')
+        .update({ must_change_password: false })
+        .eq('id', userId);
       return NextResponse.json(
         { error: 'שגיאה באיפוס סיסמה' },
         { status: 500 }
