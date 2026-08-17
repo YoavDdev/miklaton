@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests
+        run: npm test
+
+      # ערכים מזויפים בלבד - ה-build לא מתחבר לשום שירות, הוא רק צריך
+      # שהמשתנים יהיו מוגדרים כדי שייבוא ברמת מודול לא ייפול.
+      - name: Build
+        run: npm run build
+        env:
+          JWT_SECRET: ci-build-placeholder-secret
+          NEXT_PUBLIC_SUPABASE_URL: https://ci-placeholder.supabase.co
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ci-placeholder-anon-key
+          SUPABASE_SERVICE_ROLE_KEY: ci-placeholder-service-role-key
+          SCREEN_TOKEN: ci-placeholder-screen-token
+          DUTY_FORM_SECRET: ci-placeholder-duty-secret

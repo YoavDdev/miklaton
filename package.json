@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "node scripts/generate-version.js && next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.98.0",
@@ -29,6 +31,7 @@
   },
   "devDependencies": {
     "eslint": "^8",
-    "eslint-config-next": "14.0.0"
+    "eslint-config-next": "14.0.0",
+    "vitest": "^2.1.9"
   }
 }
