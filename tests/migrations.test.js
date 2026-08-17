@@ -1,52 +1,109 @@
 import { describe, it, expect } from 'vitest';
 import {
   parseFilename,
+  findSilentlySkipped,
+  findDuplicateVersions,
   orderMigrations,
   checksum,
-  planMigrations,
 } from '../scripts/lib/migrations.js';
 
+// שמות אמיתיים מהארכיון - אלה המקרים שבאמת קרו בפרויקט הזה.
+const REAL_SKIPPED = [
+  '20260817a_temp_password_nullable.sql',
+  '20260817b_drop_temp_password_plain.sql',
+  '20260817c_inspection_reports.sql',
+  'create_oncall_system.sql',
+  'create_rbac_system.sql',
+  'create_war_mode.sql',
+];
+
 describe('parseFilename', () => {
-  it('מפרק שם תקין לגרסה ולשם', () => {
-    expect(parseFilename('0001_baseline.sql')).toEqual({
-      version: 1,
-      name: 'baseline',
-      filename: '0001_baseline.sql',
+  it('מקבל את התבנית שה-CLI מקבל', () => {
+    expect(parseFilename('20260818120000_add_thing.sql')).toEqual({
+      version: '20260818120000',
+      name: 'add_thing',
+      filename: '20260818120000_add_thing.sql',
     });
   });
 
-  it('דוחה שמות שלא תואמים את התבנית', () => {
-    expect(parseFilename('20260510_daily_operations.sql')?.version).toBe(20260510);
-    expect(parseFilename('create_rbac_system.sql')).toBeNull();
-    expect(parseFilename('0001_baseline.txt')).toBeNull();
+  it('דוחה בדיוק את מה שה-CLI דוחה', () => {
+    for (const f of REAL_SKIPPED) expect(parseFilename(f), f).toBeNull();
+  });
+
+  it('דוחה קבצים שאינם sql', () => {
     expect(parseFilename('README.md')).toBeNull();
+    expect(parseFilename('20260818_note.txt')).toBeNull();
+  });
+});
+
+describe('findSilentlySkipped', () => {
+  it('מוצא את ששת הקבצים שה-CLI דילג עליהם בפועל', () => {
+    const found = findSilentlySkipped([...REAL_SKIPPED, '20260326_add_must_change_password.sql']);
+    expect(found.sort()).toEqual([...REAL_SKIPPED].sort());
+  });
+
+  it('לא מתלונן על README או קבצים שאינם sql', () => {
+    expect(findSilentlySkipped(['README.md', 'notes.txt'])).toEqual([]);
+  });
+
+  it('שקט כשהכול תקין', () => {
+    expect(findSilentlySkipped(['20260818120000_ok.sql'])).toEqual([]);
+  });
+});
+
+describe('findDuplicateVersions', () => {
+  it('תופס את ההתנגשות של 20260510 שה-CLI בלע בשקט', () => {
+    const dupes = findDuplicateVersions([
+      '20260510_daily_operations.sql',
+      '20260510_add_daily_operations.sql',
+      '20260714_panic_buttons.sql',
+    ]);
+    expect(dupes).toHaveLength(1);
+    expect(dupes[0].version).toBe('20260510');
+    expect(dupes[0].files).toEqual([
+      '20260510_add_daily_operations.sql',
+      '20260510_daily_operations.sql',
+    ]);
+  });
+
+  it('תופס את ששת הקבצים של 20260511', () => {
+    const files = [
+      '20260511_call_categories.sql',
+      '20260511_enhance_call_categories.sql',
+      '20260511_enhance_oncall_contacts.sql',
+      '20260511_enhance_oncall_shifts.sql',
+      '20260511_priority_contacts.sql',
+      '20260511_remove_oncall_tables.sql',
+    ];
+    const dupes = findDuplicateVersions(files);
+    expect(dupes[0].files).toHaveLength(6);
+  });
+
+  it('שקט כשכל הגרסאות ייחודיות', () => {
+    expect(findDuplicateVersions(['20260818120000_a.sql', '20260818120001_b.sql'])).toEqual([]);
+  });
+
+  it('מתעלם מקבצים שממילא ידולגו', () => {
+    expect(findDuplicateVersions(['create_a.sql', 'create_b.sql'])).toEqual([]);
   });
 });
 
 describe('orderMigrations', () => {
-  it('ממיין לפי מספר ולא לפי אלפבית', () => {
-    // אלפבית היה שם את 0010 לפני 0002
-    const { migrations } = orderMigrations([
-      '0010_tenth.sql',
-      '0002_second.sql',
-      '0001_first.sql',
+  it('ממיין לפי חותמת זמן', () => {
+    const ordered = orderMigrations([
+      '20260818120002_third.sql',
+      '20260818120000_first.sql',
+      '20260818120001_second.sql',
     ]);
-    expect(migrations.map((m) => m.version)).toEqual([1, 2, 10]);
+    expect(ordered.map((m) => m.name)).toEqual(['first', 'second', 'third']);
   });
 
-  it('מפריד קבצים שאינם מיגרציות במקום לבלוע אותם', () => {
-    const { migrations, ignored } = orderMigrations(['0001_a.sql', 'README.md', 'notes.txt']);
-    expect(migrations).toHaveLength(1);
-    expect(ignored).toEqual(['README.md', 'notes.txt']);
+  it('משמיט קבצים שאינם מיגרציות', () => {
+    expect(orderMigrations(['README.md', '20260818120000_a.sql'])).toHaveLength(1);
   });
 
-  it('זורק על גרסה כפולה - התקלה של 20260510', () => {
-    expect(() => orderMigrations(['0003_daily_operations.sql', '0003_add_daily_operations.sql']))
-      .toThrow(/כפולה 3/);
-  });
-
-  it('מחזיר רשימה ריקה בלי לקרוס כשאין מיגרציות', () => {
-    expect(orderMigrations([]).migrations).toEqual([]);
+  it('לא קורס על רשימה ריקה', () => {
+    expect(orderMigrations([])).toEqual([]);
   });
 });
 
@@ -54,61 +111,6 @@ describe('checksum', () => {
   it('יציב לאותו תוכן ושונה לתוכן שונה', () => {
     expect(checksum('select 1;')).toBe(checksum('select 1;'));
     expect(checksum('select 1;')).not.toBe(checksum('select 2;'));
-  });
-
-  it('רגיש גם לשינוי רווח בודד', () => {
     expect(checksum('select 1;')).not.toBe(checksum('select  1;'));
-  });
-});
-
-describe('planMigrations', () => {
-  const migration = (version, sql) => ({
-    version,
-    name: `m${version}`,
-    filename: `000${version}_m${version}.sql`,
-    sql,
-  });
-
-  it('מריץ הכל כשאין שום דבר מוחל', () => {
-    const available = [migration(1, 'a'), migration(2, 'b')];
-    const plan = planMigrations(available, []);
-    expect(plan.pending.map((m) => m.version)).toEqual([1, 2]);
-    expect(plan.changed).toEqual([]);
-    expect(plan.missing).toEqual([]);
-  });
-
-  it('מדלג על מה שכבר הוחל', () => {
-    const available = [migration(1, 'a'), migration(2, 'b')];
-    const plan = planMigrations(available, [{ version: 1, checksum: checksum('a') }]);
-    expect(plan.pending.map((m) => m.version)).toEqual([2]);
-  });
-
-  it('לא מריץ כלום כשהכל מעודכן', () => {
-    const available = [migration(1, 'a')];
-    const plan = planMigrations(available, [{ version: 1, checksum: checksum('a') }]);
-    expect(plan.pending).toEqual([]);
-    expect(plan.changed).toEqual([]);
-  });
-
-  it('מסמן מיגרציה שנערכה אחרי שכבר הוחלה', () => {
-    const available = [migration(1, 'a שונה')];
-    const plan = planMigrations(available, [{ version: 1, checksum: checksum('a') }]);
-    expect(plan.changed.map((m) => m.version)).toEqual([1]);
-    expect(plan.pending).toEqual([]);
-  });
-
-  it('מסמן מיגרציה שרשומה כמוחלת אבל הקובץ נעלם', () => {
-    const plan = planMigrations([migration(1, 'a')], [
-      { version: 1, checksum: checksum('a') },
-      { version: 2, checksum: 'whatever' },
-    ]);
-    expect(plan.missing).toEqual([2]);
-  });
-
-  it('מזהה גם עריכה בדיעבד וגם ממתינה באותה הרצה', () => {
-    const available = [migration(1, 'a שונה'), migration(2, 'b')];
-    const plan = planMigrations(available, [{ version: 1, checksum: checksum('a') }]);
-    expect(plan.changed.map((m) => m.version)).toEqual([1]);
-    expect(plan.pending.map((m) => m.version)).toEqual([2]);
   });
 });

@@ -1,84 +1,68 @@
 const crypto = require('crypto');
 
 /**
- * הלוגיקה הטהורה של ה-migration runner: מיון, checksum, והחלטה מה להריץ.
- * מופרד מהגישה ל-DB כדי שיהיה אפשר לבדוק אותו בלי בסיס נתונים.
+ * בדיקות תקינות על תיקיית המיגרציות, לפני שמריצים `supabase db push`.
  *
- * שמות קבצים: <version>_<name>.sql כאשר version הוא מספר רץ (0001, 0002...).
- * מספר רץ ולא תאריך - תאריכים הם מה שיצר את התנגשויות 20260510 ו-20260817.
+ * למה זה קיים: ה-CLI **מדלג בשקט** על כל קובץ ששמו לא תואם ל-
+ * "<timestamp>_name.sql" — הוא מדפיס שורת Skipping ומחזיר קוד יציאה 0.
+ * ככה שלוש מיגרציות אמיתיות (20260817a/b/c) מעולם לא נרשמו כממתינות.
+ * מי שלא קורא כל שורה בפלט מניח שהן רצו.
+ *
+ * הפונקציות כאן טהורות (בלי גישה ל-DB ובלי קריאת קבצים) כדי שיהיה אפשר
+ * לבדוק אותן.
  */
 
-const FILENAME = /^(\d{4,})_([a-z0-9_]+)\.sql$/;
+// התבנית שה-CLI מקבל בפועל: ספרות, קו תחתון, שם, .sql
+const CLI_PATTERN = /^(\d+)_(.+)\.sql$/;
 
 function parseFilename(filename) {
-  const match = FILENAME.exec(filename);
+  const match = CLI_PATTERN.exec(filename);
   if (!match) return null;
-  return { version: Number(match[1]), name: match[2], filename };
+  return { version: match[1], name: match[2], filename };
 }
 
 /**
- * ממיין מיגרציות לפי מספר גרסה. זורק על גרסה כפולה - שתי מיגרציות עם אותו
- * מספר הן בדיוק התקלה של 20260510, ואסור שתעבור בשקט.
+ * מחזיר את הקבצים שה-CLI יתעלם מהם בשקט.
+ * README.md וקבצים שאינם .sql אינם ממצא - הם לא אמורים לרוץ.
  */
-function orderMigrations(filenames) {
-  const parsed = [];
-  const ignored = [];
+function findSilentlySkipped(filenames) {
+  return filenames.filter((f) => f.endsWith('.sql') && !CLI_PATTERN.test(f));
+}
+
+/**
+ * מחזיר גרסאות שמופיעות ביותר מקובץ אחד.
+ * ה-CLI לא מתלונן על כפילות - הוא הציג שש פעמים 20260511 בלי אף אזהרה -
+ * וזה בדיוק מה שאיפשר לשתי המיגרציות של 20260510 להתנגש.
+ */
+function findDuplicateVersions(filenames) {
+  const byVersion = new Map();
   for (const filename of filenames) {
     const entry = parseFilename(filename);
-    if (entry) parsed.push(entry);
-    else ignored.push(filename);
+    if (!entry) continue;
+    if (!byVersion.has(entry.version)) byVersion.set(entry.version, []);
+    byVersion.get(entry.version).push(filename);
   }
+  return [...byVersion.entries()]
+    .filter(([, files]) => files.length > 1)
+    .map(([version, files]) => ({ version, files: files.sort() }));
+}
 
-  const seen = new Map();
-  for (const entry of parsed) {
-    if (seen.has(entry.version)) {
-      throw new Error(
-        `גרסת מיגרציה כפולה ${entry.version}: ${seen.get(entry.version)} ו-${entry.filename}`
-      );
-    }
-    seen.set(entry.version, entry.filename);
-  }
-
-  parsed.sort((a, b) => a.version - b.version);
-  return { migrations: parsed, ignored };
+/** ממיין לפי גרסה - השוואת מחרוזות, כי חותמות זמן הן באורך קבוע. */
+function orderMigrations(filenames) {
+  return filenames
+    .map(parseFilename)
+    .filter(Boolean)
+    .sort((a, b) => (a.version < b.version ? -1 : a.version > b.version ? 1 : 0));
 }
 
 function checksum(sql) {
   return crypto.createHash('sha256').update(sql, 'utf8').digest('hex');
 }
 
-/**
- * מחליט מה להריץ.
- *
- * available: [{ version, name, filename, sql }]
- * applied:   [{ version, checksum }] כפי שנקרא מטבלת schema_migrations
- *
- * מחזיר:
- *   pending  - מיגרציות שטרם הורצו, בסדר עולה
- *   changed  - מיגרציות שכבר הוחלו אבל תוכן הקובץ השתנה מאז (עריכה בדיעבד)
- *   missing  - גרסאות שרשומות כמוחלות אבל הקובץ שלהן נעלם מהריפו
- */
-function planMigrations(available, applied) {
-  const appliedByVersion = new Map(applied.map((a) => [a.version, a.checksum]));
-
-  const pending = [];
-  const changed = [];
-  for (const migration of available) {
-    const appliedChecksum = appliedByVersion.get(migration.version);
-    if (appliedChecksum === undefined) {
-      pending.push(migration);
-    } else if (appliedChecksum !== checksum(migration.sql)) {
-      changed.push(migration);
-    }
-  }
-
-  const availableVersions = new Set(available.map((m) => m.version));
-  const missing = applied
-    .map((a) => a.version)
-    .filter((v) => !availableVersions.has(v))
-    .sort((a, b) => a - b);
-
-  return { pending, changed, missing };
-}
-
-module.exports = { parseFilename, orderMigrations, checksum, planMigrations };
+module.exports = {
+  parseFilename,
+  findSilentlySkipped,
+  findDuplicateVersions,
+  orderMigrations,
+  checksum,
+};
