@@ -8,3 +8,6 @@ out
 .env.production.local
 .env.development.local
 .vercel
+
+# Supabase CLI local state (project ref, versions) - not app code
+supabase/.temp/
