@@ -27,6 +27,9 @@ const DEFAULTS = {
 // GET - fetch settings for a department
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const departmentId = searchParams.get('department_id');
     const key = searchParams.get('key'); // optional: specific key

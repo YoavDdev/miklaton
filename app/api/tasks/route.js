@@ -150,6 +150,21 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'Task ID required' }, { status: 400 });
     }
 
+    // בדיקת בעלות: רק היוצר, המשויך או אדמין/מנהלת מוקד רשאים לעדכן (תואם ל-DELETE)
+    const requester = authResult.user;
+    if (requester.role !== 'admin' && requester.role !== 'call_center_manager') {
+      const { data: existing } = await supabase
+        .from('operator_tasks')
+        .select('created_by, assigned_to')
+        .eq('id', id)
+        .single();
+
+      const requesterId = requester.userId || requester.id;
+      if (!existing || (existing.created_by !== requesterId && existing.assigned_to !== requesterId)) {
+        return NextResponse.json({ error: 'אין הרשאה לעדכן משימה זו' }, { status: 403 });
+      }
+    }
+
     // If marking as completed, set completed_at and completed_by
     if (status === 'completed') {
       updates.completed_at = new Date().toISOString();

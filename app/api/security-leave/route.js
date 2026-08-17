@@ -10,6 +10,9 @@ const supabase = createClient(
 // GET - fetch leave entries for a department (optionally filter by date range)
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const departmentId = searchParams.get('department_id');
     const date = searchParams.get('date'); // optional: check who's on leave on this date

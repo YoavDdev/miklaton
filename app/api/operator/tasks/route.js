@@ -122,7 +122,7 @@ export async function POST(request) {
   }
 }
 
-// PUT - עדכון משימה
+// PUT - עדכון משימה (מנהלת מוקד - כל משימה; מוקדן - רק משימות שהוקצו לו)
 export async function PUT(request) {
   try {
     const token = request.cookies.get('auth-token')?.value;
@@ -132,10 +132,28 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
     }
 
+    const isManager = decoded.role === 'call_center_manager' || decoded.role === 'admin';
+    if (!isManager && decoded.role !== 'operator') {
+      return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    }
+
     const { id, status, notes } = await request.json();
 
     if (!id) {
       return NextResponse.json({ error: 'חסר ID של משימה' }, { status: 400 });
+    }
+
+    // מוקדן רשאי לעדכן רק משימות שהוקצו לו
+    if (!isManager) {
+      const { data: existing } = await supabase
+        .from('operator_tasks')
+        .select('assigned_to')
+        .eq('id', id)
+        .single();
+
+      if (!existing || existing.assigned_to !== decoded.userId) {
+        return NextResponse.json({ error: 'אין הרשאה לעדכן משימה זו' }, { status: 403 });
+      }
     }
 
     const updateData = {};

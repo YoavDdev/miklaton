@@ -10,6 +10,9 @@ const supabase = createClient(
 // GET - fetch all staff for a department
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const departmentId = searchParams.get('department_id');
 

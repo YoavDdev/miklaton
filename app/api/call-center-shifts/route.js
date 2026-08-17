@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { requireRole } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,6 +10,9 @@ const supabase = createClient(
 // GET - fetch all shifts for a department
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const departmentId = searchParams.get('department_id');
 

@@ -10,6 +10,9 @@ const supabase = createClient(
 // GET - fetch all active knowledge base entries (with optional search)
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search');
     const category = searchParams.get('category');

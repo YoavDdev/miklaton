@@ -17,8 +17,11 @@ const getSupabase = () => {
   });
 };
 
-export async function GET() {
+export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const supabase = getSupabase();
     const { data, error } = await supabase
       .from('shelter_status')

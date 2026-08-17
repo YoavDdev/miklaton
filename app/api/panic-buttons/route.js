@@ -12,6 +12,9 @@ const getSupabase = () => {
 // GET - list all or search by name
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const supabase = getSupabase();
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';

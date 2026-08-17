@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { readFileSync, writeFileSync } from 'fs';
 import { join } from 'path';
+import { requireRole } from '@/lib/auth';
 
 const REPORTS_FILE = join(process.cwd(), 'data', 'inspectionReports.json');
 
@@ -19,6 +20,9 @@ function writeReports(reports) {
 
 export async function GET(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const { searchParams } = new URL(request.url);
     const zone = searchParams.get('zone');
     const reports = readReports();
@@ -32,6 +36,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { inspectorName, zone, locationType, locationName, locationAddress, description } = body;
 
@@ -65,6 +72,9 @@ export async function POST(request) {
 
 export async function PATCH(request) {
   try {
+    const auth = await requireRole(request);
+    if (auth.error) return auth.error;
+
     const body = await request.json();
     const { id, status } = body;
 

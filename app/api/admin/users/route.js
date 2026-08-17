@@ -20,10 +20,12 @@ export async function GET(request) {
       );
     }
 
-    // שליפת כל המשתמשים עם הפרופילים שלהם
+    // מנהלת מוקד מקבלת רק את השדות הדרושים לשיבוץ משימות; אדמין - הכל
+    const isAdmin = decoded.role === 'admin';
+
     const { data: profiles, error } = await supabase
       .from('user_profiles')
-      .select('*')
+      .select(isAdmin ? '*' : 'id, full_name, role, status, department_id')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -34,11 +36,15 @@ export async function GET(request) {
       );
     }
 
-    // שליפת מידע נוסף מ-auth.users
+    if (!isAdmin) {
+      return NextResponse.json({ success: true, users: profiles });
+    }
+
+    // שליפת מידע נוסף מ-auth.users (אדמין בלבד)
     const usersWithAuth = await Promise.all(
       profiles.map(async (profile) => {
         const { data: authUser } = await supabase.auth.admin.getUserById(profile.id);
-        
+
         return {
           ...profile,
           email: authUser?.user?.email,

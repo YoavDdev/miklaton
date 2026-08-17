@@ -1,9 +1,18 @@
 import { NextResponse } from 'next/server';
 import sheltersData from '@/data/shelters.json';
+import { requireRole } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 
 const GOOGLE_API_KEY = process.env.GOOGLE_MAPS_API_KEY;
 
 export async function GET(request) {
+  const auth = await requireRole(request);
+  if (auth.error) return auth.error;
+
+  // מגן על מכסת ה-Geocoding של Google (עלות כספית)
+  const limited = rateLimit(request, 'geocode', { limit: 30, windowMs: 60_000 });
+  if (limited) return limited;
+
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
