@@ -77,8 +77,7 @@ export default function RegisterPage() {
           email: formData.email,
           password: formData.password,
           fullName: formData.fullName,
-          phone: formData.phone || null,
-          role: 'operator'
+          phone: formData.phone || null
         })
       });
 

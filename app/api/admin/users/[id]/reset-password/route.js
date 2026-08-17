@@ -12,31 +12,29 @@ const supabase = createClient(
 // POST - איפוס סיסמה (Admin בלבד)
 export async function POST(request, { params }) {
   try {
-    const limited = rateLimit(request, 'admin-reset-password', { limit: 5, windowMs: 60_000 });
-    if (limited) return limited;
-
     const auth = await requireRole(request, ['admin']);
     if (auth.error) return auth.error;
     const decoded = auth.user;
+
+    // פר-אדמין, לא פר-IP (עיריות יושבות מאחורי NAT משותף)
+    const limited = rateLimit(request, `admin-reset-password:${decoded.userId}`, { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
 
     const userId = params.id;
 
     // יצירת סיסמה זמנית רנדומלית
     const tempPassword = generateTempPassword();
 
-    // עדכון סיסמה ב-Supabase Auth
-    const { error: updateError } = await supabase.auth.admin.updateUserById(
-      userId,
-      { password: tempPassword }
-    );
+    // סדר הפעולות מכוון: קודם רישום האיפוס, ורק אחר כך שינוי הסיסמה.
+    // אם הרישום נכשל - עוצרים לפני שנגענו בסיסמה (אחרת המשתמש היה מקבל
+    // סיסמה זמנית קבועה בלי אכיפת החלפה, והאדמין היה רואה הצלחה).
 
-    if (updateError) {
-      console.error('Reset password error:', updateError);
-      return NextResponse.json(
-        { error: 'שגיאה באיפוס סיסמה' },
-        { status: 500 }
-      );
-    }
+    // ביטול איפוסים קודמים שלא נוצלו (מונע כפילויות)
+    await supabase
+      .from('password_resets')
+      .update({ used_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('used_at', null);
 
     // רישום האיפוס — בלי הסיסמה עצמה (היא נמסרת פעם אחת בתשובה לאדמין בלבד)
     const { error: insertError } = await supabase
@@ -50,6 +48,36 @@ export async function POST(request, { params }) {
 
     if (insertError) {
       console.error('Insert password reset error:', insertError);
+      return NextResponse.json(
+        { error: 'שגיאה ברישום האיפוס - הסיסמה לא שונתה' },
+        { status: 500 }
+      );
+    }
+
+    // דגל גם בפרופיל (ה-login קורא אותו — מכסה גם משתמשים שנוצרו ע"י אדמין)
+    await supabase
+      .from('user_profiles')
+      .update({ must_change_password: true })
+      .eq('id', userId);
+
+    // עדכון סיסמה ב-Supabase Auth
+    const { error: updateError } = await supabase.auth.admin.updateUserById(
+      userId,
+      { password: tempPassword }
+    );
+
+    if (updateError) {
+      console.error('Reset password error:', updateError);
+      // ביטול הרישום שנוצר — הסיסמה לא שונתה בפועל
+      await supabase
+        .from('password_resets')
+        .update({ used_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('used_at', null);
+      return NextResponse.json(
+        { error: 'שגיאה באיפוס סיסמה' },
+        { status: 500 }
+      );
     }
 
     // שליפת מידע על המשתמש
@@ -88,9 +116,10 @@ export async function POST(request, { params }) {
   }
 }
 
-// יצירת סיסמה זמנית — קריפטוגרפית, עם ערובת מורכבות (גדולה/קטנה/ספרה/סימן)
+// יצירת סיסמה זמנית — קריפטוגרפית ולא-מוטה (crypto.randomInt),
+// עם ערובת מורכבות (גדולה/קטנה/ספרה/סימן)
 function generateTempPassword() {
-  const pick = (set) => set[crypto.randomBytes(1)[0] % set.length];
+  const pick = (set) => set[crypto.randomInt(set.length)];
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$';
 
   const required = [
@@ -104,7 +133,7 @@ function generateTempPassword() {
   // ערבוב קריפטוגרפי (Fisher-Yates)
   const all = [...required, ...rest];
   for (let i = all.length - 1; i > 0; i--) {
-    const j = crypto.randomBytes(1)[0] % (i + 1);
+    const j = crypto.randomInt(i + 1);
     [all[i], all[j]] = [all[j], all[i]];
   }
   return all.join('');

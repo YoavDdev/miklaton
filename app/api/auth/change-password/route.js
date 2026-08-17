@@ -10,10 +10,6 @@ const supabase = createClient(
 
 export async function PUT(request) {
   try {
-    // הגנה מפני ניחוש סיסמה נוכחית (הנתיב מאמת oldPassword מול Supabase)
-    const limited = rateLimit(request, 'change-password', { limit: 5, windowMs: 60_000 });
-    if (limited) return limited;
-
     // בדיקת authentication
     const token = request.cookies.get('auth-token')?.value;
     
@@ -31,6 +27,10 @@ export async function PUT(request) {
         { status: 401 }
       );
     }
+
+    // הגנה מפני ניחוש סיסמה — פר-משתמש (IP משותף לכל המוקד מאחורי NAT)
+    const limited = rateLimit(request, `change-password:${decoded.userId}`, { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
 
     const { oldPassword, newPassword } = await request.json();
 
@@ -51,46 +51,46 @@ export async function PUT(request) {
       );
     }
 
-    // אם זה לא איפוס - צריך לוודא את הסיסמה הישנה
+    // האם יש איפוס פעיל? (רק לצורך audit וסימון ניצול — maybeSingle כי ייתכנו כמה)
     const { data: resetData } = await supabase
       .from('password_resets')
-      .select('*')
+      .select('id')
       .eq('user_id', decoded.userId)
       .eq('must_change_password', true)
       .is('used_at', null)
       .gte('expires_at', new Date().toISOString())
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     const isPasswordReset = !!resetData;
 
-    // אם לא איפוס - דורש סיסמה ישנה
-    if (!isPasswordReset) {
-      if (!oldPassword) {
-        return NextResponse.json(
-          { error: 'נא להזין את הסיסמה הנוכחית' },
-          { status: 400 }
-        );
-      }
-
-      // וידוא סיסמה ישנה — על client חד-פעמי, כדי לא "להרעיל" את
-      // ה-client המשותף ב-session של המשתמש (הכתיבות למטה חייבות service role).
-      // האימייל מגיע מה-JWT שלנו (נחתם ב-login).
-      const verifyClient = createClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        { auth: { persistSession: false, autoRefreshToken: false } }
+    // הסיסמה הנוכחית נדרשת ומאומתת תמיד — גם באיפוס (שם היא הסיסמה הזמנית).
+    // אחרת session גנוב שקדם לאיפוס היה יכול להשתלט על החשבון בלי שום סוד.
+    if (!oldPassword) {
+      return NextResponse.json(
+        { error: isPasswordReset ? 'נא להזין את הסיסמה הזמנית שקיבלת' : 'נא להזין את הסיסמה הנוכחית' },
+        { status: 400 }
       );
-      const { error: verifyError } = await verifyClient.auth.signInWithPassword({
-        email: decoded.email,
-        password: oldPassword
-      });
+    }
 
-      if (verifyError) {
-        return NextResponse.json(
-          { error: 'הסיסמה הנוכחית שגויה' },
-          { status: 401 }
-        );
-      }
+    // אימות על client חד-פעמי, כדי לא "להרעיל" את ה-client המשותף
+    // ב-session של המשתמש (הכתיבות למטה חייבות service role).
+    const verifyClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+    const { error: verifyError } = await verifyClient.auth.signInWithPassword({
+      email: decoded.email,
+      password: oldPassword
+    });
+
+    if (verifyError) {
+      return NextResponse.json(
+        { error: isPasswordReset ? 'הסיסמה הזמנית שגויה' : 'הסיסמה הנוכחית שגויה' },
+        { status: 401 }
+      );
     }
 
     // עדכון סיסמה ב-Supabase Auth באמצעות admin API
@@ -113,13 +113,12 @@ export async function PUT(request) {
       .update({ must_change_password: false })
       .eq('id', decoded.userId);
 
-    // אם זה היה איפוס - לסמן שהאיפוס נוצל
-    if (isPasswordReset) {
-      await supabase
-        .from('password_resets')
-        .update({ used_at: new Date().toISOString() })
-        .eq('id', resetData.id);
-    }
+    // סימון כל האיפוסים הפתוחים כמנוצלים (ייתכנו כמה אם האדמין איפס פעמיים)
+    await supabase
+      .from('password_resets')
+      .update({ used_at: new Date().toISOString() })
+      .eq('user_id', decoded.userId)
+      .is('used_at', null);
 
     // Audit log
     await supabase.from('audit_log').insert({

@@ -60,7 +60,7 @@ export async function POST(request) {
     // גם אם ה-API רץ עם ה-anon key (שמוגבל ברמת עמודה אחרי הקשחת ה-RLS)
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
-      .select('id, full_name, role, status')
+      .select('id, full_name, role, status, must_change_password')
       .eq('id', authData.user.id)
       .single();
 
@@ -86,17 +86,20 @@ export async function POST(request) {
       );
     }
 
-    // בדיקה אם צריך להחליף סיסמה
+    // בדיקה אם צריך להחליף סיסמה: רשומת איפוס פעילה (העדכנית ביותר —
+    // maybeSingle כי ייתכנו כמה איפוסים) או דגל בפרופיל (משתמש שנוצר ע"י אדמין)
     const { data: resetData } = await supabase
       .from('password_resets')
-      .select('*')
+      .select('id')
       .eq('user_id', authData.user.id)
       .eq('must_change_password', true)
       .is('used_at', null)
       .gte('expires_at', new Date().toISOString())
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    const mustChangePassword = !!resetData;
+    const mustChangePassword = !!resetData || profile.must_change_password === true;
 
     // יצירת JWT token — mustChangePassword נחתם כדי שה-middleware יוכל לאכוף החלפה
     const token = signToken({
@@ -127,7 +130,7 @@ export async function POST(request) {
         role: profile.role,
         mustChangePassword
       },
-      redirect: mustChangePassword ? '/change-password' : getRoleRedirect(profile.role)
+      redirect: mustChangePassword ? '/change-password?forced=true' : getRoleRedirect(profile.role)
     });
 
     // Set cookie

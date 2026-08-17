@@ -126,7 +126,7 @@ export async function middleware(request) {
     // בדיקה אם צריך להחליף סיסמה
     // אם כן ולא בדף change-password, redirect לשם
     if (decoded.mustChangePassword && pathname !== '/change-password') {
-      return NextResponse.redirect(new URL('/change-password', request.url));
+      return NextResponse.redirect(new URL('/change-password?forced=true', request.url));
     }
   }
 

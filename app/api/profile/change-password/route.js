@@ -12,10 +12,6 @@ const supabase = createClient(
 export async function POST(request) {
   console.log('🔵 API /api/profile/change-password - התחלה');
   try {
-    // הגנה מפני ניחוש סיסמה נוכחית (הנתיב מאמת currentPassword מול Supabase)
-    const limited = rateLimit(request, 'change-password', { limit: 5, windowMs: 60_000 });
-    if (limited) return limited;
-
     const token = request.cookies.get('auth-token')?.value;
     console.log('🔑 Token exists:', !!token);
 
@@ -34,6 +30,10 @@ export async function POST(request) {
         { status: 401 }
       );
     }
+
+    // הגנה מפני ניחוש סיסמה — פר-משתמש (IP משותף לכל המוקד מאחורי NAT)
+    const limited = rateLimit(request, `change-password:${decoded.userId}`, { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
 
     const { currentPassword, newPassword } = await request.json();
     console.log('📝 Request data - currentPassword exists:', !!currentPassword, 'newPassword exists:', !!newPassword);
@@ -96,11 +96,18 @@ export async function POST(request) {
     console.log('✅ סיסמה עודכנה בהצלחה, מעדכן must_change_password');
     await supabase
       .from('user_profiles')
-      .update({ 
+      .update({
         must_change_password: false,
         updated_at: new Date().toISOString()
       })
       .eq('id', decoded.userId);
+
+    // סימון איפוסים פתוחים כמנוצלים — אחרת המשתמש יסומן שוב בהתחברות הבאה
+    await supabase
+      .from('password_resets')
+      .update({ used_at: new Date().toISOString() })
+      .eq('user_id', decoded.userId)
+      .is('used_at', null);
 
     console.log('🎉 הכל הצליח!');
     // הנפקת טוקן חדש בלי דגל mustChangePassword (ראה auth/change-password)
