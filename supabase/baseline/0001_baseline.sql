@@ -3208,146 +3208,122 @@ GRANT USAGE ON SCHEMA "public" TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."add_user_to_department"("user_uuid" "uuid", "dept_uuid" "uuid", "make_primary" boolean) TO "anon";
-GRANT ALL ON FUNCTION "public"."add_user_to_department"("user_uuid" "uuid", "dept_uuid" "uuid", "make_primary" boolean) TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."add_user_to_department"("user_uuid" "uuid", "dept_uuid" "uuid", "make_primary" boolean) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."add_user_to_department"("user_uuid" "uuid", "dept_uuid" "uuid", "make_primary" boolean) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."can_edit_duty_roster"("user_uuid" "uuid", "dept_id" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."can_edit_duty_roster"("user_uuid" "uuid", "dept_id" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."can_edit_duty_roster"("user_uuid" "uuid", "dept_id" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."can_edit_duty_roster"("user_uuid" "uuid", "dept_id" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."generate_survey_token"() TO "anon";
-GRANT ALL ON FUNCTION "public"."generate_survey_token"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."generate_survey_token"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."generate_survey_token"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_active_daily_updates"("muni_id" "uuid", "check_time" timestamp with time zone) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_active_daily_updates"("muni_id" "uuid", "check_time" timestamp with time zone) TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."get_active_daily_updates"("muni_id" "uuid", "check_time" timestamp with time zone) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_active_daily_updates"("muni_id" "uuid", "check_time" timestamp with time zone) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_current_on_call"("dept_id" "uuid", "check_time" timestamp with time zone) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_current_on_call"("dept_id" "uuid", "check_time" timestamp with time zone) TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."get_current_on_call"("dept_id" "uuid", "check_time" timestamp with time zone) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_current_on_call"("dept_id" "uuid", "check_time" timestamp with time zone) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_current_on_call_v2"("p_department_id" "uuid", "p_check_time" timestamp with time zone) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_current_on_call_v2"("p_department_id" "uuid", "p_check_time" timestamp with time zone) TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."get_current_on_call_v2"("p_department_id" "uuid", "p_check_time" timestamp with time zone) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_current_on_call_v2"("p_department_id" "uuid", "p_check_time" timestamp with time zone) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_on_call_with_fallback"("p_department_id" "uuid", "p_check_time" timestamp with time zone) TO "anon";
-GRANT ALL ON FUNCTION "public"."get_on_call_with_fallback"("p_department_id" "uuid", "p_check_time" timestamp with time zone) TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."get_on_call_with_fallback"("p_department_id" "uuid", "p_check_time" timestamp with time zone) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_on_call_with_fallback"("p_department_id" "uuid", "p_check_time" timestamp with time zone) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_user_departments"("user_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_user_departments"("user_uuid" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."get_user_departments"("user_uuid" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_user_departments"("user_uuid" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."get_user_role"("user_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."get_user_role"("user_uuid" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."get_user_role"("user_uuid" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."get_user_role"("user_uuid" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "anon";
-GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."handle_new_user"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."handle_new_user"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."is_admin"("user_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."is_admin"("user_uuid" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."is_admin"("user_uuid" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."is_admin"("user_uuid" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."is_call_center_manager"("user_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."is_call_center_manager"("user_uuid" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."is_call_center_manager"("user_uuid" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."is_call_center_manager"("user_uuid" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."is_ceo"("user_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."is_ceo"("user_uuid" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."is_ceo"("user_uuid" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."is_ceo"("user_uuid" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."is_contact_available"("p_available_days" integer[], "p_available_hours_start" time without time zone, "p_available_hours_end" time without time zone, "p_on_vacation" boolean, "p_vacation_start" "date", "p_vacation_end" "date", "p_currently_unavailable" boolean, "p_unavailable_until" timestamp with time zone, "p_check_time" timestamp with time zone) TO "anon";
-GRANT ALL ON FUNCTION "public"."is_contact_available"("p_available_days" integer[], "p_available_hours_start" time without time zone, "p_available_hours_end" time without time zone, "p_on_vacation" boolean, "p_vacation_start" "date", "p_vacation_end" "date", "p_currently_unavailable" boolean, "p_unavailable_until" timestamp with time zone, "p_check_time" timestamp with time zone) TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."is_contact_available"("p_available_days" integer[], "p_available_hours_start" time without time zone, "p_available_hours_end" time without time zone, "p_on_vacation" boolean, "p_vacation_start" "date", "p_vacation_end" "date", "p_currently_unavailable" boolean, "p_unavailable_until" timestamp with time zone, "p_check_time" timestamp with time zone) FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."is_contact_available"("p_available_days" integer[], "p_available_hours_start" time without time zone, "p_available_hours_end" time without time zone, "p_on_vacation" boolean, "p_vacation_start" "date", "p_vacation_end" "date", "p_currently_unavailable" boolean, "p_unavailable_until" timestamp with time zone, "p_check_time" timestamp with time zone) TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."is_sector_manager"("user_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."is_sector_manager"("user_uuid" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."is_sector_manager"("user_uuid" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."is_sector_manager"("user_uuid" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."set_primary_department"("user_uuid" "uuid", "dept_uuid" "uuid") TO "anon";
-GRANT ALL ON FUNCTION "public"."set_primary_department"("user_uuid" "uuid", "dept_uuid" "uuid") TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."set_primary_department"("user_uuid" "uuid", "dept_uuid" "uuid") FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."set_primary_department"("user_uuid" "uuid", "dept_uuid" "uuid") TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_general_notifications_timestamp"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_general_notifications_timestamp"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_general_notifications_timestamp"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_general_notifications_timestamp"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_oncall_timestamp"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_oncall_timestamp"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_oncall_timestamp"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_oncall_timestamp"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_panic_buttons_timestamp"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_panic_buttons_timestamp"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_panic_buttons_timestamp"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_panic_buttons_timestamp"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_shelter_status_timestamp"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_shelter_status_timestamp"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_shelter_status_timestamp"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_shelter_status_timestamp"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_system_settings_timestamp"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_system_settings_timestamp"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_system_settings_timestamp"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_system_settings_timestamp"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_updated_at_column"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_updated_at_column"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_user_profiles_timestamp"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_user_profiles_timestamp"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_user_profiles_timestamp"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_user_profiles_timestamp"() TO "service_role";
 
 
 
-GRANT ALL ON FUNCTION "public"."update_war_mode_timestamp"() TO "anon";
-GRANT ALL ON FUNCTION "public"."update_war_mode_timestamp"() TO "authenticated";
+REVOKE ALL ON FUNCTION "public"."update_war_mode_timestamp"() FROM PUBLIC;
 GRANT ALL ON FUNCTION "public"."update_war_mode_timestamp"() TO "service_role";
 
 
@@ -3367,317 +3343,272 @@ GRANT ALL ON FUNCTION "public"."update_war_mode_timestamp"() TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."audit_log" TO "anon";
 GRANT ALL ON TABLE "public"."audit_log" TO "authenticated";
 GRANT ALL ON TABLE "public"."audit_log" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_categories" TO "anon";
 GRANT ALL ON TABLE "public"."call_categories" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_categories" TO "service_role";
 
 
 
-GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."call_category_contacts" TO "anon";
 GRANT ALL ON TABLE "public"."call_category_contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_category_contacts" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_category_rules" TO "anon";
 GRANT ALL ON TABLE "public"."call_category_rules" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_category_rules" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_category_subcategories" TO "anon";
 GRANT ALL ON TABLE "public"."call_category_subcategories" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_category_subcategories" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_category_subcategory_contacts" TO "anon";
 GRANT ALL ON TABLE "public"."call_category_subcategory_contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_category_subcategory_contacts" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_center_schedule" TO "anon";
 GRANT ALL ON TABLE "public"."call_center_schedule" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_center_schedule" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_center_shifts" TO "anon";
 GRANT ALL ON TABLE "public"."call_center_shifts" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_center_shifts" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."call_center_staff" TO "anon";
 GRANT ALL ON TABLE "public"."call_center_staff" TO "authenticated";
 GRANT ALL ON TABLE "public"."call_center_staff" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."contacts" TO "anon";
 GRANT ALL ON TABLE "public"."contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."contacts" TO "service_role";
+GRANT SELECT ON TABLE "public"."contacts" TO "anon";
 
 
 
-GRANT ALL ON TABLE "public"."daily_updates" TO "anon";
 GRANT ALL ON TABLE "public"."daily_updates" TO "authenticated";
 GRANT ALL ON TABLE "public"."daily_updates" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."departments" TO "anon";
 GRANT ALL ON TABLE "public"."departments" TO "authenticated";
 GRANT ALL ON TABLE "public"."departments" TO "service_role";
+GRANT SELECT ON TABLE "public"."departments" TO "anon";
 
 
 
-GRANT ALL ON TABLE "public"."duty_roster" TO "anon";
 GRANT ALL ON TABLE "public"."duty_roster" TO "authenticated";
 GRANT ALL ON TABLE "public"."duty_roster" TO "service_role";
+GRANT SELECT ON TABLE "public"."duty_roster" TO "anon";
 
 
 
-GRANT ALL ON TABLE "public"."emergency_events" TO "anon";
 GRANT ALL ON TABLE "public"."emergency_events" TO "authenticated";
 GRANT ALL ON TABLE "public"."emergency_events" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."event_journal" TO "anon";
 GRANT ALL ON TABLE "public"."event_journal" TO "authenticated";
 GRANT ALL ON TABLE "public"."event_journal" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."event_participants" TO "anon";
 GRANT ALL ON TABLE "public"."event_participants" TO "authenticated";
 GRANT ALL ON TABLE "public"."event_participants" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."garbage_collection_schedule" TO "anon";
 GRANT ALL ON TABLE "public"."garbage_collection_schedule" TO "authenticated";
 GRANT ALL ON TABLE "public"."garbage_collection_schedule" TO "service_role";
 
 
 
-GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."general_notifications" TO "anon";
 GRANT ALL ON TABLE "public"."general_notifications" TO "authenticated";
 GRANT ALL ON TABLE "public"."general_notifications" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."inspection_reports" TO "anon";
 GRANT ALL ON TABLE "public"."inspection_reports" TO "authenticated";
 GRANT ALL ON TABLE "public"."inspection_reports" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."knowledge_base" TO "anon";
 GRANT ALL ON TABLE "public"."knowledge_base" TO "authenticated";
 GRANT ALL ON TABLE "public"."knowledge_base" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."knowledge_chat_history" TO "anon";
 GRANT ALL ON TABLE "public"."knowledge_chat_history" TO "authenticated";
 GRANT ALL ON TABLE "public"."knowledge_chat_history" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."municipalities" TO "anon";
 GRANT ALL ON TABLE "public"."municipalities" TO "authenticated";
 GRANT ALL ON TABLE "public"."municipalities" TO "service_role";
 
 
 
-GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."on_call_contacts" TO "anon";
 GRANT ALL ON TABLE "public"."on_call_contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."on_call_contacts" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."on_call_shifts" TO "anon";
 GRANT ALL ON TABLE "public"."on_call_shifts" TO "authenticated";
 GRANT ALL ON TABLE "public"."on_call_shifts" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."operator_messages" TO "anon";
 GRANT ALL ON TABLE "public"."operator_messages" TO "authenticated";
 GRANT ALL ON TABLE "public"."operator_messages" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."operator_sessions" TO "anon";
 GRANT ALL ON TABLE "public"."operator_sessions" TO "authenticated";
 GRANT ALL ON TABLE "public"."operator_sessions" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."operator_shifts" TO "anon";
 GRANT ALL ON TABLE "public"."operator_shifts" TO "authenticated";
 GRANT ALL ON TABLE "public"."operator_shifts" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."operator_tasks" TO "anon";
 GRANT ALL ON TABLE "public"."operator_tasks" TO "authenticated";
 GRANT ALL ON TABLE "public"."operator_tasks" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."panic_buttons" TO "anon";
 GRANT ALL ON TABLE "public"."panic_buttons" TO "authenticated";
 GRANT ALL ON TABLE "public"."panic_buttons" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."password_resets" TO "anon";
 GRANT ALL ON TABLE "public"."password_resets" TO "authenticated";
 GRANT ALL ON TABLE "public"."password_resets" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."sector_daily_tasks" TO "anon";
 GRANT ALL ON TABLE "public"."sector_daily_tasks" TO "authenticated";
 GRANT ALL ON TABLE "public"."sector_daily_tasks" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."sector_staff" TO "anon";
 GRANT ALL ON TABLE "public"."sector_staff" TO "authenticated";
 GRANT ALL ON TABLE "public"."sector_staff" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."sector_weekly_schedule" TO "anon";
 GRANT ALL ON TABLE "public"."sector_weekly_schedule" TO "authenticated";
 GRANT ALL ON TABLE "public"."sector_weekly_schedule" TO "service_role";
 
 
 
-GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."security_daily_order_entries" TO "anon";
 GRANT ALL ON TABLE "public"."security_daily_order_entries" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_daily_order_entries" TO "service_role";
 
 
 
-GRANT INSERT,REFERENCES,DELETE,TRIGGER,TRUNCATE,MAINTAIN,UPDATE ON TABLE "public"."security_daily_orders" TO "anon";
 GRANT ALL ON TABLE "public"."security_daily_orders" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_daily_orders" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_settings" TO "anon";
 GRANT ALL ON TABLE "public"."security_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_settings" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_shift_changes" TO "anon";
 GRANT ALL ON TABLE "public"."security_shift_changes" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_shift_changes" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_shifts" TO "anon";
 GRANT ALL ON TABLE "public"."security_shifts" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_shifts" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_staff" TO "anon";
 GRANT ALL ON TABLE "public"."security_staff" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_staff" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_staff_leave" TO "anon";
 GRANT ALL ON TABLE "public"."security_staff_leave" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_staff_leave" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."security_weekly_schedule" TO "anon";
 GRANT ALL ON TABLE "public"."security_weekly_schedule" TO "authenticated";
 GRANT ALL ON TABLE "public"."security_weekly_schedule" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."shelter_status" TO "anon";
 GRANT ALL ON TABLE "public"."shelter_status" TO "authenticated";
 GRANT ALL ON TABLE "public"."shelter_status" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."shift_messages" TO "anon";
 GRANT ALL ON TABLE "public"."shift_messages" TO "authenticated";
 GRANT ALL ON TABLE "public"."shift_messages" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."survey_responses" TO "anon";
 GRANT ALL ON TABLE "public"."survey_responses" TO "authenticated";
 GRANT ALL ON TABLE "public"."survey_responses" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."surveys" TO "anon";
 GRANT ALL ON TABLE "public"."surveys" TO "authenticated";
 GRANT ALL ON TABLE "public"."surveys" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."system_settings" TO "anon";
 GRANT ALL ON TABLE "public"."system_settings" TO "authenticated";
 GRANT ALL ON TABLE "public"."system_settings" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."user_departments" TO "anon";
 GRANT ALL ON TABLE "public"."user_departments" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_departments" TO "service_role";
 
 
 
-GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."user_profiles" TO "anon";
 GRANT REFERENCES,TRIGGER,TRUNCATE,MAINTAIN ON TABLE "public"."user_profiles" TO "authenticated";
 GRANT ALL ON TABLE "public"."user_profiles" TO "service_role";
 
 
 
-GRANT SELECT("id") ON TABLE "public"."user_profiles" TO "anon";
 GRANT SELECT("id") ON TABLE "public"."user_profiles" TO "authenticated";
+GRANT SELECT("id") ON TABLE "public"."user_profiles" TO "anon";
 
 
 
-GRANT SELECT("full_name") ON TABLE "public"."user_profiles" TO "anon";
 GRANT SELECT("full_name") ON TABLE "public"."user_profiles" TO "authenticated";
+GRANT SELECT("full_name") ON TABLE "public"."user_profiles" TO "anon";
 
 
 
-GRANT SELECT("role") ON TABLE "public"."user_profiles" TO "anon";
 GRANT SELECT("role") ON TABLE "public"."user_profiles" TO "authenticated";
+GRANT SELECT("role") ON TABLE "public"."user_profiles" TO "anon";
 
 
 
-GRANT SELECT("status") ON TABLE "public"."user_profiles" TO "anon";
 GRANT SELECT("status") ON TABLE "public"."user_profiles" TO "authenticated";
+GRANT SELECT("status") ON TABLE "public"."user_profiles" TO "anon";
 
 
 
-GRANT ALL ON TABLE "public"."war_mode" TO "anon";
 GRANT ALL ON TABLE "public"."war_mode" TO "authenticated";
 GRANT ALL ON TABLE "public"."war_mode" TO "service_role";
+GRANT SELECT ON TABLE "public"."war_mode" TO "anon";
 
 
 
@@ -3688,8 +3619,6 @@ GRANT ALL ON TABLE "public"."war_mode" TO "service_role";
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "postgres";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQUENCES TO "service_role";
 
 
@@ -3698,8 +3627,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON SEQ
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "postgres";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "anon";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUNCTIONS TO "service_role";
 
 
@@ -3708,7 +3635,6 @@ ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON FUN
 
 
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "postgres";
-ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "anon";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "authenticated";
 ALTER DEFAULT PRIVILEGES FOR ROLE "postgres" IN SCHEMA "public" GRANT ALL ON TABLES TO "service_role";
 
