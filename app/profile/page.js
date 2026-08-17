@@ -104,8 +104,8 @@ export default function ProfilePage() {
       return;
     }
 
-    if (passwordForm.newPassword.length < 6) {
-      toast.error('סיסמה חדשה חייבת להכיל לפחות 6 תווים');
+    if (passwordForm.newPassword.length < 8) {
+      toast.error('סיסמה חדשה חייבת להכיל לפחות 8 תווים, אות גדולה, אות קטנה וספרה');
       return;
     }
 
@@ -404,7 +404,7 @@ export default function ProfilePage() {
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500 text-sm sm:text-base"
                   dir="ltr"
                 />
-                <p className="text-xs text-gray-500 mt-1">לפחות 6 תווים</p>
+                <p className="text-xs text-gray-500 mt-1">לפחות 8 תווים, אות גדולה, אות קטנה וספרה</p>
               </div>
 
               <div>

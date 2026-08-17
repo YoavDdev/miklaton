@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import crypto from 'crypto';
+import { requireRole } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -10,20 +12,53 @@ const supabase = createClient(
 // POST - איפוס סיסמה (Admin בלבד)
 export async function POST(request, { params }) {
   try {
-    const token = request.cookies.get('auth-token')?.value;
-    const decoded = verifyToken(token);
+    const auth = await requireRole(request, ['admin']);
+    if (auth.error) return auth.error;
+    const decoded = auth.user;
 
-    if (!decoded || decoded.role !== 'admin') {
-      return NextResponse.json(
-        { error: 'אין הרשאה - נדרש Admin' },
-        { status: 403 }
-      );
-    }
+    // פר-אדמין, לא פר-IP (עיריות יושבות מאחורי NAT משותף)
+    const limited = rateLimit(request, `admin-reset-password:${decoded.userId}`, { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
 
     const userId = params.id;
 
     // יצירת סיסמה זמנית רנדומלית
     const tempPassword = generateTempPassword();
+
+    // סדר הפעולות מכוון: קודם רישום האיפוס, ורק אחר כך שינוי הסיסמה.
+    // אם הרישום נכשל - עוצרים לפני שנגענו בסיסמה (אחרת המשתמש היה מקבל
+    // סיסמה זמנית קבועה בלי אכיפת החלפה, והאדמין היה רואה הצלחה).
+
+    // ביטול איפוסים קודמים שלא נוצלו (מונע כפילויות)
+    await supabase
+      .from('password_resets')
+      .update({ used_at: new Date().toISOString() })
+      .eq('user_id', userId)
+      .is('used_at', null);
+
+    // רישום האיפוס — בלי הסיסמה עצמה (היא נמסרת פעם אחת בתשובה לאדמין בלבד)
+    const { error: insertError } = await supabase
+      .from('password_resets')
+      .insert({
+        user_id: userId,
+        must_change_password: true,
+        reset_by: decoded.userId,
+        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
+      });
+
+    if (insertError) {
+      console.error('Insert password reset error:', insertError);
+      return NextResponse.json(
+        { error: 'שגיאה ברישום האיפוס - הסיסמה לא שונתה' },
+        { status: 500 }
+      );
+    }
+
+    // דגל גם בפרופיל (ה-login קורא אותו — מכסה גם משתמשים שנוצרו ע"י אדמין)
+    await supabase
+      .from('user_profiles')
+      .update({ must_change_password: true })
+      .eq('id', userId);
 
     // עדכון סיסמה ב-Supabase Auth
     const { error: updateError } = await supabase.auth.admin.updateUserById(
@@ -33,25 +68,20 @@ export async function POST(request, { params }) {
 
     if (updateError) {
       console.error('Reset password error:', updateError);
+      // ביטול הרישום והדגל שנוצרו — הסיסמה לא שונתה בפועל
+      await supabase
+        .from('password_resets')
+        .update({ used_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('used_at', null);
+      await supabase
+        .from('user_profiles')
+        .update({ must_change_password: false })
+        .eq('id', userId);
       return NextResponse.json(
         { error: 'שגיאה באיפוס סיסמה' },
         { status: 500 }
       );
-    }
-
-    // שמירת הסיסמה הזמנית בטבלה
-    const { error: insertError } = await supabase
-      .from('password_resets')
-      .insert({
-        user_id: userId,
-        temp_password_plain: tempPassword,
-        must_change_password: true,
-        reset_by: decoded.userId,
-        expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString() // 24 hours
-      });
-
-    if (insertError) {
-      console.error('Insert password reset error:', insertError);
     }
 
     // שליפת מידע על המשתמש
@@ -90,24 +120,27 @@ export async function POST(request, { params }) {
   }
 }
 
-// יצירת סיסמה זמנית
+// יצירת סיסמה זמנית — קריפטוגרפית ולא-מוטה (crypto.randomInt),
+// עם ערובת מורכבות (גדולה/קטנה/ספרה/סימן)
 function generateTempPassword() {
+  const pick = (set) => set[crypto.randomInt(set.length)];
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$';
-  let password = '';
-  
-  // מבטיח סיסמה עם אות גדולה, קטנה, מספר וסימן
-  password += 'ABCDEFGHJKLMNPQRSTUVWXYZ'[Math.floor(Math.random() * 24)]; // אות גדולה
-  password += 'abcdefghijkmnopqrstuvwxyz'[Math.floor(Math.random() * 23)]; // אות קטנה
-  password += '23456789'[Math.floor(Math.random() * 8)]; // מספר
-  password += '!@#$'[Math.floor(Math.random() * 4)]; // סימן
-  
-  // מוסיף עוד 4 תווים רנדומליים
-  for (let i = 0; i < 4; i++) {
-    password += chars[Math.floor(Math.random() * chars.length)];
+
+  const required = [
+    pick('ABCDEFGHJKLMNPQRSTUVWXYZ'),
+    pick('abcdefghijkmnopqrstuvwxyz'),
+    pick('23456789'),
+    pick('!@#$'),
+  ];
+  const rest = Array.from({ length: 6 }, () => pick(chars));
+
+  // ערבוב קריפטוגרפי (Fisher-Yates)
+  const all = [...required, ...rest];
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = crypto.randomInt(i + 1);
+    [all[i], all[j]] = [all[j], all[i]];
   }
-  
-  // מערבב את התווים
-  return password.split('').sort(() => Math.random() - 0.5).join('');
+  return all.join('');
 }
 
 // הודעת WhatsApp מוכנה

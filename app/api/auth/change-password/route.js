@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { verifyToken } from '@/lib/auth';
+import { verifyToken, signToken, validatePassword } from '@/lib/auth';
+import { rateLimit } from '@/lib/rate-limit';
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
@@ -27,6 +28,10 @@ export async function PUT(request) {
       );
     }
 
+    // הגנה מפני ניחוש סיסמה — פר-משתמש (IP משותף לכל המוקד מאחורי NAT)
+    const limited = rateLimit(request, `change-password:${decoded.userId}`, { limit: 5, windowMs: 60_000 });
+    if (limited) return limited;
+
     const { oldPassword, newPassword } = await request.json();
 
     // Validation
@@ -46,40 +51,46 @@ export async function PUT(request) {
       );
     }
 
-    // אם זה לא איפוס - צריך לוודא את הסיסמה הישנה
+    // האם יש איפוס פעיל? (רק לצורך audit וסימון ניצול — maybeSingle כי ייתכנו כמה)
     const { data: resetData } = await supabase
       .from('password_resets')
-      .select('*')
+      .select('id')
       .eq('user_id', decoded.userId)
       .eq('must_change_password', true)
       .is('used_at', null)
       .gte('expires_at', new Date().toISOString())
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     const isPasswordReset = !!resetData;
 
-    // אם לא איפוס - דורש סיסמה ישנה
-    if (!isPasswordReset) {
-      if (!oldPassword) {
-        return NextResponse.json(
-          { error: 'נא להזין את הסיסמה הנוכחית' },
-          { status: 400 }
-        );
-      }
+    // הסיסמה הנוכחית נדרשת ומאומתת תמיד — גם באיפוס (שם היא הסיסמה הזמנית).
+    // אחרת session גנוב שקדם לאיפוס היה יכול להשתלט על החשבון בלי שום סוד.
+    if (!oldPassword) {
+      return NextResponse.json(
+        { error: isPasswordReset ? 'נא להזין את הסיסמה הזמנית שקיבלת' : 'נא להזין את הסיסמה הנוכחית' },
+        { status: 400 }
+      );
+    }
 
-      // וידוא סיסמה ישנה
-      const { data: user } = await supabase.auth.getUser(token);
-      const { error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.user.email,
-        password: oldPassword
-      });
+    // אימות על client חד-פעמי, כדי לא "להרעיל" את ה-client המשותף
+    // ב-session של המשתמש (הכתיבות למטה חייבות service role).
+    const verifyClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+      { auth: { persistSession: false, autoRefreshToken: false } }
+    );
+    const { error: verifyError } = await verifyClient.auth.signInWithPassword({
+      email: decoded.email,
+      password: oldPassword
+    });
 
-      if (verifyError) {
-        return NextResponse.json(
-          { error: 'הסיסמה הנוכחית שגויה' },
-          { status: 401 }
-        );
-      }
+    if (verifyError) {
+      return NextResponse.json(
+        { error: isPasswordReset ? 'הסיסמה הזמנית שגויה' : 'הסיסמה הנוכחית שגויה' },
+        { status: 401 }
+      );
     }
 
     // עדכון סיסמה ב-Supabase Auth באמצעות admin API
@@ -102,13 +113,12 @@ export async function PUT(request) {
       .update({ must_change_password: false })
       .eq('id', decoded.userId);
 
-    // אם זה היה איפוס - לסמן שהאיפוס נוצל
-    if (isPasswordReset) {
-      await supabase
-        .from('password_resets')
-        .update({ used_at: new Date().toISOString() })
-        .eq('id', resetData.id);
-    }
+    // סימון כל האיפוסים הפתוחים כמנוצלים (ייתכנו כמה אם האדמין איפס פעמיים)
+    await supabase
+      .from('password_resets')
+      .update({ used_at: new Date().toISOString() })
+      .eq('user_id', decoded.userId)
+      .is('used_at', null);
 
     // Audit log
     await supabase.from('audit_log').insert({
@@ -119,10 +129,30 @@ export async function PUT(request) {
       user_agent: request.headers.get('user-agent')
     });
 
-    return NextResponse.json({
+    // הנפקת טוקן חדש בלי דגל mustChangePassword — אחרת ה-middleware
+    // ימשיך להפנות ל-/change-password עד ההתחברות הבאה
+    const freshToken = signToken({
+      userId: decoded.userId,
+      email: decoded.email,
+      role: decoded.role,
+      isAdmin: decoded.isAdmin,
+      fullName: decoded.fullName,
+      username: decoded.username,
+      mustChangePassword: false,
+    });
+
+    const response = NextResponse.json({
       success: true,
       message: 'הסיסמה שונתה בהצלחה'
     });
+    response.cookies.set('auth-token', freshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 8, // 8 hours
+      path: '/',
+    });
+    return response;
 
   } catch (error) {
     console.error('Change password error:', error);
@@ -131,27 +161,4 @@ export async function PUT(request) {
       { status: 500 }
     );
   }
-}
-
-// Password validation helper
-function validatePassword(password) {
-  const errors = [];
-  
-  if (password.length < 8) {
-    errors.push('הסיסמה חייבת להכיל לפחות 8 תווים');
-  }
-  
-  if (!/[A-Z]/.test(password)) {
-    errors.push('הסיסמה חייבת להכיל לפחות אות גדולה אחת באנגלית');
-  }
-  
-  if (!/[a-z]/.test(password)) {
-    errors.push('הסיסמה חייבת להכיל לפחות אות קטנה אחת באנגלית');
-  }
-  
-  if (!/[0-9]/.test(password)) {
-    errors.push('הסיסמה חייבת להכיל לפחות ספרה אחת');
-  }
-  
-  return errors;
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { rateLimit } from '@/lib/rate-limit';
+import { validatePassword } from '@/lib/auth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -12,7 +13,9 @@ export async function POST(request) {
     const limited = rateLimit(request, 'register', { limit: 5, windowMs: 60_000 });
     if (limited) return limited;
 
-    const { email, password, fullName, phone, role } = await request.json();
+    const { email, password, fullName, phone } = await request.json();
+    // הרשמה עצמית תמיד כמוקדן — תפקיד לעולם לא מתקבל מהלקוח (אדמין משנה אחרי אישור)
+    const role = 'operator';
 
     // Validation
     if (!email || !password || !fullName) {
@@ -31,29 +34,30 @@ export async function POST(request) {
       );
     }
 
-    // Create user in Supabase Auth (using signUp instead of admin.createUser)
-    const { data: authData, error: authError } = await supabase.auth.signUp({
+    // יצירת משתמש דרך ה-admin API — לא signUp!
+    // signUp על ה-client המשותף היה "מרעיל" אותו ב-session של המשתמש החדש,
+    // וכל הכתיבות אחריו רצו כ-authenticated (שנחסם ב-RLS) במקום service role.
+    const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      options: {
-        data: {
-          full_name: fullName,
-          phone: phone || null,
-          role: role || 'operator'
-        }
+      email_confirm: true,
+      user_metadata: {
+        full_name: fullName,
+        phone: phone || null,
+        role
       }
     });
 
     if (authError) {
       console.error('Supabase Auth Error:', authError);
-      
-      if (authError.message.includes('already registered')) {
+
+      if (/already.*registered|already.*exists/i.test(authError.message)) {
         return NextResponse.json(
           { error: 'האימייל כבר רשום במערכת' },
           { status: 409 }
         );
       }
-      
+
       return NextResponse.json(
         { error: 'שגיאה ביצירת משתמש', details: authError.message },
         { status: 500 }
@@ -67,7 +71,7 @@ export async function POST(request) {
         id: authData.user.id,
         full_name: fullName,
         phone: phone || null,
-        role: role || 'operator',
+        role,
         status: 'pending'
       });
 
@@ -88,7 +92,7 @@ export async function POST(request) {
       details: {
         email,
         full_name: fullName,
-        role: role || 'operator'
+        role
       },
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
@@ -122,27 +126,4 @@ export async function POST(request) {
       { status: 500 }
     );
   }
-}
-
-// Password validation helper
-function validatePassword(password) {
-  const errors = [];
-  
-  if (password.length < 8) {
-    errors.push('הסיסמה חייבת להכיל לפחות 8 תווים');
-  }
-  
-  if (!/[A-Z]/.test(password)) {
-    errors.push('הסיסמה חייבת להכיל לפחות אות גדולה אחת באנגלית');
-  }
-  
-  if (!/[a-z]/.test(password)) {
-    errors.push('הסיסמה חייבת להכיל לפחות אות קטנה אחת באנגלית');
-  }
-  
-  if (!/[0-9]/.test(password)) {
-    errors.push('הסיסמה חייבת להכיל לפחות ספרה אחת');
-  }
-  
-  return errors;
 }

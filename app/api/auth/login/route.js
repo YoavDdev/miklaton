@@ -8,6 +8,17 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+/**
+ * client חד-פעמי לאימות סיסמה בלבד. חובה להפריד: signInWithPassword על
+ * ה-client המשותף "מרעיל" אותו ב-session של המשתמש, וכל הקריאות הבאות
+ * (גם בבקשות אחרות באותו instance!) רצות כ-authenticated במקום service role.
+ */
+const createVerifyClient = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  { auth: { persistSession: false, autoRefreshToken: false } }
+);
+
 export async function POST(request) {
   try {
     const limited = rateLimit(request, 'login', { limit: 10, windowMs: 60_000 });
@@ -22,8 +33,8 @@ export async function POST(request) {
       );
     }
 
-    // התחברות דרך Supabase Auth
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+    // התחברות דרך Supabase Auth — על client חד-פעמי נפרד
+    const { data: authData, error: authError } = await createVerifyClient().auth.signInWithPassword({
       email,
       password
     });
@@ -49,7 +60,7 @@ export async function POST(request) {
     // גם אם ה-API רץ עם ה-anon key (שמוגבל ברמת עמודה אחרי הקשחת ה-RLS)
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
-      .select('id, full_name, role, status')
+      .select('id, full_name, role, status, must_change_password')
       .eq('id', authData.user.id)
       .single();
 
@@ -75,26 +86,30 @@ export async function POST(request) {
       );
     }
 
-    // בדיקה אם צריך להחליף סיסמה
+    // בדיקה אם צריך להחליף סיסמה: רשומת איפוס פעילה (העדכנית ביותר —
+    // maybeSingle כי ייתכנו כמה איפוסים) או דגל בפרופיל (משתמש שנוצר ע"י אדמין)
     const { data: resetData } = await supabase
       .from('password_resets')
-      .select('*')
+      .select('id')
       .eq('user_id', authData.user.id)
       .eq('must_change_password', true)
       .is('used_at', null)
       .gte('expires_at', new Date().toISOString())
-      .single();
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
-    const mustChangePassword = !!resetData;
+    const mustChangePassword = !!resetData || profile.must_change_password === true;
 
-    // יצירת JWT token
-    const token = signToken({ 
+    // יצירת JWT token — mustChangePassword נחתם כדי שה-middleware יוכל לאכוף החלפה
+    const token = signToken({
       userId: authData.user.id,
       email: authData.user.email,
       role: profile.role,
       isAdmin: profile.role === 'admin',
       fullName: profile.full_name || '',
       username: profile.full_name || authData.user.email?.split('@')[0] || '',
+      mustChangePassword,
     });
 
     // Audit log for successful login
@@ -115,7 +130,7 @@ export async function POST(request) {
         role: profile.role,
         mustChangePassword
       },
-      redirect: mustChangePassword ? '/change-password' : getRoleRedirect(profile.role)
+      redirect: mustChangePassword ? '/change-password?forced=true' : getRoleRedirect(profile.role)
     });
 
     // Set cookie

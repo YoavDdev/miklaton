@@ -21,8 +21,8 @@ export default function ChangePasswordPage() {
   const validatePassword = () => {
     const newErrors = [];
 
-    if (!isForced && !oldPassword) {
-      newErrors.push('נא להזין את הסיסמה הנוכחית');
+    if (!oldPassword) {
+      newErrors.push(isForced ? 'נא להזין את הסיסמה הזמנית שקיבלת' : 'נא להזין את הסיסמה הנוכחית');
     }
 
     if (!newPassword || newPassword.length < 8) {
@@ -66,7 +66,7 @@ export default function ChangePasswordPage() {
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          oldPassword: isForced ? null : oldPassword,
+          oldPassword,
           newPassword
         })
       });
@@ -139,24 +139,22 @@ export default function ChangePasswordPage() {
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Old Password - רק אם לא איפוס */}
-            {!isForced && (
-              <div>
-                <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                  סיסמה נוכחית
-                </label>
-                <input
-                  id="oldPassword"
-                  name="oldPassword"
-                  type="password"
-                  required
-                  value={oldPassword}
-                  onChange={(e) => setOldPassword(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="הזן סיסמה נוכחית"
-                />
-              </div>
-            )}
+            {/* Old Password — באיפוס זו הסיסמה הזמנית שנשלחה למשתמש */}
+            <div>
+              <label htmlFor="oldPassword" className="block text-sm font-medium text-gray-700 mb-1">
+                {isForced ? 'הסיסמה הזמנית שקיבלת' : 'סיסמה נוכחית'}
+              </label>
+              <input
+                id="oldPassword"
+                name="oldPassword"
+                type="password"
+                required
+                value={oldPassword}
+                onChange={(e) => setOldPassword(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                placeholder={isForced ? 'הזן את הסיסמה הזמנית' : 'הזן סיסמה נוכחית'}
+              />
+            </div>
 
             {/* New Password */}
             <div>
