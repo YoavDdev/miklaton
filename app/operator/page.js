@@ -100,20 +100,23 @@ export default function OperatorPage() {
     // Fetch task and notification counts
     const fetchCounts = async () => {
       try {
-        // Fetch pending tasks count
-        const tasksRes = await fetch('/api/tasks?status=pending');
+        // משימות ממתינות. הסטטוסים בעברית - כך אוכף ה-CHECK על operator_tasks.
+        const tasksRes = await fetch('/api/operator/tasks?status=ממתין', {
+          credentials: 'include'
+        });
         if (tasksRes.ok) {
           const tasksData = await tasksRes.json();
-          const pendingCount = tasksData.tasks?.filter(t => t.status === 'pending').length || 0;
-          setTaskCount(pendingCount);
+          setTaskCount(tasksData.tasks?.length || 0);
         }
 
-        // Fetch unread notifications count
-        const notifRes = await fetch('/api/notifications?unread=true');
+        // התראות פעילות. אין מעקב נקרא/לא-נקרא בסכימה, ולכן זה מונה את מה
+        // שה-API מחזיר אחרי סינון התאריכים - וזו גם ההתנהגות שהיתה כאן קודם.
+        const notifRes = await fetch('/api/notifications', {
+          credentials: 'include'
+        });
         if (notifRes.ok) {
           const notifData = await notifRes.json();
-          const unreadCount = notifData.notifications?.filter(n => !n.read).length || 0;
-          setNotificationCount(unreadCount);
+          setNotificationCount(notifData.notifications?.length || 0);
         }
       } catch (error) {
         console.error('Error fetching counts:', error);

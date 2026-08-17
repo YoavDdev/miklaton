@@ -75,24 +75,26 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Failed to submit response' }, { status: 500 });
     }
 
-    // Send notification to call center manager
-    try {
-      const notificationMessage = respondent_name 
-        ? `תשובה חדשה לסקר "${survey.title}" מאת ${respondent_name}`
-        : `תשובה חדשה לסקר "${survey.title}" (אנונימי)`;
-      
-      await supabase
-        .from('notifications')
-        .insert({
-          user_id: survey.created_by,
-          title: '📊 תשובה חדשה לסקר',
-          message: notificationMessage,
-          type: 'info',
-          author: 'מערכת סקרים'
-        });
-    } catch (notifError) {
-      console.error('Failed to send notification:', notifError);
-      // Don't fail the request if notification fails
+    // התראה למנהלת המוקד. הטבלה היא general_notifications - אין טבלת
+    // notifications, ואין בה user_id: ההתראות הן כלל-מערכתיות ולא אישיות.
+    // supabase-js לא זורק שגיאה אלא מחזיר { error }, ולכן חובה לבדוק אותו
+    // במפורש - try/catch לבדו בלע כאן כשל שקט.
+    const notificationMessage = respondent_name
+      ? `תשובה חדשה לסקר "${survey.title}" מאת ${respondent_name}`
+      : `תשובה חדשה לסקר "${survey.title}" (אנונימי)`;
+
+    const { error: notifError } = await supabase
+      .from('general_notifications')
+      .insert({
+        title: '📊 תשובה חדשה לסקר',
+        message: notificationMessage,
+        type: 'info',
+        author: 'מערכת סקרים'
+      });
+
+    // הגשת הסקר לא נכשלת בגלל התראה - אבל הכשל כן נרשם.
+    if (notifError) {
+      console.error('Failed to create survey notification:', notifError);
     }
 
     return NextResponse.json({ 
