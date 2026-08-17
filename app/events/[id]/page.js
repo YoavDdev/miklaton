@@ -2,18 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 import sheltersData from '@/data/shelters.json';
 import StatusSelector, { FIELD_STATUSES } from '@/components/StatusSelector';
 import toast from 'react-hot-toast';
 
 const EventMap = dynamic(() => import('@/components/EventMap'), { ssr: false });
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 const SEVERITY_MAP = {
   low: { label: 'נמוך', color: 'bg-blue-100 text-blue-800 border-blue-300', icon: 'ℹ️' },
@@ -72,20 +66,16 @@ export default function EventDetailPage() {
   const [eventLocations, setEventLocations] = useState([]);
   const [roadBlocks, setRoadBlocks] = useState([]);
 
-  // Save map data to database
+  // Save map data via API
   const saveMapData = async (locations, blocks) => {
     try {
-      const { data, error } = await supabase
-        .from('emergency_events')
-        .update({
-          event_locations: locations,
-          road_blocks: blocks
-        })
-        .eq('id', eventId)
-        .select('event_locations, road_blocks')
-        .single();
-
-      if (error) throw error;
+      const res = await fetch(`/api/events/${eventId}/map-data`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ event_locations: locations, road_blocks: blocks }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error || 'Failed to save map data');
       return true;
     } catch (error) {
       console.error('Error saving map data:', error);
@@ -93,90 +83,66 @@ export default function EventDetailPage() {
     }
   };
 
-  useEffect(() => {
-    fetchEvent();
-    fetchUserInfo();
-    fetchParticipants();
-  }, [eventId]);
-
-  // Refresh journal from Supabase directly (additive only - never removes entries)
-  const refreshJournal = async () => {
+  // Load event + journal + participants from the API (initial load and polling)
+  const loadData = async () => {
     try {
-      const { data } = await supabase
-        .from('event_journal').select('*').eq('event_id', eventId).order('created_at', { ascending: true });
-      if (data) {
+      const res = await fetch(`/api/events/${eventId}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success) {
+        const { event: eventData, participants: participantsData, journal: journalData } = data.data;
+        setEvent(eventData);
+        setEventLocations(eventData.event_locations || []);
+        setRoadBlocks(eventData.road_blocks || []);
         setJournal(prev => {
-          // Build map of server entries by id
-          const serverMap = new Map(data.map(e => [e.id, e]));
-          // Keep optimistic entries that server doesn't have yet
+          const serverMap = new Map(journalData.map(e => [e.id, e]));
+          // Keep optimistic entries that the server doesn't have yet
           const optimistic = prev.filter(e => e._optimistic && !serverMap.has(e.id));
-          return [...data, ...optimistic];
+          return [...journalData, ...optimistic];
         });
+        setParticipants(participantsData);
+
+        // Determine current user's role relative to this event
+        const authRes = await fetch('/api/auth/verify', { cache: 'no-store' });
+        if (authRes.ok) {
+          const authData = await authRes.json();
+          setIsCreator(eventData.created_by === authData.userId);
+          setIsAdmin(authData.role === 'admin' || authData.isAdmin);
+
+          const myRecord = participantsData.find(p => p.user_id === authData.userId);
+          if (myRecord) {
+            setMyParticipantId(myRecord.id);
+            const status = myRecord.field_status || 'ready';
+            setMyFieldStatus(status);
+            if (!myRecord.field_status) {
+              setShowInitialStatusModal(true);
+            }
+          }
+        }
       }
-    } catch {}
+      return data;
+    } catch (error) {
+      console.error('Failed to load event data:', error);
+      return null;
+    }
   };
 
-  // Realtime subscriptions
+  const refreshJournal = () => loadData();
+
   useEffect(() => {
     if (!eventId) return;
+    (async () => {
+      setLoading(true);
+      await loadData();
+      setLoading(false);
+    })();
+    fetchUserInfo();
+  }, [eventId]);
 
-    const channel = supabase
-      .channel(`event-all-${eventId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'event_journal',
-      }, (payload) => {
-        if (payload.new.event_id === eventId) {
-          setJournal(prev => {
-            if (prev.find(j => j.id === payload.new.id)) return prev;
-            // Replace optimistic with real
-            const idx = prev.findIndex(j => j._optimistic && j.content === payload.new.content);
-            if (idx >= 0) {
-              const updated = [...prev];
-              updated[idx] = payload.new;
-              return updated;
-            }
-            return [...prev, payload.new];
-          });
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'event_journal',
-      }, (payload) => {
-        if (payload.new.event_id === eventId) {
-          setJournal(prev => prev.map(j => j.id === payload.new.id ? payload.new : j));
-        }
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'event_participants',
-      }, async (payload) => {
-        const rec = payload.new || payload.old;
-        if (rec?.event_id === eventId) {
-          const { data } = await supabase.from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
-          if (data) setParticipants(data);
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'emergency_events',
-      }, (payload) => {
-        if (payload.new.id === eventId) setEvent(payload.new);
-      })
-      .subscribe();
-
-    // Light polling - only additive, every 10s
-    const pollInterval = setInterval(() => refreshJournal(), 10000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(pollInterval);
-    };
+  // Light polling - every 10s
+  useEffect(() => {
+    if (!eventId) return;
+    const pollInterval = setInterval(() => loadData(), 10000);
+    return () => clearInterval(pollInterval);
   }, [eventId]);
 
   // Auto-scroll on new entries - only scroll the journal container, not the whole page
@@ -193,13 +159,7 @@ export default function EventDetailPage() {
       const res = await fetch('/api/auth/verify', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        let name = data.fullName || data.username || '';
-        // If still empty, fetch from user_profiles
-        if (!name && data.userId) {
-          const { data: profile } = await supabase
-            .from('user_profiles').select('full_name').eq('id', data.userId).single();
-          name = profile?.full_name || '';
-        }
+        const name = data.fullName || data.username || '';
         setUserName(name || 'משתמש');
         setUserRole(data.role || '');
         setIsAdmin(data.role === 'admin' || data.isAdmin);
@@ -209,120 +169,30 @@ export default function EventDetailPage() {
     return null;
   };
 
-  const fetchEvent = async () => {
-    setLoading(true);
-    try {
-      // Load directly from Supabase - no caching issues
-      const [eventRes, journalRes, participantsRes] = await Promise.all([
-        supabase.from('emergency_events').select('*').eq('id', eventId).single(),
-        supabase.from('event_journal').select('*').eq('event_id', eventId).order('created_at', { ascending: true }),
-        supabase.from('event_participants').select('*').eq('event_id', eventId).order('joined_at'),
-      ]);
-
-      if (eventRes.data) {
-        setEvent(eventRes.data);
-        setJournal(journalRes.data || []);
-        setParticipants(participantsRes.data || []);
-        
-        // Load map data
-        setEventLocations(eventRes.data.event_locations || []);
-        setRoadBlocks(eventRes.data.road_blocks || []);
-
-        // Check if user is creator
-        const authRes = await fetch('/api/auth/verify', { cache: 'no-store' });
-        if (authRes.ok) {
-          const authData = await authRes.json();
-          setIsCreator(eventRes.data.created_by === authData.userId);
-          setIsAdmin(authData.role === 'admin' || authData.isAdmin);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch event:', error);
-    }
-    setLoading(false);
-  };
-
-  const fetchParticipants = async () => {
-    try {
-      const { data } = await supabase
-        .from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
-      if (data) {
-        // Fix participants with UUID as display_name
-        for (const participant of data) {
-          if (participant.display_name && participant.display_name.match(/^[0-9a-f-]{36}$/i)) {
-            // This is a UUID, fetch the real name
-            const { data: profile } = await supabase
-              .from('user_profiles')
-              .select('full_name')
-              .eq('id', participant.user_id)
-              .single();
-            
-            if (profile?.full_name) {
-              // Update the participant with the real name
-              await supabase
-                .from('event_participants')
-                .update({ display_name: profile.full_name })
-                .eq('id', participant.id);
-              
-              participant.display_name = profile.full_name;
-            }
-          }
-        }
-        
-        setParticipants(data);
-        // Find current user's participant record
-        try {
-          const authRes = await fetch('/api/auth/verify');
-          if (authRes.ok) {
-            const authData = await authRes.json();
-            const myRecord = data.find(p => p.user_id === authData.userId);
-            if (myRecord) {
-              setMyParticipantId(myRecord.id);
-              const status = myRecord.field_status || 'ready';
-              setMyFieldStatus(status);
-              
-              // If user has no status yet (null or undefined), show initial status modal
-              if (!myRecord.field_status) {
-                setShowInitialStatusModal(true);
-              }
-            }
-          }
-        } catch (authError) {
-          console.log('Auth check failed:', authError);
-        }
-      }
-    } catch (error) {
-      console.error('Failed to fetch participants:', error);
-    }
-  };
-
   const updateMyFieldStatus = async (newStatus) => {
     if (!myParticipantId) return;
     setMyFieldStatus(newStatus);
     try {
-      await supabase
-        .from('event_participants')
-        .update({ 
-          field_status: newStatus, 
-          field_status_updated_at: new Date().toISOString() 
-        })
-        .eq('id', myParticipantId);
-      
+      await fetch(`/api/events/${eventId}/participants/${myParticipantId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field_status: newStatus }),
+      });
+
       // Add system message with status encoded in content
       const displayName = userName || 'משתמש';
       const requestBody = {
-        author_name: displayName,
-        author_role: userRole,
+        participant_id: myParticipantId,
         entry_type: 'system',
         content: `STATUS:${newStatus}:${displayName}`,
       };
-      
+
       await fetch(`/api/events/${eventId}/journal`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
-      
+
       // Refresh journal to show the new message
       await refreshJournal();
     } catch (err) {
@@ -358,10 +228,8 @@ export default function EventDetailPage() {
       
       const data = await res.json();
       if (data.success) {
-        // Refresh participants to get the new record
-        await fetchParticipants();
-        // Refresh journal to show the join message (API already added it)
-        await refreshJournal();
+        // Refresh event data to get the new participant record and join message
+        await loadData();
       } else {
         alert(data.error || 'שגיאה בהצטרפות לאירוע');
       }
@@ -431,10 +299,10 @@ export default function EventDetailPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          author_name: userName, author_role: userRole, entry_type: type,
+          entry_type: type,
           content: content || (imageUrl ? '📷 תמונה' : ''),
           image_url: imageUrl,
-          author_field_status: myFieldStatus,
+          participant_id: myParticipantId,
         }),
       });
       const data = await res.json();
@@ -465,7 +333,7 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/events/${eventId}/journal`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'quick', content: msg, author_field_status: myFieldStatus }),
+        body: JSON.stringify({ entry_type: 'quick', content: msg, participant_id: myParticipantId }),
       });
       const data = await res.json();
       if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
@@ -487,7 +355,7 @@ export default function EventDetailPage() {
       try {
         const res = await fetch(`/api/events/${eventId}/journal`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'location', content, location_lat: latitude, location_lng: longitude, author_field_status: myFieldStatus }),
+          body: JSON.stringify({ entry_type: 'location', content, location_lat: latitude, location_lng: longitude, participant_id: myParticipantId }),
         });
         const data = await res.json();
         if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
@@ -500,13 +368,21 @@ export default function EventDetailPage() {
 
   const togglePin = async (entryId, currentPinned) => {
     setJournal(prev => prev.map(e => e.id === entryId ? { ...e, is_pinned: !currentPinned } : e));
-    await supabase.from('event_journal').update({ is_pinned: !currentPinned }).eq('id', entryId);
+    await fetch(`/api/events/${eventId}/journal/${entryId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ is_pinned: !currentPinned }),
+    });
   };
 
   const completeTask = async (entryId) => {
     if (!confirm('סיימת את המשימה?')) return;
     setJournal(prev => prev.map(e => e.id === entryId ? { ...e, task_status: 'done', assigned_to: userName } : e));
-    await supabase.from('event_journal').update({ task_status: 'done', assigned_to: userName }).eq('id', entryId);
+    await fetch(`/api/events/${eventId}/journal/${entryId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task_status: 'done', assigned_to: userName }),
+    });
   };
 
   const addMapMarker = async (lat, lng, note) => {
@@ -519,7 +395,7 @@ export default function EventDetailPage() {
     try {
       const res = await fetch(`/api/events/${eventId}/journal`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_name: userName, author_role: userRole, entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng, author_field_status: myFieldStatus }),
+        body: JSON.stringify({ entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng, participant_id: myParticipantId }),
       });
       const data = await res.json();
       if (data.success) {
@@ -542,15 +418,15 @@ export default function EventDetailPage() {
               try {
                 // Optimistic delete
                 setJournal(prev => prev.filter(e => e.id !== markerId));
-                
-                // Delete from database
-                const { error } = await supabase
-                  .from('event_journal')
-                  .delete()
-                  .eq('id', markerId);
-                
-                if (error) {
-                  console.error('Error deleting marker:', error);
+
+                // Delete via API
+                const res = await fetch(`/api/events/${eventId}/journal/${markerId}`, {
+                  method: 'DELETE',
+                });
+                const data = await res.json();
+
+                if (!data.success) {
+                  console.error('Error deleting marker:', data.error);
                   await refreshJournal();
                 } else {
                   toast.success('✅ הסימון נמחק!', {
@@ -648,16 +524,14 @@ export default function EventDetailPage() {
   const handleCloseEvent = async () => {
     try {
       const summary = generateSummary();
-      await supabase.from('emergency_events').update({ summary }).eq('id', eventId);
-
       const res = await fetch('/api/events', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: eventId, status: 'closed' }),
+        body: JSON.stringify({ id: eventId, status: 'closed', summary }),
       });
       const data = await res.json();
       if (data.success) {
-        setEvent({ ...data.data, summary });
+        setEvent(data.data);
         setShowCloseConfirm(false);
       }
     } catch (error) {
@@ -1039,10 +913,10 @@ export default function EventDetailPage() {
                     try {
                       await fetch(`/api/events/${eventId}/journal`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: userName, author_role: userRole, entry_type: 'update', 
-                          content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`, 
-                          author_field_status: myFieldStatus 
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`,
+                          participant_id: myParticipantId
                         }),
                       });
                     } catch (error) {
@@ -1065,10 +939,10 @@ export default function EventDetailPage() {
                     try {
                       await fetch(`/api/events/${eventId}/journal`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: userName, author_role: userRole, entry_type: 'update', 
-                          content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`, 
-                          author_field_status: myFieldStatus 
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`,
+                          participant_id: myParticipantId
                         }),
                       });
                     } catch (error) {
@@ -1091,10 +965,10 @@ export default function EventDetailPage() {
                     try {
                       await fetch(`/api/events/${eventId}/journal`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: userName, author_role: userRole, entry_type: 'update', 
-                          content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`, 
-                          author_field_status: myFieldStatus 
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`,
+                          participant_id: myParticipantId
                         }),
                       });
                     } catch (error) {
@@ -1117,10 +991,10 @@ export default function EventDetailPage() {
                     try {
                       await fetch(`/api/events/${eventId}/journal`, {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: userName, author_role: userRole, entry_type: 'update', 
-                          content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`, 
-                          author_field_status: myFieldStatus 
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`,
+                          participant_id: myParticipantId
                         }),
                       });
                     } catch (error) {
@@ -1431,10 +1305,10 @@ export default function EventDetailPage() {
                 try {
                   await fetch(`/api/events/${eventId}/journal`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                      author_name: userName, author_role: userRole, entry_type: 'update', 
-                      content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`, 
-                      author_field_status: myFieldStatus 
+                    body: JSON.stringify({
+                      entry_type: 'update',
+                      content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`,
+                      participant_id: myParticipantId
                     }),
                   });
                 } catch (error) {
@@ -1457,10 +1331,10 @@ export default function EventDetailPage() {
                 try {
                   await fetch(`/api/events/${eventId}/journal`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                      author_name: userName, author_role: userRole, entry_type: 'update', 
-                      content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`, 
-                      author_field_status: myFieldStatus 
+                    body: JSON.stringify({
+                      entry_type: 'update',
+                      content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`,
+                      participant_id: myParticipantId
                     }),
                   });
                 } catch (error) {
@@ -1483,10 +1357,10 @@ export default function EventDetailPage() {
                 try {
                   await fetch(`/api/events/${eventId}/journal`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                      author_name: userName, author_role: userRole, entry_type: 'update', 
-                      content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`, 
-                      author_field_status: myFieldStatus 
+                    body: JSON.stringify({
+                      entry_type: 'update',
+                      content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`,
+                      participant_id: myParticipantId
                     }),
                   });
                 } catch (error) {
@@ -1509,10 +1383,10 @@ export default function EventDetailPage() {
                 try {
                   await fetch(`/api/events/${eventId}/journal`, {
                     method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                      author_name: userName, author_role: userRole, entry_type: 'update', 
-                      content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`, 
-                      author_field_status: myFieldStatus 
+                    body: JSON.stringify({
+                      entry_type: 'update',
+                      content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`,
+                      participant_id: myParticipantId
                     }),
                   });
                 } catch (error) {
