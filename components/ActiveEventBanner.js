@@ -2,12 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 const SEVERITY_MAP = {
   low: { label: 'נמוך', color: 'bg-blue-600', icon: 'ℹ️' },
@@ -30,81 +24,54 @@ export default function ActiveEventBanner() {
   useEffect(() => {
     fetchActiveEvents();
 
-    // Subscribe to event changes (new/closed)
-    const eventChannel = supabase
-      .channel('active-events-banner')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'emergency_events' }, () => {
-        fetchActiveEvents();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(eventChannel);
-    };
+    // Poll for active events (and their journal) every 30s instead of realtime
+    const interval = setInterval(fetchActiveEvents, 30000);
+    return () => clearInterval(interval);
   }, []);
-
-  // Subscribe to journal updates for active events
-  useEffect(() => {
-    if (events.length === 0) return;
-
-    // Build known entry IDs from initial load
-    const loadInitialEntries = async () => {
-      for (const ev of events) {
-        const { data } = await supabase
-          .from('event_journal')
-          .select('id')
-          .eq('event_id', ev.id);
-        if (data) data.forEach(e => knownEntryIdsRef.current.add(e.id));
-      }
-      initializedRef.current = true;
-    };
-    loadInitialEntries();
-
-    const journalChannel = supabase
-      .channel('journal-banner-toast')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'event_journal',
-      }, (payload) => {
-        const entry = payload.new;
-        // Only show toast for events we're tracking and only new entries
-        if (!initializedRef.current) return;
-        if (knownEntryIdsRef.current.has(entry.id)) return;
-        knownEntryIdsRef.current.add(entry.id);
-
-        const matchEvent = events.find(e => e.id === entry.event_id);
-        if (!matchEvent) return;
-        if (entry.entry_type === 'system') return;
-
-        const id = ++toastIdRef.current;
-        const typeIcon = entry.entry_type === 'urgent' ? '🔴' : entry.entry_type === 'task' ? '✅' : entry.entry_type === 'location' ? '📍' : entry.entry_type === 'map_marker' ? '🗺️' : '📝';
-        setToasts(prev => [...prev, {
-          id,
-          text: `${typeIcon} ${entry.author_name}: ${entry.content?.slice(0, 60) || 'עדכון חדש'}`,
-          eventTitle: matchEvent.title,
-        }]);
-
-        // Auto-dismiss after 5 seconds
-        setTimeout(() => {
-          setToasts(prev => prev.filter(t => t.id !== id));
-        }, 5000);
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(journalChannel);
-    };
-  }, [events]);
 
   const fetchActiveEvents = async () => {
     try {
-      const { data } = await supabase
-        .from('emergency_events')
-        .select('id, title, severity, status, created_at, event_type')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
-      setEvents(data || []);
+      const res = await fetch('/api/events?status=active');
+      const { data } = await res.json();
+      const activeEvents = data || [];
+      setEvents(activeEvents);
+
+      if (activeEvents.length === 0) return;
+
+      // Fetch details (including journal) for each active event in the same tick
+      for (const ev of activeEvents) {
+        try {
+          const detailRes = await fetch(`/api/events/${ev.id}`);
+          const detailJson = await detailRes.json();
+          if (!detailJson.success) continue;
+
+          const journal = detailJson.data.journal || [];
+          // journal.length drives the unread badge; last-seen entries are tracked
+          // so we only toast for entries that arrived since the previous poll.
+          journal.forEach(entry => {
+            if (knownEntryIdsRef.current.has(entry.id)) return;
+            knownEntryIdsRef.current.add(entry.id);
+
+            // Skip toasting for the entries discovered on the very first poll
+            if (!initializedRef.current) return;
+            if (entry.entry_type === 'system') return;
+
+            const id = ++toastIdRef.current;
+            const typeIcon = entry.entry_type === 'urgent' ? '🔴' : entry.entry_type === 'task' ? '✅' : entry.entry_type === 'location' ? '📍' : entry.entry_type === 'map_marker' ? '🗺️' : '📝';
+            setToasts(prev => [...prev, {
+              id,
+              text: `${typeIcon} ${entry.author_name}: ${entry.content?.slice(0, 60) || 'עדכון חדש'}`,
+              eventTitle: ev.title,
+            }]);
+
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+              setToasts(prev => prev.filter(t => t.id !== id));
+            }, 5000);
+          });
+        } catch {}
+      }
+      initializedRef.current = true;
     } catch {}
   };
 
