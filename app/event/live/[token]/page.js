@@ -2,16 +2,10 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
-import { createClient } from '@supabase/supabase-js';
 import dynamic from 'next/dynamic';
 import sheltersData from '@/data/shelters.json';
 
 const EventMap = dynamic(() => import('@/components/EventMap'), { ssr: false });
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
 
 const SEVERITY_MAP = {
   low: { label: 'נמוך', color: 'bg-blue-100 text-blue-800', icon: 'ℹ️' },
@@ -64,91 +58,29 @@ export default function LiveJournalPage() {
   const [eventLocations, setEventLocations] = useState([]);
   const [roadBlocks, setRoadBlocks] = useState([]);
 
-  useEffect(() => {
-    initPage();
-  }, [token, phone]);
+  const eventHeaders = { 'Content-Type': 'application/json', 'X-Event-Token': token };
 
-  // Additive journal refresh (never removes entries)
-  const refreshJournal = async (eid) => {
+  const loadData = async () => {
     try {
-      const { data } = await supabase
-        .from('event_journal').select('*').eq('event_id', eid).order('created_at', { ascending: true });
-      if (data) {
-        setJournal(prev => {
-          const serverMap = new Map(data.map(e => [e.id, e]));
-          const optimistic = prev.filter(e => e._optimistic && !serverMap.has(e.id));
-          return [...data, ...optimistic];
-        });
-      }
-    } catch {}
+      const phoneQ = phone ? `?phone=${encodeURIComponent(phone)}` : '';
+      const res = await fetch(`/api/events/live/${token}${phoneQ}`);
+      if (!res.ok) { setLoading(false); return; }
+      const { data } = await res.json();
+      setEvent(data.event);
+      setJournal(data.journal);
+      setParticipants(data.participants);
+      setParticipant(data.myParticipant);
+      setEventLocations(data.event.event_locations || []);
+      setRoadBlocks(data.event.road_blocks || []);
+      setLoading(false);
+    } catch { setLoading(false); }
   };
 
-  // Realtime
   useEffect(() => {
-    if (!event?.id) return;
-    const eventId = event.id;
-
-    const channel = supabase
-      .channel(`live-all-${eventId}`)
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'event_journal',
-      }, (payload) => {
-        if (payload.new.event_id === eventId) {
-          setJournal(prev => {
-            if (prev.find(j => j.id === payload.new.id)) return prev;
-            const idx = prev.findIndex(j => j._optimistic && j.content === payload.new.content);
-            if (idx >= 0) {
-              const updated = [...prev];
-              updated[idx] = payload.new;
-              return updated;
-            }
-            return [...prev, payload.new];
-          });
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'event_journal',
-      }, (payload) => {
-        if (payload.new.event_id === eventId) {
-          setJournal(prev => prev.map(j => j.id === payload.new.id ? payload.new : j));
-        }
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'emergency_events',
-      }, (payload) => {
-        if (payload.new.id === eventId) {
-          setEvent(payload.new);
-          setEventLocations(payload.new.event_locations || []);
-          setRoadBlocks(payload.new.road_blocks || []);
-        }
-      })
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'event_participants',
-      }, async (payload) => {
-        const rec = payload.new || payload.old;
-        if (rec?.event_id === eventId) {
-          const { data } = await supabase.from('event_participants').select('*').eq('event_id', eventId).order('joined_at');
-          if (data) setParticipants(data);
-        }
-      })
-      .subscribe();
-
-    // Light additive polling every 10s
-    const pollInterval = setInterval(() => refreshJournal(eventId), 10000);
-
-    return () => {
-      supabase.removeChannel(channel);
-      clearInterval(pollInterval);
-    };
-  }, [event?.id]);
+    loadData();
+    const interval = setInterval(loadData, 10000);
+    return () => clearInterval(interval);
+  }, [token, phone]);
 
   useEffect(() => {
     if (journal.length > 0) {
@@ -157,48 +89,6 @@ export default function LiveJournalPage() {
       }, 150);
     }
   }, [journal.length]);
-
-  const initPage = async () => {
-    setLoading(true);
-    try {
-      // First find event by token
-      const { data: eventData, error: eventError } = await supabase
-        .from('emergency_events')
-        .select('*')
-        .eq('invite_token', token)
-        .single();
-
-      if (eventError || !eventData) {
-        setLoading(false);
-        return;
-      }
-
-      setEvent(eventData);
-
-      // Load map data
-      setEventLocations(eventData.event_locations || []);
-      setRoadBlocks(eventData.road_blocks || []);
-
-      // Fetch journal and participants
-      const [journalRes, participantsRes] = await Promise.all([
-        supabase.from('event_journal').select('*').eq('event_id', eventData.id).order('created_at', { ascending: true }),
-        supabase.from('event_participants').select('*').eq('event_id', eventData.id).order('joined_at'),
-      ]);
-
-      setJournal(journalRes.data || []);
-      setParticipants(participantsRes.data || []);
-
-      // Find current participant by phone
-      if (phone) {
-        const normalizedPhone = phone.replace(/[-\s]/g, '');
-        const found = participantsRes.data?.find(p => p.phone?.replace(/[-\s]/g, '') === normalizedPhone);
-        setParticipant(found || null);
-      }
-    } catch (error) {
-      console.error('Failed to load event:', error);
-    }
-    setLoading(false);
-  };
 
   const handleImageSelect = (e) => {
     const file = e.target.files?.[0];
@@ -223,7 +113,7 @@ export default function LiveJournalPage() {
     const formData = new FormData();
     formData.append('file', selectedImage);
     formData.append('event_id', event.id);
-    const res = await fetch('/api/events/upload', { method: 'POST', body: formData });
+    const res = await fetch('/api/events/upload', { method: 'POST', headers: { 'X-Event-Token': token }, body: formData });
     const data = await res.json();
     if (data.success) return data.url;
     throw new Error(data.error || 'Upload failed');
@@ -263,10 +153,8 @@ export default function LiveJournalPage() {
 
       const res = await fetch(`/api/events/${event.id}/journal`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: eventHeaders,
         body: JSON.stringify({
-          author_name: participant.display_name,
-          author_role: participant.department || participant.role || undefined,
           entry_type: type,
           content: content || (imageUrl ? '📷 תמונה' : ''),
           image_url: imageUrl,
@@ -276,7 +164,7 @@ export default function LiveJournalPage() {
       const data = await res.json();
       if (data.success) {
         setJournal(prev => prev.map(e => e.id === optimisticEntry.id ? data.data : e));
-        setTimeout(() => refreshJournal(event.id), 1000);
+        await loadData();
       } else {
         setJournal(prev => prev.filter(e => e.id !== optimisticEntry.id));
         setNewEntry(content);
@@ -301,11 +189,11 @@ export default function LiveJournalPage() {
     }]);
     try {
       const res = await fetch(`/api/events/${event.id}/journal`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_name: participant.display_name, author_role: participant.department || participant.role || undefined, entry_type: 'quick', content: msg, participant_id: participant.id }),
+        method: 'POST', headers: eventHeaders,
+        body: JSON.stringify({ entry_type: 'quick', content: msg, participant_id: participant.id }),
       });
       const data = await res.json();
-      if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+      if (data.success) { setJournal(prev => prev.map(e => e.id === tempId ? data.data : e)); await loadData(); }
       else setJournal(prev => prev.filter(e => e.id !== tempId));
     } catch { setJournal(prev => prev.filter(e => e.id !== tempId)); }
   };
@@ -324,11 +212,11 @@ export default function LiveJournalPage() {
       }]);
       try {
         const res = await fetch(`/api/events/${event.id}/journal`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ author_name: participant.display_name, author_role: participant.department || participant.role || undefined, entry_type: 'location', content, location_lat: latitude, location_lng: longitude, participant_id: participant.id }),
+          method: 'POST', headers: eventHeaders,
+          body: JSON.stringify({ entry_type: 'location', content, location_lat: latitude, location_lng: longitude, participant_id: participant.id }),
         });
         const data = await res.json();
-        if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+        if (data.success) { setJournal(prev => prev.map(e => e.id === tempId ? data.data : e)); await loadData(); }
       } catch {}
     }, (err) => {
       if (err.code === 1) alert('גישת מיקום נחסמה. אנא אפשר מיקום בהגדרות הדפדפן ונסה שוב.');
@@ -341,7 +229,12 @@ export default function LiveJournalPage() {
     if (!confirm('סיימת את המשימה?')) return;
     const myName = participant.display_name;
     setJournal(prev => prev.map(e => e.id === entryId ? { ...e, task_status: 'done', assigned_to: myName } : e));
-    await supabase.from('event_journal').update({ task_status: 'done', assigned_to: myName }).eq('id', entryId);
+    await fetch(`/api/events/${event.id}/journal/${entryId}`, {
+      method: 'PATCH',
+      headers: eventHeaders,
+      body: JSON.stringify({ task_status: 'done', assigned_to: myName }),
+    });
+    await loadData();
   };
 
   const addMapMarker = async (lat, lng, note) => {
@@ -355,11 +248,11 @@ export default function LiveJournalPage() {
     }]);
     try {
       const res = await fetch(`/api/events/${event.id}/journal`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ author_name: participant.display_name, author_role: participant.department || participant.role || undefined, entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng, participant_id: participant.id }),
+        method: 'POST', headers: eventHeaders,
+        body: JSON.stringify({ entry_type: 'map_marker', content: note, location_lat: lat, location_lng: lng, participant_id: participant.id }),
       });
       const data = await res.json();
-      if (data.success) setJournal(prev => prev.map(e => e.id === tempId ? data.data : e));
+      if (data.success) { setJournal(prev => prev.map(e => e.id === tempId ? data.data : e)); await loadData(); }
     } catch {}
   };
 
@@ -528,7 +421,11 @@ export default function LiveJournalPage() {
                 onAddMarker={addMapMarker}
                 onDeleteMarker={async (entryId) => {
                   setJournal(prev => prev.filter(e => e.id !== entryId));
-                  await supabase.from('event_journal').delete().eq('id', entryId);
+                  await fetch(`/api/events/${event.id}/journal/${entryId}`, {
+                    method: 'DELETE',
+                    headers: { 'X-Event-Token': token },
+                  });
+                  await loadData();
                 }}
                 isActive={event.status === 'active' && !!participant}
                 shelters={sheltersData}
@@ -536,8 +433,11 @@ export default function LiveJournalPage() {
                 onAddEventLocation={async (location) => {
                   const newLocations = [...eventLocations, location];
                   setEventLocations(newLocations);
-                  await supabase.from('emergency_events').update({ event_locations: newLocations, road_blocks: roadBlocks }).eq('id', event.id);
-                  
+                  await fetch(`/api/events/${event.id}/map-data`, {
+                    method: 'PUT', headers: eventHeaders,
+                    body: JSON.stringify({ event_locations: newLocations, road_blocks: roadBlocks }),
+                  });
+
                   // Add journal entry
                   if (participant) {
                     const tempId = `temp-${Date.now()}`;
@@ -549,24 +449,26 @@ export default function LiveJournalPage() {
                     }]);
                     try {
                       await fetch(`/api/events/${event.id}/journal`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: participant.display_name, 
-                          author_role: participant.department || participant.role || undefined, 
-                          entry_type: 'update', 
-                          content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`, 
-                          participant_id: participant.id 
+                        method: 'POST', headers: eventHeaders,
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🚨 סומן מיקום אירוע: ${location.address || 'מיקום מדויק'}`,
+                          participant_id: participant.id
                         }),
                       });
                     } catch {}
                   }
+                  await loadData();
                 }}
                 onRemoveEventLocation={async (id) => {
                   const locationToRemove = eventLocations.find(loc => loc.id === id);
                   const newLocations = eventLocations.filter(loc => loc.id !== id);
                   setEventLocations(newLocations);
-                  await supabase.from('emergency_events').update({ event_locations: newLocations, road_blocks: roadBlocks }).eq('id', event.id);
-                  
+                  await fetch(`/api/events/${event.id}/map-data`, {
+                    method: 'PUT', headers: eventHeaders,
+                    body: JSON.stringify({ event_locations: newLocations, road_blocks: roadBlocks }),
+                  });
+
                   // Add journal entry
                   if (participant) {
                     const tempId = `temp-${Date.now()}`;
@@ -578,24 +480,26 @@ export default function LiveJournalPage() {
                     }]);
                     try {
                       await fetch(`/api/events/${event.id}/journal`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: participant.display_name, 
-                          author_role: participant.department || participant.role || undefined, 
-                          entry_type: 'update', 
-                          content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`, 
-                          participant_id: participant.id 
+                        method: 'POST', headers: eventHeaders,
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🗑️ הוסר מיקום אירוע: ${locationToRemove?.address || 'מיקום מדויק'}`,
+                          participant_id: participant.id
                         }),
                       });
                     } catch {}
                   }
+                  await loadData();
                 }}
                 roadBlocks={roadBlocks}
                 onAddRoadBlock={async (points, note) => {
                   const newBlocks = [...roadBlocks, { points, note: note || 'חסימת כביש', id: Date.now() }];
                   setRoadBlocks(newBlocks);
-                  await supabase.from('emergency_events').update({ event_locations: eventLocations, road_blocks: newBlocks }).eq('id', event.id);
-                  
+                  await fetch(`/api/events/${event.id}/map-data`, {
+                    method: 'PUT', headers: eventHeaders,
+                    body: JSON.stringify({ event_locations: eventLocations, road_blocks: newBlocks }),
+                  });
+
                   // Add journal entry
                   if (participant) {
                     const tempId = `temp-${Date.now()}`;
@@ -607,24 +511,26 @@ export default function LiveJournalPage() {
                     }]);
                     try {
                       await fetch(`/api/events/${event.id}/journal`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: participant.display_name, 
-                          author_role: participant.department || participant.role || undefined, 
-                          entry_type: 'update', 
-                          content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`, 
-                          participant_id: participant.id 
+                        method: 'POST', headers: eventHeaders,
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🚧 נוספה חסימת כביש: ${note || 'חסימת כביש'}`,
+                          participant_id: participant.id
                         }),
                       });
                     } catch {}
                   }
+                  await loadData();
                 }}
                 onRemoveRoadBlock={async (id) => {
                   const blockToRemove = roadBlocks.find(block => block.id === id);
                   const newBlocks = roadBlocks.filter(block => block.id !== id);
                   setRoadBlocks(newBlocks);
-                  await supabase.from('emergency_events').update({ event_locations: eventLocations, road_blocks: newBlocks }).eq('id', event.id);
-                  
+                  await fetch(`/api/events/${event.id}/map-data`, {
+                    method: 'PUT', headers: eventHeaders,
+                    body: JSON.stringify({ event_locations: eventLocations, road_blocks: newBlocks }),
+                  });
+
                   // Add journal entry
                   if (participant) {
                     const tempId = `temp-${Date.now()}`;
@@ -636,17 +542,16 @@ export default function LiveJournalPage() {
                     }]);
                     try {
                       await fetch(`/api/events/${event.id}/journal`, {
-                        method: 'POST', headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                          author_name: participant.display_name, 
-                          author_role: participant.department || participant.role || undefined, 
-                          entry_type: 'update', 
-                          content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`, 
-                          participant_id: participant.id 
+                        method: 'POST', headers: eventHeaders,
+                        body: JSON.stringify({
+                          entry_type: 'update',
+                          content: `🗑️ הוסרה חסימת כביש: ${blockToRemove?.note || 'חסימת כביש'}`,
+                          participant_id: participant.id
                         }),
                       });
                     } catch {}
                   }
+                  await loadData();
                 }}
                 className="h-[200px] sm:h-[300px]"
               />
