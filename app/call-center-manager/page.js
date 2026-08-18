@@ -14,6 +14,7 @@ import KnowledgeBaseManager from '@/components/KnowledgeBaseManager';
 import GarbageScheduleInline from '@/components/GarbageScheduleInline';
 import GarbageStreetSearch from '@/components/GarbageStreetSearch';
 import CallCenterSchedule from '@/components/CallCenterSchedule';
+import SecurityWeeklySchedule from '@/components/SecurityWeeklySchedule';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -44,6 +45,11 @@ export default function CallCenterManagerPage() {
   const [previousMessages, setPreviousMessages] = useState([]);
   const [newTask, setNewTask] = useState({ title: '', description: '', assigned_to: '', priority: 'בינוני', due_date: '' });
   const [warMode, setWarMode] = useState(false);
+  // מכלולים לבורר של טאב סידור הביטחון. מנהלת המוקד (ואדמין) מורשים בכל
+  // שרשרת ה-API של הביטחון, ולכן הם יכולים להעלות את הסידור במקום מנהל
+  // המכלול - בלי להתחבר בחשבון שלו.
+  const [departments, setDepartments] = useState([]);
+  const [securityDepartmentId, setSecurityDepartmentId] = useState('');
 
   useEffect(() => {
     checkAuth();
@@ -203,6 +209,24 @@ export default function CallCenterManagerPage() {
     loadSessions();
     loadTasks();
     loadAllUsers();
+    loadDepartments();
+  };
+
+  const loadDepartments = async () => {
+    try {
+      const res = await fetch('/api/departments', { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      const list = data.departments || data.data || [];
+      setDepartments(list);
+
+      // ברירת מחדל: מכלול הביטחון. מזוהה לפי שם ולכן סובלני לשתי הכתיבים
+      // ("בטחון" / "ביטחון"); אם לא נמצא - המכלול הראשון, והמשתמש יבחר.
+      const security = list.find((d) => (d.name || '').includes('טחון'));
+      setSecurityDepartmentId(security?.id || list[0]?.id || '');
+    } catch (error) {
+      console.error('Error loading departments:', error);
+    }
   };
 
   const checkAuth = async () => {
@@ -618,6 +642,16 @@ export default function CallCenterManagerPage() {
               >
                 🧠 מאגר ידע
               </button>
+              <button
+                onClick={() => setActiveTab('security-schedule')}
+                className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === 'security-schedule'
+                    ? 'border-pink-600 text-pink-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                🛡️ סידור ביטחון
+              </button>
             </nav>
           </div>
         </div>
@@ -783,14 +817,53 @@ export default function CallCenterManagerPage() {
           user?.department_id ? (
             <CallCenterSchedule departmentId={user.department_id} />
           ) : (
-            <div className="bg-white rounded-lg shadow p-8 text-center">
-              <div className="text-4xl mb-3">⚠️</div>
-              <p className="font-bold text-gray-900 mb-2">לא נמצאה מחלקה</p>
-              <p className="text-sm text-gray-600">המשתמש לא משויך למחלקת מוקד</p>
-              <p className="text-xs text-gray-400 mt-2">User: {user?.full_name || user?.username || 'Unknown'}</p>
-              <p className="text-xs text-gray-400">Department ID: {user?.department_id || 'None'}</p>
+            // לאדמין אין department_id, ולכן הוא נחת כאן. במקום להיתקע - בורר
+            // מכלול, כמו בטאב סידור הביטחון.
+            <div className="space-y-4">
+              <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3 flex-wrap">
+                <label className="text-sm font-bold text-gray-900">מכלול:</label>
+                <select
+                  value={securityDepartmentId}
+                  onChange={(e) => setSecurityDepartmentId(e.target.value)}
+                  className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+                >
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+                <span className="text-xs text-gray-500">החשבון שלך אינו משויך למכלול - בחר ידנית</span>
+              </div>
+              {securityDepartmentId && <CallCenterSchedule departmentId={securityDepartmentId} />}
             </div>
           )
+        )}
+
+        {/* Tab Content - Security Schedule */}
+        {activeTab === 'security-schedule' && (
+          <div className="space-y-4">
+            <div className="bg-white rounded-lg shadow p-4 flex items-center gap-3 flex-wrap">
+              <label className="text-sm font-bold text-gray-900">מכלול:</label>
+              <select
+                value={securityDepartmentId}
+                onChange={(e) => setSecurityDepartmentId(e.target.value)}
+                className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+              >
+                {departments.map((d) => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+              <span className="text-xs text-gray-500">
+                העלאת הסידור מכאן נרשמת על שמך, בלי להתחבר בחשבון של מנהל המכלול
+              </span>
+            </div>
+            {securityDepartmentId ? (
+              <SecurityWeeklySchedule departmentId={securityDepartmentId} />
+            ) : (
+              <div className="bg-white rounded-lg shadow p-8 text-center text-sm text-gray-600">
+                טוען מכלולים...
+              </div>
+            )}
+          </div>
         )}
 
         {/* Tab Content - Surveys */}

@@ -36,7 +36,7 @@ export async function GET(request, { params }) {
       .eq('id', decoded.userId)
       .single();
 
-    if (userError || !userData || userData.role !== 'call_center_manager') {
+    if (userError || !userData || !['call_center_manager', 'admin'].includes(userData.role)) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 

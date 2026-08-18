@@ -364,7 +364,14 @@ export default function SecurityWeeklySchedule({ departmentId }) {
               currentWeekStart={currentWeekStart}
               staff={staff}
               shifts={shifts}
-              onImportComplete={() => { fetchShifts(); fetchSchedule(); }}
+              onImportComplete={(importedWeekStart) => {
+                fetchShifts();
+                // הייבוא נכנס לשבוע שבקובץ - עוברים אליו כדי שרואים את התוצאה.
+                // שינוי currentWeekStart מפעיל את ה-useEffect שמושך את הסידור,
+                // ולכן אין צורך (ואסור) לקרוא ל-fetchSchedule עם ה-state הישן.
+                if (importedWeekStart) setCurrentWeekStart(importedWeekStart);
+                else fetchSchedule();
+              }}
             />
           </div>
 
