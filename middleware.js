@@ -15,6 +15,10 @@ const ROUTE_PERMISSIONS = {
   '/profile': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
   '/change-password': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
   '/on-call': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  // סיור פיקוח. היה מחוץ ל-matcher ולכן נגיש לכל אחד ברשת בלי התחברות (YOA-23).
+  '/inspection': ['inspector', 'sector_manager', 'call_center_manager', 'operator', 'admin'],
+  // היה מכוסה רק במקרה, דרך התאמת הקידומת ל-'/on-call'. מפורש עדיף.
+  '/on-call-query': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
 };
 
 // redirect לפי role - 7 תפקידים
@@ -150,5 +154,7 @@ export const config = {
     '/screen',
     '/on-call',
     '/on-call-query',
+    '/inspection/:path*',
+    '/inspection',
   ],
 };
