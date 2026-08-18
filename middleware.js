@@ -40,11 +40,12 @@ export async function middleware(request) {
     const screenToken = process.env.SCREEN_TOKEN;
     const keyParam = request.nextUrl.searchParams.get('key');
 
-    // הגיע עם ?key= תקין - קובעים עוגייה ומנקים את ה-key מה-URL
+    // הגיע עם ?key= תקין - מציגים את המסך ישירות (בלי redirect) וגם קובעים
+    // עוגייה. הצגה ישירה חשובה למערכות signage/kiosk שטוענות את אותה כתובת
+    // שוב ושוב ולא שומרות עוגיות או לא עוקבות אחרי redirect — הקישור-עם-המפתח
+    // עובד בכל טעינה. דפדפן רגיל מקבל בנוסף עוגייה לשנה ל-/screen בלי key.
     if (screenToken && keyParam === screenToken) {
-      const cleanUrl = request.nextUrl.clone();
-      cleanUrl.searchParams.delete('key');
-      const response = NextResponse.redirect(cleanUrl);
+      const response = NextResponse.next();
       response.cookies.set('screen-key', keyParam, {
         httpOnly: true,
         sameSite: 'lax',
