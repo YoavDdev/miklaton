@@ -1,6 +1,25 @@
 import { NextResponse } from 'next/server';
-import { requireRole, requireRoleOrScreen } from '@/lib/auth';
+import { requireRole, requireRoleOrScreen, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
+
+/**
+ * המכלול נקבע לפי השורה הקיימת ולא לפי מה שהבקשה מצהירה (YOA-27).
+ */
+async function accessForRow(request, id) {
+  if (!id) {
+    return { error: NextResponse.json({ success: false, error: 'id required' }, { status: 400 }) };
+  }
+  const { data: row } = await supabase
+    .from('contacts')
+    .select('department_id')
+    .eq('id', id)
+    .single();
+  if (!row) {
+    return { error: NextResponse.json({ success: false, error: 'רשומה לא נמצאה' }, { status: 404 }) };
+  }
+  return requireDepartmentAccess(request, row.department_id);
+}
+
 
 export async function GET(request) {
   try {
@@ -34,6 +53,9 @@ export async function POST(request) {
 
     const body = await request.json();
     const { department_id, full_name, phone, role } = body;
+    const deptAccess = await requireDepartmentAccess(request, department_id);
+    if (deptAccess.error) return deptAccess.error;
+
 
     const { data, error } = await supabase
       .from('contacts')
@@ -59,6 +81,9 @@ export async function PATCH(request) {
 
     const body = await request.json();
     const { id, department_id, full_name, phone, role, active } = body;
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     const { data, error } = await supabase
       .from('contacts')
@@ -85,6 +110,9 @@ export async function DELETE(request) {
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     const { error } = await supabase
       .from('contacts')

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
 
 const DEFAULTS = {
@@ -66,6 +66,9 @@ export async function POST(request) {
     if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, key, value } = body;
+    const deptAccess = await requireDepartmentAccess(request, department_id);
+    if (deptAccess.error) return deptAccess.error;
+
 
     if (!department_id || !key || value === undefined) {
       return NextResponse.json({ success: false, error: 'department_id, key, value required' }, { status: 400 });

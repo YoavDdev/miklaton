@@ -1,6 +1,25 @@
 import { NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
+
+/**
+ * המכלול נקבע לפי השורה הקיימת ולא לפי מה שהבקשה מצהירה (YOA-27).
+ */
+async function accessForRow(request, id) {
+  if (!id) {
+    return { error: NextResponse.json({ success: false, error: 'id required' }, { status: 400 }) };
+  }
+  const { data: row } = await supabase
+    .from('security_staff_leave')
+    .select('department_id')
+    .eq('id', id)
+    .single();
+  if (!row) {
+    return { error: NextResponse.json({ success: false, error: 'רשומה לא נמצאה' }, { status: 404 }) };
+  }
+  return requireDepartmentAccess(request, row.department_id);
+}
+
 
 // GET - fetch leave entries for a department (optionally filter by date range)
 export async function GET(request) {
@@ -48,6 +67,9 @@ export async function POST(request) {
     if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, staff_id, start_date, end_date, reason, notes } = body;
+    const deptAccess = await requireDepartmentAccess(request, department_id);
+    if (deptAccess.error) return deptAccess.error;
+
 
     if (!department_id || !staff_id || !start_date || !end_date) {
       return NextResponse.json({ success: false, error: 'department_id, staff_id, start_date, end_date required' }, { status: 400 });
@@ -78,6 +100,9 @@ export async function PATCH(request) {
     if (auth.error) return auth.error;
     const body = await request.json();
     const { id, ...updates } = body;
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
@@ -105,6 +130,9 @@ export async function DELETE(request) {
     if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });

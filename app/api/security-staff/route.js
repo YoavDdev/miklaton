@@ -1,6 +1,25 @@
 import { NextResponse } from 'next/server';
-import { requireRole, requireRoleOrScreen } from '@/lib/auth';
+import { requireRole, requireRoleOrScreen, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
+
+/**
+ * המכלול נקבע לפי השורה הקיימת ולא לפי מה שהבקשה מצהירה (YOA-27).
+ */
+async function accessForRow(request, id) {
+  if (!id) {
+    return { error: NextResponse.json({ success: false, error: 'id required' }, { status: 400 }) };
+  }
+  const { data: row } = await supabase
+    .from('security_staff')
+    .select('department_id')
+    .eq('id', id)
+    .single();
+  if (!row) {
+    return { error: NextResponse.json({ success: false, error: 'רשומה לא נמצאה' }, { status: 404 }) };
+  }
+  return requireDepartmentAccess(request, row.department_id);
+}
+
 
 // GET - fetch staff by department
 export async function GET(request) {
@@ -43,6 +62,9 @@ export async function POST(request) {
       return NextResponse.json({ success: false, error: 'department_id and full_name required' }, { status: 400 });
     }
 
+    const deptAccess = await requireDepartmentAccess(request, department_id);
+    if (deptAccess.error) return deptAccess.error;
+
     const { data, error } = await supabase
       .from('security_staff')
       .insert({ department_id, full_name, phone, role: role || 'פיקוח' })
@@ -64,6 +86,9 @@ export async function PATCH(request) {
     if (auth.error) return auth.error;
     const body = await request.json();
     const { id, full_name, phone, role, active } = body;
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
@@ -98,6 +123,9 @@ export async function DELETE(request) {
     if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });

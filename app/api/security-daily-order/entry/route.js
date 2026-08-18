@@ -1,11 +1,13 @@
 import { NextResponse } from 'next/server';
-import { requireRoleOrScreen } from '@/lib/auth';
+import { requireRole, requireRoleOrScreen } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
 
 // PATCH - update a single entry (change times, remove, etc.) + log the change
 export async function PATCH(request) {
   try {
-    const auth = await requireRoleOrScreen(request, ['operator', 'call_center_manager', 'sector_manager']);
+    // טוקן המסך יושב על מחשב תצוגה בקיר ואינו אמור לכתוב שינויי משמרת.
+    // requireRoleOrScreen נתן לו לעבור עם user מלאכותי (YOA-27).
+    const auth = await requireRole(request, ['operator', 'shift_supervisor', 'call_center_manager', 'sector_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();
@@ -150,7 +152,9 @@ export async function PATCH(request) {
 // POST - add a single new shift entry to a day's order (get-or-create the order)
 export async function POST(request) {
   try {
-    const auth = await requireRoleOrScreen(request, ['operator', 'call_center_manager', 'sector_manager']);
+    // טוקן המסך יושב על מחשב תצוגה בקיר ואינו אמור לכתוב שינויי משמרת.
+    // requireRoleOrScreen נתן לו לעבור עם user מלאכותי (YOA-27).
+    const auth = await requireRole(request, ['operator', 'shift_supervisor', 'call_center_manager', 'sector_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();

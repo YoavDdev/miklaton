@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRole, requireRoleOrScreen, verifyDutyFormToken } from '@/lib/auth';
+import { requireRole, requireDepartmentAccess, requireRoleOrScreen, verifyDutyFormToken } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
 
 // Get current on-call personnel based on current day and hour
@@ -143,6 +143,16 @@ export async function POST(request) {
 
     const body = await request.json();
 
+    // כל מכלול שמופיע בבקשה חייב להיות מורשה למשתמש. בלי זה כל אחד מ-11
+    // מנהלי המכלול יכול לכתוב לתורנויות של מכלול אחר (YOA-27).
+    const requested = Array.isArray(body.entries)
+      ? [...new Set(body.entries.map((e) => e.department_id))]
+      : [body.department_id];
+    for (const deptId of requested) {
+      const access = await requireDepartmentAccess(request, deptId);
+      if (access.error) return access.error;
+    }
+
     // הוספה מרובה (למשל כונן קבוע 24/7 - שבע רשומות, אחת לכל יום)
     if (Array.isArray(body.entries)) {
       const rows = body.entries.map(e => ({
@@ -194,6 +204,22 @@ export async function PATCH(request) {
     const body = await request.json();
     const { id, contact_id, day_of_week, start_hour, end_hour, notes, active, week_start_date } = body;
 
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
+    }
+
+    // המכלול נקבע לפי השורה הקיימת, לא לפי מה שהבקשה מצהירה
+    const { data: existing } = await supabase
+      .from('duty_roster')
+      .select('department_id')
+      .eq('id', id)
+      .single();
+    if (!existing) {
+      return NextResponse.json({ success: false, error: 'רשומה לא נמצאה' }, { status: 404 });
+    }
+    const access = await requireDepartmentAccess(request, existing.department_id);
+    if (access.error) return access.error;
+
     const updateData = { contact_id, day_of_week, start_hour, end_hour, notes, active };
     if (week_start_date !== undefined) updateData.week_start_date = week_start_date;
 
@@ -229,6 +255,8 @@ export async function DELETE(request) {
       if (!departmentId || !weekStartDate) {
         return NextResponse.json({ success: false, error: 'department_id and week_start_date required' }, { status: 400 });
       }
+      const bulkAccess = await requireDepartmentAccess(request, departmentId);
+      if (bulkAccess.error) return bulkAccess.error;
 
       const { error } = await supabase
         .from('duty_roster')
@@ -248,6 +276,8 @@ export async function DELETE(request) {
       if (!contactId || !departmentId) {
         return NextResponse.json({ success: false, error: 'contact_id and department_id required' }, { status: 400 });
       }
+      const permAccess = await requireDepartmentAccess(request, departmentId);
+      if (permAccess.error) return permAccess.error;
 
       const { error } = await supabase
         .from('duty_roster')
@@ -264,7 +294,21 @@ export async function DELETE(request) {
       return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
     }
 
-    // מותר: מנהל מחובר, או טוקן חתום של המכלול שאליו שייכת התורנות (מדף /duty-form)
+    // מחיקת שורה בודדת. המכלול נלקח מהשורה עצמה ולא מהבקשה.
+    if (!auth.error) {
+      const { data: duty } = await supabase
+        .from('duty_roster')
+        .select('department_id')
+        .eq('id', id)
+        .single();
+      if (!duty) {
+        return NextResponse.json({ success: false, error: 'רשומה לא נמצאה' }, { status: 404 });
+      }
+      const rowAccess = await requireDepartmentAccess(request, duty.department_id);
+      if (rowAccess.error) return rowAccess.error;
+    }
+
+    // מותר גם: טוקן חתום של המכלול שאליו שייכת התורנות (מדף /duty-form)
     if (auth.error) {
       const { data: duty } = await supabase
         .from('duty_roster')

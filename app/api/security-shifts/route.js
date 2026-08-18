@@ -1,6 +1,25 @@
 import { NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
+
+/**
+ * המכלול נקבע לפי השורה הקיימת ולא לפי מה שהבקשה מצהירה (YOA-27).
+ */
+async function accessForRow(request, id) {
+  if (!id) {
+    return { error: NextResponse.json({ success: false, error: 'id required' }, { status: 400 }) };
+  }
+  const { data: row } = await supabase
+    .from('security_shifts')
+    .select('department_id')
+    .eq('id', id)
+    .single();
+  if (!row) {
+    return { error: NextResponse.json({ success: false, error: 'רשומה לא נמצאה' }, { status: 404 }) };
+  }
+  return requireDepartmentAccess(request, row.department_id);
+}
+
 
 // GET - fetch shift types by department
 export async function GET(request) {
@@ -38,6 +57,9 @@ export async function POST(request) {
     if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, category, name, start_time, end_time, display_order } = body;
+    const deptAccess = await requireDepartmentAccess(request, department_id);
+    if (deptAccess.error) return deptAccess.error;
+
 
     if (!department_id || !name || !start_time || !end_time) {
       return NextResponse.json({ success: false, error: 'department_id, name, start_time, end_time required' }, { status: 400 });
@@ -71,6 +93,9 @@ export async function PATCH(request) {
     if (auth.error) return auth.error;
     const body = await request.json();
     const { id, name, category, start_time, end_time, display_order, active } = body;
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });
@@ -106,6 +131,9 @@ export async function DELETE(request) {
     if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
+    const rowAccess = await accessForRow(request, id);
+    if (rowAccess.error) return rowAccess.error;
+
 
     if (!id) {
       return NextResponse.json({ success: false, error: 'id required' }, { status: 400 });

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
 
 // POST - bulk insert multiple schedule entries (for Excel import)
@@ -9,6 +9,9 @@ export async function POST(request) {
     if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, week_start, entries } = body;
+    const deptAccess = await requireDepartmentAccess(request, department_id);
+    if (deptAccess.error) return deptAccess.error;
+
 
     if (!department_id || !week_start || !entries || !Array.isArray(entries)) {
       return NextResponse.json({ 

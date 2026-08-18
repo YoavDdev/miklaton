@@ -171,3 +171,69 @@ describe('עריכת סידור המוקד', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('YOA-27 — בעלות על מכלול בכל שרשרת הביטחון והתורנויות', () => {
+  const WRITE_ROUTES = [
+    ['security-staff', '@/app/api/security-staff/route', { full_name: 'פלוני' }],
+    ['security-shifts', '@/app/api/security-shifts/route', { name: 'בוקר' }],
+    ['security-schedule', '@/app/api/security-schedule/route', {}],
+    ['security-leave', '@/app/api/security-leave/route', { staff_id: 's1', start_date: '2026-01-01', end_date: '2026-01-02' }],
+    ['security-settings', '@/app/api/security-settings/route', { key: 'k', value: 'v' }],
+    ['security-daily-order', '@/app/api/security-daily-order/route', { order_date: '2026-08-16' }],
+    ['contacts', '@/app/api/contacts/route', { full_name: 'פלוני' }],
+  ];
+
+  it.each(WRITE_ROUTES)('%s POST — מנהל מכלול נחסם למכלול שאינו שלו', async (_n, mod, extra) => {
+    const m = await import(/* @vite-ignore */ mod);
+    const res = await m.POST(
+      asRole('sector_manager', '/api/x', { method: 'POST', body: { department_id: DEPT_B, ...extra } })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it.each(WRITE_ROUTES)('%s POST — מנהלת מוקד עוברת', async (_n, mod, extra) => {
+    const m = await import(/* @vite-ignore */ mod);
+    const res = await m.POST(
+      asRole('call_center_manager', '/api/x', { method: 'POST', body: { department_id: DEPT_B, ...extra } })
+    );
+    expect(res.status).not.toBe(403);
+  });
+
+  it('duty-roster POST — מנהל מכלול נחסם למכלול אחר', async () => {
+    const m = await import('@/app/api/duty-roster/route');
+    const res = await m.POST(
+      asRole('sector_manager', '/api/duty-roster', {
+        method: 'POST',
+        body: { entries: [{ department_id: DEPT_B, contact_id: 'c1', day_of_week: 0 }] },
+      })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('duty-roster DELETE bulk — מנהל מכלול נחסם למכלול אחר', async () => {
+    const m = await import('@/app/api/duty-roster/route');
+    const res = await m.DELETE(
+      asRole('sector_manager', `/api/duty-roster?bulk=true&department_id=${DEPT_B}&week_start_date=2026-08-16`, { method: 'DELETE' })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it('פקודת יום — טוקן מסך אינו כותב שינויי משמרת', async () => {
+    const m = await import('@/app/api/security-daily-order/entry/route');
+    const req = makeRequest('/api/security-daily-order/entry', {
+      method: 'PATCH',
+      cookies: { 'screen-key': 'test-screen-token' },
+      body: { entry_id: 'e1', change_type: 'removed' },
+    });
+    const res = await m.PATCH(req);
+    expect(res.status).toBe(401);
+  });
+
+  it('סימון הודעה כנקראה — מנהל מכלול נחסם', async () => {
+    const m = await import('@/app/api/operator/messages/route');
+    const res = await m.PUT(
+      asRole('sector_manager', '/api/operator/messages', { method: 'PUT', body: { id: 'm1' } })
+    );
+    expect(res.status).toBe(403);
+  });
+});

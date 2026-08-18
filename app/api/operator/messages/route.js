@@ -109,6 +109,12 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
     }
 
+    // סימון "נקרא" הוא פעולה של אנשי המוקד בלבד. קודם כל משתמש מחובר, בכל
+    // תפקיד, יכול היה לכתוב את עצמו ל-read_by של כל הודעה פנימית (YOA-27).
+    if (!['operator', 'shift_supervisor', 'call_center_manager', 'admin'].includes(decoded.role)) {
+      return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    }
+
     const { id } = await request.json();
 
     if (!id) {
