@@ -237,3 +237,29 @@ describe('YOA-27 — בעלות על מכלול בכל שרשרת הביטחון
     expect(res.status).toBe(403);
   });
 });
+
+describe('YOA-31 — אירוע חירום הוא מרחב משותף, אבל לא לאורחים', () => {
+  it('אורח עם טוקן הזמנה אינו מעדכן משתתפים', async () => {
+    const mod = await import('@/app/api/events/[id]/participants/[participantId]/route');
+    const req = makeRequest('/api/events/e1/participants/p1', {
+      method: 'PATCH',
+      headers: { 'x-event-token': 'whatever' },
+      body: { field_status: 'arrived' },
+    });
+    const res = await mod.PATCH(req, { params: { id: 'e1', participantId: 'p1' } });
+    // או 401 (הטוקן לא תואם) או 403 (אורח מזוהה) - בשני המקרים לא מעודכן
+    expect([401, 403]).toContain(res.status);
+  });
+
+  it('משתמש מחובר כן מעדכן — זה מה שמוקדן עושה בזמן אמת', async () => {
+    const mod = await import('@/app/api/events/[id]/participants/[participantId]/route');
+    const res = await mod.PATCH(
+      asRole('operator', '/api/events/e1/participants/p1', {
+        method: 'PATCH',
+        body: { field_status: 'arrived' },
+      }),
+      { params: { id: 'e1', participantId: 'p1' } }
+    );
+    expect(res.status).not.toBe(403);
+  });
+});

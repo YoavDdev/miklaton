@@ -10,6 +10,20 @@ export async function PATCH(request, { params }) {
     const access = await requireEventAccess(request, eventId);
     if (access.error) return access.error;
 
+    // עדכון משתתף שמור למשתמשים מחוברים. אורח עם טוקן הזמנה יכול היה לשנות
+    // את סטטוס השדה של **משתתף אחר** - 21 מתוך 39 המשתתפים הם אורחים בלי
+    // חשבון, ולאורח אין דרך להוכיח מי הוא (YOA-31).
+    //
+    // אימתתי שזה לא שובר כלום: הקורא היחיד לראוט הזה הוא דף האירוע של
+    // המשתמש המחובר (app/events/[id]/page.js), שמעדכן את עצמו. דף האורח
+    // (app/event/live/[token]) כותב ליומן בלבד ואינו נוגע בראוט הזה.
+    if (!access.user) {
+      return NextResponse.json(
+        { success: false, error: 'עדכון משתתף דורש התחברות' },
+        { status: 403 }
+      );
+    }
+
     if (access.event.status === 'closed') {
       return NextResponse.json({ success: false, error: 'Event is closed' }, { status: 400 });
     }
@@ -21,9 +35,6 @@ export async function PATCH(request, { params }) {
       updates.field_status_updated_at = new Date().toISOString();
     }
     if (body.display_name !== undefined) {
-      if (!access.user) {
-        return NextResponse.json({ success: false, error: 'אין הרשאה לשינוי שם' }, { status: 403 });
-      }
       if (body.display_name.length > 80) {
         return NextResponse.json({ success: false, error: 'שם ארוך מדי' }, { status: 400 });
       }
