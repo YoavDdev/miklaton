@@ -1291,24 +1291,6 @@ COMMENT ON TABLE "public"."operator_sessions" IS 'סשנים פעילים של �
 
 
 
-CREATE TABLE IF NOT EXISTS "public"."operator_shifts" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "municipality_id" "uuid",
-    "operator_id" "uuid",
-    "shift_date" "date" NOT NULL,
-    "shift_type" character varying(20) NOT NULL,
-    "start_time" time without time zone NOT NULL,
-    "end_time" time without time zone NOT NULL,
-    "notes" "text",
-    "created_by" "uuid",
-    "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"()
-);
-
-
-ALTER TABLE "public"."operator_shifts" OWNER TO "postgres";
-
-
 CREATE TABLE IF NOT EXISTS "public"."operator_tasks" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "title" "text" NOT NULL,
@@ -1365,56 +1347,6 @@ CREATE TABLE IF NOT EXISTS "public"."password_resets" (
 
 
 ALTER TABLE "public"."password_resets" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."sector_daily_tasks" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "task_date" "date" NOT NULL,
-    "staff_id" "uuid",
-    "start_time" time without time zone NOT NULL,
-    "end_time" time without time zone NOT NULL,
-    "vehicle" "text",
-    "tasks" "text"[],
-    "notes" "text",
-    "is_backup" boolean DEFAULT false,
-    "created_at" timestamp without time zone DEFAULT "now"(),
-    "updated_at" timestamp without time zone DEFAULT "now"()
-);
-
-
-ALTER TABLE "public"."sector_daily_tasks" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."sector_staff" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "full_name" "text" NOT NULL,
-    "role" "text" NOT NULL,
-    "phone" "text",
-    "active" boolean DEFAULT true,
-    "created_at" timestamp without time zone DEFAULT "now"(),
-    CONSTRAINT "sector_staff_role_check" CHECK (("role" = ANY (ARRAY['פיקוח עירוני'::"text", 'שיטור עירוני'::"text"])))
-);
-
-
-ALTER TABLE "public"."sector_staff" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."sector_weekly_schedule" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "week_start_date" "date" NOT NULL,
-    "day_of_week" integer NOT NULL,
-    "staff_id" "uuid",
-    "shift_type" "text",
-    "start_time" time without time zone,
-    "end_time" time without time zone,
-    "vehicle" "text",
-    "notes" "text",
-    "created_at" timestamp without time zone DEFAULT "now"(),
-    CONSTRAINT "sector_weekly_schedule_day_of_week_check" CHECK ((("day_of_week" >= 0) AND ("day_of_week" <= 6)))
-);
-
-
-ALTER TABLE "public"."sector_weekly_schedule" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."security_daily_order_entries" (
@@ -1574,22 +1506,6 @@ CREATE TABLE IF NOT EXISTS "public"."shelter_status" (
 
 
 ALTER TABLE "public"."shelter_status" OWNER TO "postgres";
-
-
-CREATE TABLE IF NOT EXISTS "public"."shift_messages" (
-    "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
-    "municipality_id" "uuid",
-    "from_user" "uuid",
-    "to_user" "uuid",
-    "message" "text" NOT NULL,
-    "related_task_id" "uuid",
-    "read" boolean DEFAULT false,
-    "read_at" timestamp with time zone,
-    "created_at" timestamp with time zone DEFAULT "now"()
-);
-
-
-ALTER TABLE "public"."shift_messages" OWNER TO "postgres";
 
 
 CREATE TABLE IF NOT EXISTS "public"."survey_responses" (
@@ -1846,16 +1762,6 @@ ALTER TABLE ONLY "public"."operator_sessions"
 
 
 
-ALTER TABLE ONLY "public"."operator_shifts"
-    ADD CONSTRAINT "operator_shifts_operator_id_shift_date_shift_type_key" UNIQUE ("operator_id", "shift_date", "shift_type");
-
-
-
-ALTER TABLE ONLY "public"."operator_shifts"
-    ADD CONSTRAINT "operator_shifts_pkey" PRIMARY KEY ("id");
-
-
-
 ALTER TABLE ONLY "public"."operator_tasks"
     ADD CONSTRAINT "operator_tasks_pkey" PRIMARY KEY ("id");
 
@@ -1868,26 +1774,6 @@ ALTER TABLE ONLY "public"."panic_buttons"
 
 ALTER TABLE ONLY "public"."password_resets"
     ADD CONSTRAINT "password_resets_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."sector_daily_tasks"
-    ADD CONSTRAINT "sector_daily_tasks_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."sector_staff"
-    ADD CONSTRAINT "sector_staff_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."sector_weekly_schedule"
-    ADD CONSTRAINT "sector_weekly_schedule_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."sector_weekly_schedule"
-    ADD CONSTRAINT "sector_weekly_schedule_week_start_date_day_of_week_staff_id_key" UNIQUE ("week_start_date", "day_of_week", "staff_id", "start_time");
 
 
 
@@ -1948,11 +1834,6 @@ ALTER TABLE ONLY "public"."shelter_status"
 
 ALTER TABLE ONLY "public"."shelter_status"
     ADD CONSTRAINT "shelter_status_pkey" PRIMARY KEY ("id");
-
-
-
-ALTER TABLE ONLY "public"."shift_messages"
-    ADD CONSTRAINT "shift_messages_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2101,10 +1982,6 @@ CREATE INDEX "idx_daily_order_entries_order" ON "public"."security_daily_order_e
 
 
 CREATE INDEX "idx_daily_orders_dept_date" ON "public"."security_daily_orders" USING "btree" ("department_id", "order_date");
-
-
-
-CREATE INDEX "idx_daily_tasks_date" ON "public"."sector_daily_tasks" USING "btree" ("task_date");
 
 
 
@@ -2292,14 +2169,6 @@ CREATE INDEX "idx_operator_sessions_user_id" ON "public"."operator_sessions" USI
 
 
 
-CREATE INDEX "idx_operator_shifts_date" ON "public"."operator_shifts" USING "btree" ("municipality_id", "shift_date", "shift_type");
-
-
-
-CREATE INDEX "idx_operator_shifts_operator" ON "public"."operator_shifts" USING "btree" ("operator_id", "shift_date");
-
-
-
 CREATE INDEX "idx_operator_tasks_assigned_to" ON "public"."operator_tasks" USING "btree" ("assigned_to");
 
 
@@ -2392,14 +2261,6 @@ CREATE INDEX "idx_shift_changes_order_id" ON "public"."security_shift_changes" U
 
 
 
-CREATE INDEX "idx_shift_messages_to_user" ON "public"."shift_messages" USING "btree" ("to_user", "read", "created_at" DESC);
-
-
-
-CREATE INDEX "idx_shift_messages_unread" ON "public"."shift_messages" USING "btree" ("to_user") WHERE ("read" = false);
-
-
-
 CREATE INDEX "idx_survey_responses_submitted_at" ON "public"."survey_responses" USING "btree" ("submitted_at");
 
 
@@ -2444,10 +2305,6 @@ CREATE INDEX "idx_user_profiles_status" ON "public"."user_profiles" USING "btree
 
 
 
-CREATE INDEX "idx_weekly_schedule_week" ON "public"."sector_weekly_schedule" USING "btree" ("week_start_date");
-
-
-
 CREATE UNIQUE INDEX "uniq_garbage_schedule_entry" ON "public"."garbage_collection_schedule" USING "btree" ("street_name", "collection_day", "zone");
 
 
@@ -2465,10 +2322,6 @@ CREATE OR REPLACE TRIGGER "set_municipalities_updated_at" BEFORE UPDATE ON "publ
 
 
 CREATE OR REPLACE TRIGGER "set_on_call_contacts_updated_at" BEFORE UPDATE ON "public"."on_call_contacts" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
-
-
-
-CREATE OR REPLACE TRIGGER "set_operator_shifts_updated_at" BEFORE UPDATE ON "public"."operator_shifts" FOR EACH ROW EXECUTE FUNCTION "public"."update_updated_at_column"();
 
 
 
@@ -2707,21 +2560,6 @@ ALTER TABLE ONLY "public"."operator_sessions"
 
 
 
-ALTER TABLE ONLY "public"."operator_shifts"
-    ADD CONSTRAINT "operator_shifts_created_by_fkey" FOREIGN KEY ("created_by") REFERENCES "public"."user_profiles"("id");
-
-
-
-ALTER TABLE ONLY "public"."operator_shifts"
-    ADD CONSTRAINT "operator_shifts_municipality_id_fkey" FOREIGN KEY ("municipality_id") REFERENCES "public"."municipalities"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."operator_shifts"
-    ADD CONSTRAINT "operator_shifts_operator_id_fkey" FOREIGN KEY ("operator_id") REFERENCES "public"."user_profiles"("id") ON DELETE CASCADE;
-
-
-
 ALTER TABLE ONLY "public"."operator_tasks"
     ADD CONSTRAINT "operator_tasks_assigned_to_fkey" FOREIGN KEY ("assigned_to") REFERENCES "auth"."users"("id") ON DELETE SET NULL;
 
@@ -2739,16 +2577,6 @@ ALTER TABLE ONLY "public"."password_resets"
 
 ALTER TABLE ONLY "public"."password_resets"
     ADD CONSTRAINT "password_resets_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "auth"."users"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."sector_daily_tasks"
-    ADD CONSTRAINT "sector_daily_tasks_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "public"."sector_staff"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."sector_weekly_schedule"
-    ADD CONSTRAINT "sector_weekly_schedule_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "public"."sector_staff"("id") ON DELETE CASCADE;
 
 
 
@@ -2804,26 +2632,6 @@ ALTER TABLE ONLY "public"."security_weekly_schedule"
 
 ALTER TABLE ONLY "public"."security_weekly_schedule"
     ADD CONSTRAINT "security_weekly_schedule_staff_id_fkey" FOREIGN KEY ("staff_id") REFERENCES "public"."security_staff"("id") ON DELETE SET NULL;
-
-
-
-ALTER TABLE ONLY "public"."shift_messages"
-    ADD CONSTRAINT "shift_messages_from_user_fkey" FOREIGN KEY ("from_user") REFERENCES "public"."user_profiles"("id") ON DELETE SET NULL;
-
-
-
-ALTER TABLE ONLY "public"."shift_messages"
-    ADD CONSTRAINT "shift_messages_municipality_id_fkey" FOREIGN KEY ("municipality_id") REFERENCES "public"."municipalities"("id") ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."shift_messages"
-    ADD CONSTRAINT "shift_messages_related_task_id_fkey" FOREIGN KEY ("related_task_id") REFERENCES "public"."operator_tasks"("id") ON DELETE SET NULL;
-
-
-
-ALTER TABLE ONLY "public"."shift_messages"
-    ADD CONSTRAINT "shift_messages_to_user_fkey" FOREIGN KEY ("to_user") REFERENCES "public"."user_profiles"("id") ON DELETE SET NULL;
 
 
 
@@ -2960,9 +2768,6 @@ ALTER TABLE "public"."operator_messages" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."operator_sessions" ENABLE ROW LEVEL SECURITY;
 
 
-ALTER TABLE "public"."operator_shifts" ENABLE ROW LEVEL SECURITY;
-
-
 ALTER TABLE "public"."operator_tasks" ENABLE ROW LEVEL SECURITY;
 
 
@@ -2970,15 +2775,6 @@ ALTER TABLE "public"."panic_buttons" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."password_resets" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."sector_daily_tasks" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."sector_staff" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."sector_weekly_schedule" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."security_daily_order_entries" ENABLE ROW LEVEL SECURITY;
@@ -3006,9 +2802,6 @@ ALTER TABLE "public"."security_weekly_schedule" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."shelter_status" ENABLE ROW LEVEL SECURITY;
-
-
-ALTER TABLE "public"."shift_messages" ENABLE ROW LEVEL SECURITY;
 
 
 ALTER TABLE "public"."survey_responses" ENABLE ROW LEVEL SECURITY;
@@ -3476,11 +3269,6 @@ GRANT ALL ON TABLE "public"."operator_sessions" TO "service_role";
 
 
 
-GRANT ALL ON TABLE "public"."operator_shifts" TO "authenticated";
-GRANT ALL ON TABLE "public"."operator_shifts" TO "service_role";
-
-
-
 GRANT ALL ON TABLE "public"."operator_tasks" TO "authenticated";
 GRANT ALL ON TABLE "public"."operator_tasks" TO "service_role";
 
@@ -3493,21 +3281,6 @@ GRANT ALL ON TABLE "public"."panic_buttons" TO "service_role";
 
 GRANT ALL ON TABLE "public"."password_resets" TO "authenticated";
 GRANT ALL ON TABLE "public"."password_resets" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."sector_daily_tasks" TO "authenticated";
-GRANT ALL ON TABLE "public"."sector_daily_tasks" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."sector_staff" TO "authenticated";
-GRANT ALL ON TABLE "public"."sector_staff" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."sector_weekly_schedule" TO "authenticated";
-GRANT ALL ON TABLE "public"."sector_weekly_schedule" TO "service_role";
 
 
 
@@ -3553,11 +3326,6 @@ GRANT ALL ON TABLE "public"."security_weekly_schedule" TO "service_role";
 
 GRANT ALL ON TABLE "public"."shelter_status" TO "authenticated";
 GRANT ALL ON TABLE "public"."shelter_status" TO "service_role";
-
-
-
-GRANT ALL ON TABLE "public"."shift_messages" TO "authenticated";
-GRANT ALL ON TABLE "public"."shift_messages" TO "service_role";
 
 
 

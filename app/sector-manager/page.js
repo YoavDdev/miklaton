@@ -766,15 +766,6 @@ export default function SectorManagerPage() {
     );
   }
 
-  // Calculate completion status
-  const getCompletionStatus = () => {
-    const totalDays = 7;
-    const filledDays = new Set(dutyRoster.map(d => d.day_of_week)).size;
-    return { filled: filledDays, total: totalDays, percentage: Math.round((filledDays / totalDays) * 100) };
-  };
-
-  const completionStatus = getCompletionStatus();
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50" dir="rtl">
       <Toaster position="top-center" />

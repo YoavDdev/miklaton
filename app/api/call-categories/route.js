@@ -251,9 +251,6 @@ export async function POST(request) {
     const auth = await requireRole(request, ['call_center_manager']);
     if (auth.error) return auth.error;
 
-    // if (!['call_center_manager', 'admin'].includes(authResult.user.role)) {
-    //   return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    // }
 
     const body = await request.json();
     const {
@@ -319,9 +316,6 @@ export async function PUT(request) {
     const auth = await requireRole(request, ['call_center_manager']);
     if (auth.error) return auth.error;
 
-    // if (!['call_center_manager', 'admin'].includes(authResult.user.role)) {
-    //   return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    // }
 
     const body = await request.json();
     const { id, ...updates } = body;
@@ -363,9 +357,6 @@ export async function DELETE(request) {
     const auth = await requireRole(request, ['call_center_manager']);
     if (auth.error) return auth.error;
 
-    // if (!['call_center_manager', 'admin'].includes(authResult.user.role)) {
-    //   return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
-    // }
 
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
