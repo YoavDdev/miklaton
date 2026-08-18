@@ -7,6 +7,42 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+/**
+ * שער הגישה לטופס התורנות של מכלול מסוים.
+ *
+ * שני מסלולים לגיטימיים:
+ *   1. אנונימי עם טוקן HMAC מהקישור שנשלח בוואטסאפ - תקף למכלול שלו בלבד.
+ *   2. משתמש מחובר - אבל רק אם המכלול שייך לו.
+ *
+ * קודם המסלול השני קיבל כל משתמש מחובר לכל מכלול, כי departmentId נלקח
+ * מהבקשה ולא הושווה לכלום. כלומר כל מוקדן יכול היה לדרוס את הכוננויות של
+ * כל מכלול אחר (YOA-22).
+ */
+async function authorizeDutyForm(request, departmentId, token) {
+  if (verifyDutyFormToken(departmentId, token)) return { ok: true };
+
+  const authResult = await verifyAuth(request);
+  if (!authResult.valid) return { ok: false };
+
+  const { role, userId } = authResult.user;
+
+  // מנהלת המוקד ואדמין מנהלים את התורנויות של כל המכלולים - זה הממשק
+  // שממנו נשלחים הקישורים מלכתחילה.
+  if (role === 'call_center_manager' || role === 'admin') return { ok: true };
+
+  // מנהל מכלול - רק המכלול שלו, לפי הפרופיל בשרת ולא לפי הבקשה.
+  if (role === 'sector_manager') {
+    const { data: profile } = await supabase
+      .from('user_profiles')
+      .select('department_id')
+      .eq('id', userId)
+      .single();
+    if (profile?.department_id && profile.department_id === departmentId) return { ok: true };
+  }
+
+  return { ok: false };
+}
+
 // GET - fetch department info + contacts + full duty roster for the form
 export async function GET(request) {
   try {
@@ -20,9 +56,8 @@ export async function GET(request) {
       );
     }
 
-    // גישה: משתמש מחובר, או טוקן חתום מהקישור שנשלח למנהל המכלול
-    const authResult = await verifyAuth(request);
-    if (!authResult.valid && !verifyDutyFormToken(departmentId, searchParams.get('t'))) {
+    const access = await authorizeDutyForm(request, departmentId, searchParams.get('t'));
+    if (!access.ok) {
       return NextResponse.json(
         { success: false, error: 'קישור לא תקין - יש לבקש קישור חדש מהמוקד' },
         { status: 401 }
@@ -85,9 +120,8 @@ export async function POST(request) {
       );
     }
 
-    // גישה: משתמש מחובר, או טוקן חתום מהקישור שנשלח למנהל המכלול
-    const authResult = await verifyAuth(request);
-    if (!authResult.valid && !verifyDutyFormToken(departmentId, token)) {
+    const access = await authorizeDutyForm(request, departmentId, token);
+    if (!access.ok) {
       return NextResponse.json(
         { success: false, error: 'קישור לא תקין - יש לבקש קישור חדש מהמוקד' },
         { status: 401 }

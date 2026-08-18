@@ -29,7 +29,12 @@ export async function GET(request) {
       .order('created_at', { ascending: false })
       .limit(limit);
 
-    // מסנן לפי תפקיד
+    // ההודעות הן פנימיות למוקד. מנהלת מוקד ואדמין רואים הכל, מוקדן רואה את
+    // המיועדות לו; כל תפקיד אחר אינו חלק מהמוקד ואינו אמור לקרוא אותן.
+    const isManager = decoded.role === 'call_center_manager' || decoded.role === 'admin';
+    if (!isManager && decoded.role !== 'operator') {
+      return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    }
     if (decoded.role === 'operator') {
       query = query.or(`target_role.is.null,target_role.eq.operator`);
     }

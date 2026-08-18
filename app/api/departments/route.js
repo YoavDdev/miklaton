@@ -34,7 +34,7 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    const auth = await requireRole(request, ['call_center_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();
@@ -99,7 +99,7 @@ export async function POST(request) {
 
 export async function PATCH(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    const auth = await requireRole(request, ['call_center_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();
@@ -129,7 +129,7 @@ export async function PATCH(request) {
 
 export async function DELETE(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
+    const auth = await requireRole(request, ['call_center_manager']);
     if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);

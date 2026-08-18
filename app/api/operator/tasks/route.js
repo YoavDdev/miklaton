@@ -26,7 +26,12 @@ export async function GET(request) {
       .select('*')
       .order('created_at', { ascending: false });
 
-    // מנהלת מוקד רואה הכל, מוקדן רק את שלו
+    // מנהלת מוקד ואדמין רואים הכל, מוקדן רק את שלו. כל תפקיד אחר - מנהל
+    // מכלול למשל - אינו חלק מהמוקד ואינו אמור לראות את משימותיו כלל.
+    const isManager = decoded.role === 'call_center_manager' || decoded.role === 'admin';
+    if (!isManager && decoded.role !== 'operator') {
+      return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
+    }
     if (decoded.role === 'operator') {
       query = query.eq('assigned_to', decoded.userId);
     }
