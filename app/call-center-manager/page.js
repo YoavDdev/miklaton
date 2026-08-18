@@ -50,6 +50,7 @@ export default function CallCenterManagerPage() {
   // המכלול - בלי להתחבר בחשבון שלו.
   const [departments, setDepartments] = useState([]);
   const [securityDepartmentId, setSecurityDepartmentId] = useState('');
+  const [uploadLink, setUploadLink] = useState(null);
 
   useEffect(() => {
     checkAuth();
@@ -210,6 +211,20 @@ export default function CallCenterManagerPage() {
     loadTasks();
     loadAllUsers();
     loadDepartments();
+  };
+
+  const generateUploadLink = async () => {
+    try {
+      const res = await fetch(
+        `/api/schedule-upload/link?departmentId=${securityDepartmentId}`,
+        { credentials: 'include' }
+      );
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      setUploadLink({ ...data, url: `${window.location.origin}${data.path}` });
+    } catch (error) {
+      toast.error('יצירת הקישור נכשלה: ' + error.message);
+    }
   };
 
   const loadDepartments = async () => {
@@ -855,7 +870,55 @@ export default function CallCenterManagerPage() {
               <span className="text-xs text-gray-500">
                 העלאת הסידור מכאן נרשמת על שמך, בלי להתחבר בחשבון של מנהל המכלול
               </span>
+              <button
+                onClick={generateUploadLink}
+                disabled={!securityDepartmentId}
+                className="mr-auto px-3 py-2 bg-green-600 text-white rounded-md text-sm font-semibold hover:bg-green-700 disabled:bg-gray-300"
+              >
+                🔗 קישור העלאה למנהל
+              </button>
             </div>
+
+            {uploadLink && (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-2">
+                <p className="text-sm font-bold text-green-900">
+                  קישור קבוע ל{uploadLink.department?.name} — מנהל המכלול מעלה דרכו
+                  את הסידור בלי התחברות
+                </p>
+                <input
+                  readOnly
+                  value={uploadLink.url}
+                  onFocus={(e) => e.target.select()}
+                  className="w-full text-xs border border-green-300 rounded px-2 py-2 bg-white"
+                />
+                <div className="flex gap-2 flex-wrap">
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(uploadLink.url);
+                      toast.success('הקישור הועתק');
+                    }}
+                    className="px-3 py-1.5 bg-white border border-green-300 rounded text-xs font-semibold"
+                  >
+                    העתק
+                  </button>
+                  {uploadLink.department?.manager_phone && (
+                    <a
+                      href={`https://wa.me/${uploadLink.department.manager_phone.replace(/\D/g, '').replace(/^0/, '972')}?text=${encodeURIComponent(
+                        `שלום ${uploadLink.department.manager_name || ''}, קישור קבוע להעלאת סידור העבודה השבועי:\n${uploadLink.url}\n\nפשוט לוחצים, בוחרים את קובץ האקסל, ומאשרים.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-3 py-1.5 bg-green-600 text-white rounded text-xs font-semibold"
+                    >
+                      שלח בוואטסאפ
+                    </a>
+                  )}
+                </div>
+                <p className="text-[11px] text-green-700">
+                  הקישור קבוע. אם הוא דולף — יש לסובב את DUTY_FORM_SECRET.
+                </p>
+              </div>
+            )}
             {securityDepartmentId ? (
               <SecurityWeeklySchedule departmentId={securityDepartmentId} />
             ) : (

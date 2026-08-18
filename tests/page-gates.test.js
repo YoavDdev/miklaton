@@ -23,6 +23,8 @@ const PUBLIC_PAGES = {
   '/event/join/[token]': 'הצטרפות אורח לאירוע לפי טוקן הזמנה',
   '/event/live/[token]': 'צפייה באירוע לפי טוקן הזמנה',
   '/survey/[token]': 'מילוי סקר על ידי תושב',
+  '/schedule-upload/[departmentId]':
+    'העלאת סידור ביטחון בקישור חתום HMAC - מנהל המכלול עובד באקסל ולא נכנס לאתר',
 };
 
 function findPages(dir, prefix = '') {
