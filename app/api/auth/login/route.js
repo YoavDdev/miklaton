@@ -158,6 +158,7 @@ function getRoleRedirect(role) {
     operator: '/operator',
     inspector: '/inspector',
     shelter_manager: '/shelter-manager',
+    shift_supervisor: '/shift',
     admin: '/admin/users'
   };
   

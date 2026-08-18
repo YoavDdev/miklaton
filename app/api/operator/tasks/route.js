@@ -28,7 +28,8 @@ export async function GET(request) {
 
     // מנהלת מוקד ואדמין רואים הכל, מוקדן רק את שלו. כל תפקיד אחר - מנהל
     // מכלול למשל - אינו חלק מהמוקד ואינו אמור לראות את משימותיו כלל.
-    const isManager = decoded.role === 'call_center_manager' || decoded.role === 'admin';
+    // אחמ״ש מנהל את משמרת המוקד ולכן רואה ומקצה כמו מנהלת המוקד (docs/15)
+    const isManager = ['shift_supervisor', 'call_center_manager', 'admin'].includes(decoded.role);
     if (!isManager && decoded.role !== 'operator') {
       return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
     }
@@ -90,7 +91,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
     }
 
-    if (decoded.role !== 'call_center_manager' && decoded.role !== 'admin') {
+    if (!['shift_supervisor', 'call_center_manager', 'admin'].includes(decoded.role)) {
       return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
     }
 
@@ -137,7 +138,8 @@ export async function PUT(request) {
       return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
     }
 
-    const isManager = decoded.role === 'call_center_manager' || decoded.role === 'admin';
+    // אחמ״ש מנהל את משמרת המוקד ולכן רואה ומקצה כמו מנהלת המוקד (docs/15)
+    const isManager = ['shift_supervisor', 'call_center_manager', 'admin'].includes(decoded.role);
     if (!isManager && decoded.role !== 'operator') {
       return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
     }
@@ -199,7 +201,7 @@ export async function DELETE(request) {
       return NextResponse.json({ error: 'לא מחובר' }, { status: 401 });
     }
 
-    if (decoded.role !== 'call_center_manager' && decoded.role !== 'admin') {
+    if (!['shift_supervisor', 'call_center_manager', 'admin'].includes(decoded.role)) {
       return NextResponse.json({ error: 'אין הרשאה' }, { status: 403 });
     }
 

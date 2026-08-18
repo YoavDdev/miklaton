@@ -1,27 +1,28 @@
 import { NextResponse } from 'next/server';
 import { verifyTokenEdge } from './lib/auth-edge';
 
-// הגדרת הרשאות לפי route - 7 תפקידים
+// הגדרת הרשאות לפי route - 8 תפקידים
 const ROUTE_PERMISSIONS = {
   '/ceo': ['ceo', 'admin'],
   '/call-center-manager': ['call_center_manager', 'admin'],
   '/sector-manager': ['sector_manager', 'admin'],
-  '/operator': ['operator', 'call_center_manager', 'admin'],
+  '/operator': ['operator', 'shift_supervisor', 'call_center_manager', 'admin'],
+  '/shift': ['shift_supervisor', 'call_center_manager', 'admin'],
   '/inspector': ['inspector', 'admin'],
   '/shelter-manager': ['shelter_manager', 'admin'],
   '/admin': ['admin'],
-  '/events': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
-  '/dashboard': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
-  '/profile': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
-  '/change-password': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
-  '/on-call': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  '/events': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  '/dashboard': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  '/profile': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  '/change-password': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  '/on-call': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
   // סיור פיקוח. היה מחוץ ל-matcher ולכן נגיש לכל אחד ברשת בלי התחברות (YOA-23).
   '/inspection': ['inspector', 'sector_manager', 'call_center_manager', 'operator', 'admin'],
   // היה מכוסה רק במקרה, דרך התאמת הקידומת ל-'/on-call'. מפורש עדיף.
-  '/on-call-query': ['ceo', 'call_center_manager', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
+  '/on-call-query': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
 };
 
-// redirect לפי role - 7 תפקידים
+// redirect לפי role - 8 תפקידים
 const ROLE_REDIRECTS = {
   ceo: '/ceo',
   call_center_manager: '/call-center-manager',
@@ -29,6 +30,7 @@ const ROLE_REDIRECTS = {
   operator: '/operator',
   inspector: '/inspector',
   shelter_manager: '/shelter-manager',
+  shift_supervisor: '/shift',
   admin: '/admin',
 };
 
@@ -155,6 +157,8 @@ export const config = {
     '/screen',
     '/on-call',
     '/on-call-query',
+    '/shift/:path*',
+    '/shift',
     '/inspection/:path*',
     '/inspection',
   ],

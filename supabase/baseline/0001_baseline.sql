@@ -1674,7 +1674,7 @@ CREATE TABLE IF NOT EXISTS "public"."user_profiles" (
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "must_change_password" boolean DEFAULT false,
     "municipality_id" "uuid",
-    CONSTRAINT "valid_role" CHECK ((("role")::"text" = ANY ((ARRAY['ceo'::character varying, 'call_center_manager'::character varying, 'sector_manager'::character varying, 'operator'::character varying, 'admin'::character varying, 'inspector'::character varying, 'shelter_manager'::character varying])::"text"[]))),
+    CONSTRAINT "valid_role" CHECK ((("role")::"text" = ANY (ARRAY['ceo'::"text", 'call_center_manager'::"text", 'shift_supervisor'::"text", 'sector_manager'::"text", 'operator'::"text", 'admin'::"text", 'inspector'::"text", 'shelter_manager'::"text"]))),
     CONSTRAINT "valid_status" CHECK ((("status")::"text" = ANY ((ARRAY['pending'::character varying, 'active'::character varying, 'suspended'::character varying])::"text"[])))
 );
 

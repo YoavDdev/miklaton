@@ -10,7 +10,7 @@ const supabase = createClient(
 // GET - קבלת סשנים פעילים (רשימת כל המוקדנים המחוברים - למנהלת המוקד)
 export async function GET(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager']);
+    const auth = await requireRole(request, ['shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
 
     // רק מוקדנים פעילים - סשן שהיה פעיל ב-15 דקות האחרונות
@@ -65,7 +65,7 @@ export async function GET(request) {
 // POST - יצירת/עדכון סשן (heartbeat)
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    const auth = await requireRole(request, ['operator', 'shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
     const decoded = auth.user;
 
@@ -132,7 +132,7 @@ export async function POST(request) {
 // DELETE - סיום סשן
 export async function DELETE(request) {
   try {
-    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    const auth = await requireRole(request, ['operator', 'shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
     const decoded = auth.user;
 

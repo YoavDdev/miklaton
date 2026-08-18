@@ -36,7 +36,9 @@ export async function GET(request) {
 
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    // מוקדן אינו מעביר את הרשות למצב חירום. זו החלטה של מי שמנהל את
+    // המשמרת - אחמ״ש או מנהלת המוקד. שינוי מדיניות מאושר, לא באג.
+    const auth = await requireRole(request, ['shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
 
     const { is_active, notes } = await request.json();

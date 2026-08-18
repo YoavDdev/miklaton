@@ -684,6 +684,7 @@ export default function AdminUsersPage() {
                   <option value="ceo">מנכ"ל עיריה</option>
                   <option value="call_center_manager">מנהלת מוקד עירוני</option>
                   <option value="sector_manager">מנהל מכלול</option>
+                  <option value="shift_supervisor">אחמ״ש (אחראי משמרת)</option>
                   <option value="operator">מוקדן</option>
                   <option value="inspector">פקח/שיטור עירוני</option>
                   <option value="shelter_manager">אחראי מקלטים</option>
@@ -851,6 +852,7 @@ export default function AdminUsersPage() {
                 >
                   <option value="sector_manager">מנהל מכלול</option>
                   <option value="call_center_manager">מנהלת מוקד עירוני</option>
+                  <option value="shift_supervisor">אחמ״ש (אחראי משמרת)</option>
                   <option value="operator">מוקדן</option>
                   <option value="inspector">פקח/שיטור עירוני</option>
                   <option value="shelter_manager">אחראי מקלטים</option>

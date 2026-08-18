@@ -109,3 +109,42 @@ describe('/api/duty-form — מכלול נגזר מהפרופיל ולא מהב�
     expect(res.status).toBe(400);
   });
 });
+
+describe('אחמ״ש — חלוקת הסמכויות במוקד (docs/15)', () => {
+  it('מוקדן אינו יכול להעביר את המערכת למצב חירום', async () => {
+    const mod = await import('@/app/api/war-mode/route');
+    const res = await mod.POST(
+      asRole('operator', '/api/war-mode', { method: 'POST', body: { is_active: true } })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it.each(['shift_supervisor', 'call_center_manager'])('%s כן יכול', async (role) => {
+    const mod = await import('@/app/api/war-mode/route');
+    const res = await mod.POST(
+      asRole(role, '/api/war-mode', { method: 'POST', body: { is_active: true } })
+    );
+    expect(res.status).not.toBe(403);
+    expect(res.status).not.toBe(401);
+  });
+
+  it('אחמ״ש רואה מי מחובר, מוקדן לא', async () => {
+    const mod = await import('@/app/api/operator/sessions/route');
+    expect((await mod.GET(asRole('shift_supervisor', '/api/operator/sessions'))).status).not.toBe(403);
+    expect((await mod.GET(asRole('operator', '/api/operator/sessions'))).status).toBe(403);
+  });
+
+  it('אחמ״ש מקצה משימות, מוקדן לא', async () => {
+    const mod = await import('@/app/api/operator/tasks/route');
+    const body = { title: 'בדיקה', assigned_to: 'user-2' };
+    expect((await mod.POST(asRole('shift_supervisor', '/api/operator/tasks', { method: 'POST', body }))).status).not.toBe(403);
+    expect((await mod.POST(asRole('operator', '/api/operator/tasks', { method: 'POST', body }))).status).toBe(403);
+  });
+
+  it('מנהל מכלול נשאר מחוץ למוקד', async () => {
+    const tasks = await import('@/app/api/operator/tasks/route');
+    const sessions = await import('@/app/api/operator/sessions/route');
+    expect((await tasks.GET(asRole('sector_manager', '/api/operator/tasks'))).status).toBe(403);
+    expect((await sessions.GET(asRole('sector_manager', '/api/operator/sessions'))).status).toBe(403);
+  });
+});
