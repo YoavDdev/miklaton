@@ -1,14 +1,9 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { requireRole } from '@/lib/auth';
 import { rateLimit } from '@/lib/rate-limit';
 import appGuide from '@/data/app-guide.json';
 import sheltersData from '@/data/shelters.json';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '@/lib/supabase-server';
 
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 

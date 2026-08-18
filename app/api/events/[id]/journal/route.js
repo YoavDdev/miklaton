@@ -1,11 +1,6 @@
-import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { requireEventAccess } from '@/lib/auth';
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-);
+import { supabase } from '@/lib/supabase-server';
 
 const MAX_CONTENT_LENGTH = 5000;
 const ALLOWED_ENTRY_TYPES = ['update', 'urgent', 'decision', 'task', 'location', 'quick', 'map_marker'];

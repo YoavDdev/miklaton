@@ -1,21 +1,6 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/auth';
-
-// Create Supabase client at runtime to ensure env vars are available
-const getSupabase = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  
-  if (!supabaseUrl || !supabaseKey) {
-    console.error('Missing Supabase environment variables');
-    throw new Error('Missing Supabase environment variables');
-  }
-  
-  return createClient(supabaseUrl, supabaseKey, {
-    auth: { persistSession: false }
-  });
-};
+import { supabase } from '@/lib/supabase-server';
 
 export async function GET(request) {
   try {
@@ -24,8 +9,6 @@ export async function GET(request) {
     if (auth.error) {
       return NextResponse.json({ statuses: {}, error: 'לא מחובר' }, { status: 401 });
     }
-
-    const supabase = getSupabase();
     const { data, error } = await supabase
       .from('shelter_status')
       .select('shelter_number, is_open, updated_at, updated_by')
@@ -61,8 +44,6 @@ export async function POST(request) {
   try {
     const auth = await requireRole(request, ['operator', 'call_center_manager']);
     if (auth.error) return auth.error;
-
-    const supabase = getSupabase();
     const body = await request.json();
     const { shelterNumber, isOpen, updatedBy } = body;
 

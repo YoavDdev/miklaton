@@ -1,21 +1,12 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
 import { requireRole } from '@/lib/auth';
-
-const getSupabase = () => {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!supabaseUrl || !supabaseKey) throw new Error('Missing Supabase environment variables');
-  return createClient(supabaseUrl, supabaseKey);
-};
+import { supabase } from '@/lib/supabase-server';
 
 // GET - list all or search by name
 export async function GET(request) {
   try {
     const auth = await requireRole(request);
     if (auth.error) return auth.error;
-
-    const supabase = getSupabase();
     const { searchParams } = new URL(request.url);
     const q = searchParams.get('q') || '';
     const id = searchParams.get('id');
@@ -55,8 +46,6 @@ export async function POST(request) {
   try {
     const auth = await requireRole(request, ['operator', 'call_center_manager']);
     if (auth.error) return auth.error;
-
-    const supabase = getSupabase();
     const body = await request.json();
     const { name, category, address, directions, contacts, operator_instructions, municipality_id } = body;
 
@@ -92,8 +81,6 @@ export async function PUT(request) {
   try {
     const auth = await requireRole(request, ['operator', 'call_center_manager']);
     if (auth.error) return auth.error;
-
-    const supabase = getSupabase();
     const body = await request.json();
     const { id, name, category, address, directions, contacts, operator_instructions, is_active } = body;
 
@@ -130,8 +117,6 @@ export async function DELETE(request) {
   try {
     const auth = await requireRole(request, ['operator', 'call_center_manager']);
     if (auth.error) return auth.error;
-
-    const supabase = getSupabase();
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 
