@@ -8,12 +8,8 @@ export default function DashboardPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalShelters: 0,
-    activeTasks: 0,
-    pendingApprovals: 0,
-    recentAlerts: 0
-  });
+  // ריק עד שמגיעים נתונים אמיתיים. אפסים היו נראים כמו נתון ולא כמו היעדרו.
+  const [stats, setStats] = useState({});
 
   useEffect(() => {
     checkAuth();
@@ -34,7 +30,7 @@ export default function DashboardPage() {
       setUser(data.user);
       
       // טעינת סטטיסטיקות לפי תפקיד
-      await loadStats(data.user.role);
+      await loadStats();
     } catch (error) {
       console.error('Auth error:', error);
       router.push('/login');
@@ -43,15 +39,15 @@ export default function DashboardPage() {
     }
   };
 
-  const loadStats = async (role) => {
-    // כאן נוסיף שאילתות לסטטיסטיקות אמיתיות
-    // לעכשיו נציג נתונים דמה
-    setStats({
-      totalShelters: 150,
-      activeTasks: 12,
-      pendingApprovals: 5,
-      recentAlerts: 3
-    });
+  const loadStats = async () => {
+    try {
+      const res = await fetch('/api/dashboard/stats', { credentials: 'include' });
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.success) setStats(data.stats);
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
   };
 
   const handleLogout = async () => {
@@ -80,41 +76,39 @@ export default function DashboardPage() {
   };
 
   const getQuickActions = (role) => {
+    // רק נתיבים שקיימים בפועל. קודם 13 מהם הובילו ל-404 (YOA-24).
     const actions = {
       ceo: [
         { title: 'דוחות ותובנות', icon: '📊', link: '/ceo' },
-        { title: 'רשימת צוותים', icon: '👥', link: '/ceo/teams' },
-        { title: 'התראות חשובות', icon: '🚨', link: '/ceo/alerts' },
+        { title: 'אירועים', icon: '🚨', link: '/events' },
       ],
       call_center_manager: [
-        { title: 'ניהול מוקדנים', icon: '📞', link: '/call-center-manager' },
-        { title: 'דוחות ביצועים', icon: '📋', link: '/call-center-manager/reports' },
-        { title: 'משימות פתוחות', icon: '🎯', link: '/call-center-manager/tasks' },
+        { title: 'ניהול מוקד', icon: '📞', link: '/call-center-manager' },
+        { title: 'עמדת מוקדן', icon: '🎧', link: '/operator' },
+        { title: 'אירועים', icon: '🚨', link: '/events' },
       ],
       sector_manager: [
-        { title: 'ניהול כוננים', icon: '👷', link: '/sector-manager' },
-        { title: 'סטטיסטיקות מכלול', icon: '📊', link: '/sector-manager/stats' },
-        { title: 'משימות צוות', icon: '📝', link: '/sector-manager/tasks' },
+        { title: 'ניהול המכלול', icon: '👷', link: '/sector-manager' },
+        { title: 'ספר טלפונים', icon: '📕', link: '/on-call' },
+        { title: 'אירועים', icon: '🚨', link: '/events' },
       ],
       operator: [
         { title: 'קבלת פניות', icon: '📞', link: '/operator' },
         { title: 'המשימות שלי', icon: '📋', link: '/operator/tasks' },
-        { title: 'חיפוש מקלט', icon: '🔍', link: '/operator/search' },
+        { title: 'מדריך שיחות', icon: '📖', link: '/operator/call-guide' },
       ],
       inspector: [
-        { title: 'המשימות שלי', icon: '📱', link: '/inspector' },
-        { title: 'דיווח חדש', icon: '📸', link: '/inspector/report' },
-        { title: 'מפת משימות', icon: '🗺️', link: '/inspector/map' },
+        { title: 'סיור פיקוח', icon: '📱', link: '/inspection' },
+        { title: 'אירועים', icon: '🚨', link: '/events' },
       ],
       shelter_manager: [
         { title: 'המקלטים שלי', icon: '🏠', link: '/shelter-manager' },
-        { title: 'משימות תחזוקה', icon: '🔧', link: '/shelter-manager/maintenance' },
-        { title: 'דוחות ותמונות', icon: '📸', link: '/shelter-manager/reports' },
+        { title: 'אירועים', icon: '🚨', link: '/events' },
       ],
       admin: [
         { title: 'ניהול משתמשים', icon: '👥', link: '/admin/users' },
-        { title: 'הגדרות מערכת', icon: '⚙️', link: '/admin/settings' },
-        { title: 'Audit Log', icon: '📊', link: '/admin/audit' },
+        { title: 'ניהול מכלולים', icon: '🏢', link: '/admin/departments' },
+        { title: 'לוח פינוי אשפה', icon: '🗑️', link: '/admin/garbage-schedule' },
       ],
     };
     return actions[role] || [];
@@ -137,48 +131,33 @@ export default function DashboardPage() {
       
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         
-        {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">סך מקלטים</p>
-                <p className="text-3xl font-bold text-gray-900">{stats.totalShelters}</p>
-              </div>
-              <div className="text-4xl">🏠</div>
+        {/* Stats Cards - מוצגים רק כשיש נתון אמיתי (YOA-24) */}
+        {(() => {
+          const cards = [
+            { key: 'totalShelters', label: 'מקלטים', icon: '🏠', color: 'text-gray-900' },
+            { key: 'pendingTasks', label: 'משימות ממתינות', icon: '📋', color: 'text-blue-600' },
+            { key: 'pendingApprovals', label: 'ממתינים לאישור', icon: '⏳', color: 'text-yellow-600' },
+            { key: 'activeNotifications', label: 'הודעות פעילות', icon: '📢', color: 'text-red-600' },
+          ].filter((c) => typeof stats[c.key] === 'number');
+
+          if (cards.length === 0) return null;
+
+          return (
+            <div className={`grid grid-cols-1 md:grid-cols-${Math.min(cards.length, 4)} gap-6 mb-8`}>
+              {cards.map((card) => (
+                <div key={card.key} className="bg-white rounded-lg shadow p-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-gray-600">{card.label}</p>
+                      <p className={`text-3xl font-bold ${card.color}`}>{stats[card.key]}</p>
+                    </div>
+                    <div className="text-4xl">{card.icon}</div>
+                  </div>
+                </div>
+              ))}
             </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">משימות פעילות</p>
-                <p className="text-3xl font-bold text-blue-600">{stats.activeTasks}</p>
-              </div>
-              <div className="text-4xl">📋</div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">ממתינים לאישור</p>
-                <p className="text-3xl font-bold text-yellow-600">{stats.pendingApprovals}</p>
-              </div>
-              <div className="text-4xl">⏳</div>
-            </div>
-          </div>
-          
-          <div className="bg-white rounded-lg shadow p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-gray-600">התראות אחרונות</p>
-                <p className="text-3xl font-bold text-red-600">{stats.recentAlerts}</p>
-              </div>
-              <div className="text-4xl">🚨</div>
-            </div>
-          </div>
-        </div>
+          );
+        })()}
 
         {/* Quick Actions */}
         <div className="bg-white rounded-lg shadow p-6 mb-8">
