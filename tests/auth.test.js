@@ -201,3 +201,34 @@ describe('validatePassword', () => {
     expect(validatePassword(null).length).toBeGreaterThan(0);
   });
 });
+
+describe('YOA-29 — זהות הרשות בטוקן', () => {
+  it('נחתמת ונקראת חזרה', () => {
+    const token = signToken({ ...USER, municipalityId: 'muni-1' });
+    expect(verifyToken(token).municipalityId).toBe('muni-1');
+  });
+
+  it('שורדת null בלי לקרוס', () => {
+    const token = signToken({ ...USER, municipalityId: null });
+    expect(verifyToken(token).municipalityId).toBeNull();
+  });
+
+  it('verifyAuth מחזיר אותה יחד עם המשתמש', async () => {
+    const request = makeRequest('/api/test', {
+      cookies: { 'auth-token': signToken({ ...USER, municipalityId: 'muni-1' }) },
+    });
+    const result = await verifyAuth(request);
+    expect(result.user.municipalityId).toBe('muni-1');
+  });
+
+  it('נשמרת בחתימה מחדש — כך עושים נתיבי החלפת הסיסמה', () => {
+    const original = verifyToken(signToken({ ...USER, municipalityId: 'muni-1' }));
+    const resigned = signToken({
+      userId: original.userId,
+      role: original.role,
+      mustChangePassword: false,
+      municipalityId: original.municipalityId ?? null,
+    });
+    expect(verifyToken(resigned).municipalityId).toBe('muni-1');
+  });
+});

@@ -139,6 +139,8 @@ export async function PUT(request) {
       fullName: decoded.fullName,
       username: decoded.username,
       mustChangePassword: false,
+      // נשמר בחתימה מחדש, אחרת זהות הרשות נעלמת אחרי החלפת סיסמה (YOA-29)
+      municipalityId: decoded.municipalityId ?? null,
     });
 
     const response = NextResponse.json({

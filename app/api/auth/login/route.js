@@ -56,7 +56,7 @@ export async function POST(request) {
     // גם אם ה-API רץ עם ה-anon key (שמוגבל ברמת עמודה אחרי הקשחת ה-RLS)
     const { data: profile, error: profileError } = await supabase
       .from('user_profiles')
-      .select('id, full_name, role, status, must_change_password')
+      .select('id, full_name, role, status, must_change_password, municipality_id')
       .eq('id', authData.user.id)
       .single();
 
@@ -106,6 +106,11 @@ export async function POST(request) {
       fullName: profile.full_name || '',
       username: profile.full_name || authData.user.email?.split('@')[0] || '',
       mustChangePassword,
+      // זהות הרשות נחתמת בטוקן גם לפני שמישהו קורא אותה (YOA-29). היום
+      // היא מגיעה מ-localStorage ומ-NEXT_PUBLIC_MUNICIPALITY_ID, ועל /screen
+      // אפילו מפרמטר ב-URL - כלומר הלקוח מצהיר על הרשות שלו. חתימה כאן
+      // מכינה את המעבר לזהות שנקבעת בשרת, בלי לשנות התנהגות עכשיו.
+      municipalityId: profile.municipality_id || null,
     });
 
     // Audit log for successful login
