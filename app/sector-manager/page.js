@@ -68,9 +68,14 @@ export default function SectorManagerPage() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('work-schedule');
+  // ברירת המחדל נקבעת אחרי שהמכלול נטען. קודם היא היתה קבועה על
+  // 'work-schedule', שהתוכן שלו מוצג רק למכלול ביטחון - ולכן עשרה מתוך
+  // אחד-עשר מנהלי המכלול נחתו על דף עם טאבים ובלי גוף (YOA-26).
+  const [activeTab, setActiveTab] = useState(null);
   const [warMode, setWarMode] = useState(false);
   const [myDepartment, setMyDepartment] = useState(null);
+  // 'טחון' ולא 'בטחון' - סובל גם את הכתיב המלא "ביטחון" (YOA-26)
+  const isSecurityDept = Boolean(myDepartment?.name?.includes('טחון'));
   const [userDepartments, setUserDepartments] = useState([]);
   const [activeDepartmentId, setActiveDepartmentId] = useState(null);
   const [contacts, setContacts] = useState([]);
@@ -308,7 +313,11 @@ export default function SectorManagerPage() {
       .eq('id', activeDepartmentId || user.department_id)
       .single();
     
-    if (data) setMyDepartment(data);
+    if (data) {
+      setMyDepartment(data);
+      // הטאב הראשון שיש לו תוכן עבור המכלול הזה
+      setActiveTab((current) => current ?? (data.name?.includes('טחון') ? 'work-schedule' : 'contacts'));
+    }
   };
 
   const loadUserDepartments = async () => {
@@ -813,7 +822,7 @@ export default function SectorManagerPage() {
                 🚨 <span className="hidden sm:inline">כוננויות חירום שבועי</span><span className="sm:hidden">כוננויות חירום</span>
               </button>
               )}
-              {myDepartment?.name?.includes('בטחון') && (
+              {isSecurityDept && (
               <button
                 onClick={() => setActiveTab('work-schedule')}
                 className={`px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
@@ -840,7 +849,7 @@ export default function SectorManagerPage() {
         </div>
 
         {/* Tab Content - Security Work Schedule */}
-        {activeTab === 'work-schedule' && myDepartment?.name?.includes('בטחון') && (
+        {activeTab === 'work-schedule' && isSecurityDept && (
           <SecurityWeeklySchedule departmentId={activeDepartmentId || user?.department_id} />
         )}
 

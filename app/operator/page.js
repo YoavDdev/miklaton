@@ -162,7 +162,17 @@ export default function OperatorPage() {
   const toggleWarMode = async () => {
     const username = localStorage.getItem('username') || 'מוקדן';
     const newMode = !warMode;
-    
+
+    // מצב חירום משנה את התנהגות המערכת כולה - חיפוש מקלטים, כוננים, המסך,
+    // וטאבים אצל מנהלי המכלול. שבעה מוקדנים מחזיקים בכפתור הזה, ולכן האישור
+    // מנסח את המשמעות ולא מסתפק ב"אתה בטוח" (YOA-25).
+    const confirmed = window.confirm(
+      newMode
+        ? 'להעביר את כל המערכת למצב חירום?\n\nחיפוש המקלטים ורשימת הכוננים ייפתחו לכל המוקדנים, והמסך הציבורי ישתנה.'
+        : 'לצאת ממצב חירום?\n\nחיפוש המקלטים ורשימת הכוננים יוסתרו, והמסך הציבורי יחזור למצב רגיל.'
+    );
+    if (!confirmed) return;
+
     try {
       const res = await fetch('/api/war-mode', {
         method: 'POST',
