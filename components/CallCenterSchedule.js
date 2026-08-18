@@ -26,7 +26,15 @@ function formatDateShort(date) {
   return `${date.getDate()}/${date.getMonth() + 1}`;
 }
 
-export default function CallCenterSchedule({ departmentId }) {
+/**
+ * canEdit: מאפשר עריכה נקודתית של שיבוץ בודד. עד היום הדרך היחידה לשנות
+ * סידור היתה למחוק שבוע שלם ולייבא אקסל מחדש - גם כשהתחלף אדם אחד ברגע
+ * האחרון. ה-API לשיבוץ בודד היה קיים כל הזמן בלי ממשק.
+ */
+export default function CallCenterSchedule({ departmentId, canEdit = false }) {
+  const [adding, setAdding] = useState(null); // {shiftId, dayIdx, position}
+  const [newName, setNewName] = useState('');
+  const [saving, setSaving] = useState(false);
   const [currentWeekStart, setCurrentWeekStart] = useState(() => getWeekStart(new Date()));
   const [staff, setStaff] = useState([]);
   const [shifts, setShifts] = useState([]);
@@ -110,6 +118,52 @@ export default function CallCenterSchedule({ departmentId }) {
       s.day_of_week === dayIndex && 
       s.position === position
     );
+  };
+
+  const addAssignment = async (shiftId, dayIdx, position) => {
+    const name = newName.trim();
+    if (!name) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/api/call-center-schedule', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({
+          department_id: departmentId,
+          shift_id: shiftId,
+          week_start: formatDateForDB(currentWeekStart),
+          day_of_week: dayIdx,
+          position,
+          staff_name: name,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      setNewName('');
+      setAdding(null);
+      fetchSchedule();
+    } catch (error) {
+      toast.error('ההוספה נכשלה: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const removeAssignment = async (assignment) => {
+    const who = assignment.staff?.full_name || assignment.staff_name || 'השיבוץ';
+    if (!confirm(`להסיר את ${who} מהמשמרת?`)) return;
+    try {
+      const res = await fetch(`/api/call-center-schedule?id=${assignment.id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      const data = await res.json();
+      if (!data.success) throw new Error(data.error);
+      fetchSchedule();
+    } catch (error) {
+      toast.error('ההסרה נכשלה: ' + error.message);
+    }
   };
 
   return (
@@ -197,10 +251,51 @@ export default function CallCenterSchedule({ departmentId }) {
                         return (
                           <td key={dayIdx} className="p-1 border-l border-gray-200 text-center">
                             {assignments.map((a, i) => (
-                              <div key={i} className="text-xs bg-blue-100 text-blue-800 rounded px-1 py-0.5 mb-0.5">
-                                {a.staff?.full_name || a.staff_name}
+                              <div key={i} className="text-xs bg-blue-100 text-blue-800 rounded px-1 py-0.5 mb-0.5 flex items-center justify-center gap-1 group">
+                                <span>{a.staff?.full_name || a.staff_name}</span>
+                                {canEdit && (
+                                  <button
+                                    onClick={() => removeAssignment(a)}
+                                    title="הסר מהמשמרת"
+                                    className="opacity-0 group-hover:opacity-100 text-red-600 font-bold leading-none"
+                                  >
+                                    ×
+                                  </button>
+                                )}
                               </div>
                             ))}
+                            {canEdit && (
+                              adding?.shiftId === shift.id && adding?.dayIdx === dayIdx && adding?.position === 'אחמ"ש' ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    autoFocus
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') addAssignment(shift.id, dayIdx, 'אחמ"ש');
+                                      if (e.key === 'Escape') { setAdding(null); setNewName(''); }
+                                    }}
+                                    placeholder="שם"
+                                    className="w-full text-xs border border-gray-300 rounded px-1 py-0.5"
+                                  />
+                                  <button
+                                    disabled={saving}
+                                    onClick={() => addAssignment(shift.id, dayIdx, 'אחמ"ש')}
+                                    className="text-xs text-green-700 font-bold"
+                                  >
+                                    ✓
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setAdding({ shiftId: shift.id, dayIdx, position: 'אחמ"ש' }); setNewName(''); }}
+                                  title="הוסף שיבוץ"
+                                  className="text-xs text-gray-400 hover:text-gray-700"
+                                >
+                                  +
+                                </button>
+                              )
+                            )}
                           </td>
                         );
                       })}
@@ -214,10 +309,51 @@ export default function CallCenterSchedule({ departmentId }) {
                         return (
                           <td key={dayIdx} className="p-1 border-l border-gray-200 text-center">
                             {assignments.map((a, i) => (
-                              <div key={i} className="text-xs bg-green-100 text-green-800 rounded px-1 py-0.5 mb-0.5">
-                                {a.staff?.full_name || a.staff_name}
+                              <div key={i} className="text-xs bg-green-100 text-green-800 rounded px-1 py-0.5 mb-0.5 flex items-center justify-center gap-1 group">
+                                <span>{a.staff?.full_name || a.staff_name}</span>
+                                {canEdit && (
+                                  <button
+                                    onClick={() => removeAssignment(a)}
+                                    title="הסר מהמשמרת"
+                                    className="opacity-0 group-hover:opacity-100 text-red-600 font-bold leading-none"
+                                  >
+                                    ×
+                                  </button>
+                                )}
                               </div>
                             ))}
+                            {canEdit && (
+                              adding?.shiftId === shift.id && adding?.dayIdx === dayIdx && adding?.position === 'נציג' ? (
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    autoFocus
+                                    value={newName}
+                                    onChange={(e) => setNewName(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') addAssignment(shift.id, dayIdx, 'נציג');
+                                      if (e.key === 'Escape') { setAdding(null); setNewName(''); }
+                                    }}
+                                    placeholder="שם"
+                                    className="w-full text-xs border border-gray-300 rounded px-1 py-0.5"
+                                  />
+                                  <button
+                                    disabled={saving}
+                                    onClick={() => addAssignment(shift.id, dayIdx, 'נציג')}
+                                    className="text-xs text-green-700 font-bold"
+                                  >
+                                    ✓
+                                  </button>
+                                </div>
+                              ) : (
+                                <button
+                                  onClick={() => { setAdding({ shiftId: shift.id, dayIdx, position: 'נציג' }); setNewName(''); }}
+                                  title="הוסף שיבוץ"
+                                  className="text-xs text-gray-400 hover:text-gray-700"
+                                >
+                                  +
+                                </button>
+                              )
+                            )}
                           </td>
                         );
                       })}

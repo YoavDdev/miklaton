@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import OperatorTasks from '@/components/OperatorTasks';
+import CallCenterSchedule from '@/components/CallCenterSchedule';
 
 /**
  * קונסולת האחמ״ש - "מה קורה במשמרת שלי עכשיו".
@@ -19,6 +20,7 @@ export default function ShiftPage() {
   const [shift, setShift] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [warMode, setWarMode] = useState(false);
+  const [callCenterDeptId, setCallCenterDeptId] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -29,7 +31,17 @@ export default function ShiftPage() {
         fetch('/api/war-mode', { credentials: 'include' }),
       ]);
 
-      if (meRes.ok) setUser((await meRes.json()).user);
+      if (meRes.ok) {
+        const me = (await meRes.json()).user;
+        setUser(me);
+        // מכלול המוקד. זיהוי לפי שם, כמו במסך - אין דגל ייעודי בסכימה.
+        const deptRes = await fetch('/api/departments', { credentials: 'include' });
+        if (deptRes.ok) {
+          const list = (await deptRes.json()).data || [];
+          const mokedDept = list.find((d) => (d.name || '').includes('מוקד'));
+          setCallCenterDeptId(me?.department_id || mokedDept?.id || '');
+        }
+      }
       if (shiftRes.ok) setShift(await shiftRes.json());
       if (sessionsRes.ok) setSessions((await sessionsRes.json()).sessions || []);
       if (warRes.ok) {
@@ -174,6 +186,14 @@ export default function ShiftPage() {
             מבוסס על פעילות ב-15 הדקות האחרונות. מי שבסידור ואינו כאן - כנראה עדיין לא נכנס.
           </p>
         </section>
+
+        {/* סידור המוקד - אחמ״ש מזין משמרות תמיד, לא רק כשהוא במשמרת */}
+        {callCenterDeptId && (
+          <section className="bg-white rounded-xl shadow p-5">
+            <h2 className="text-lg font-bold text-gray-900 mb-3">סידור המוקד</h2>
+            <CallCenterSchedule departmentId={callCenterDeptId} canEdit />
+          </section>
+        )}
 
         {/* משימות המשמרת */}
         <section className="bg-white rounded-xl shadow p-5">

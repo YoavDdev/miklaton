@@ -39,7 +39,7 @@ export async function GET(request) {
 // POST - assign staff to a shift
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager']);
+    const auth = await requireRole(request, ['shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();
@@ -79,7 +79,7 @@ export async function POST(request) {
 // DELETE - remove a schedule entry or bulk delete for a week
 export async function DELETE(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager']);
+    const auth = await requireRole(request, ['shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
 
     const { searchParams } = new URL(request.url);

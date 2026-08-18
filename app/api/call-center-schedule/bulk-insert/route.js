@@ -5,7 +5,7 @@ import { supabase } from '@/lib/supabase-server';
 // POST - bulk insert multiple schedule entries (for Excel import)
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['call_center_manager']);
+    const auth = await requireRole(request, ['shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();

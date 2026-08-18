@@ -830,7 +830,7 @@ export default function CallCenterManagerPage() {
         {/* Tab Content - Schedule */}
         {activeTab === 'schedule' && (
           user?.department_id ? (
-            <CallCenterSchedule departmentId={user.department_id} />
+            <CallCenterSchedule departmentId={user.department_id} canEdit />
           ) : (
             // לאדמין אין department_id, ולכן הוא נחת כאן. במקום להיתקע - בורר
             // מכלול, כמו בטאב סידור הביטחון.
@@ -848,7 +848,7 @@ export default function CallCenterManagerPage() {
                 </select>
                 <span className="text-xs text-gray-500">החשבון שלך אינו משויך למכלול - בחר ידנית</span>
               </div>
-              {securityDepartmentId && <CallCenterSchedule departmentId={securityDepartmentId} />}
+              {securityDepartmentId && <CallCenterSchedule departmentId={securityDepartmentId} canEdit />}
             </div>
           )
         )}

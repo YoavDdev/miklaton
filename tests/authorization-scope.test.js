@@ -148,3 +148,26 @@ describe('אחמ״ש — חלוקת הסמכויות במוקד (docs/15)', () =
     expect((await sessions.GET(asRole('sector_manager', '/api/operator/sessions'))).status).toBe(403);
   });
 });
+
+describe('עריכת סידור המוקד', () => {
+  const body = { department_id: 'd1', shift_id: 's1', week_start: '2026-08-16', day_of_week: 0 };
+
+  it.each(['shift_supervisor', 'call_center_manager'])('%s רשאי להוסיף שיבוץ', async (role) => {
+    const mod = await import('@/app/api/call-center-schedule/route');
+    const res = await mod.POST(asRole(role, '/api/call-center-schedule', { method: 'POST', body }));
+    expect(res.status).not.toBe(403);
+    expect(res.status).not.toBe(401);
+  });
+
+  it.each(['operator', 'sector_manager'])('%s נחסם', async (role) => {
+    const mod = await import('@/app/api/call-center-schedule/route');
+    const res = await mod.POST(asRole(role, '/api/call-center-schedule', { method: 'POST', body }));
+    expect(res.status).toBe(403);
+  });
+
+  it('מחיקת שיבוץ בודד חסומה למוקדן', async () => {
+    const mod = await import('@/app/api/call-center-schedule/route');
+    const res = await mod.DELETE(asRole('operator', '/api/call-center-schedule?id=abc', { method: 'DELETE' }));
+    expect(res.status).toBe(403);
+  });
+});
