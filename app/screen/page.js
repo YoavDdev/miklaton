@@ -11,6 +11,20 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 );
 
+// מצרף את טוקן המסך (?key=) מכתובת הדף לכל קריאת /api/ - כך מערכות
+// signage/kiosk שלא שומרות עוגיות עובדות עם הקישור-עם-המפתח בלבד.
+// קריאות לשרתים חיצוניים (hebcal וכו') לא עוברות דרך ה-helper הזה.
+function screenFetch(url, opts) {
+  let finalUrl = url;
+  try {
+    const key = new URLSearchParams(window.location.search).get('key');
+    if (key && typeof url === 'string' && url.startsWith('/api/')) {
+      finalUrl += (url.includes('?') ? '&' : '?') + 'key=' + encodeURIComponent(key);
+    }
+  } catch {}
+  return fetch(finalUrl, opts);
+}
+
 const DAYS_HEB = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
 function getWeekStart(date) {
@@ -332,7 +346,7 @@ export default function ScreenPage() {
 
   const fetchWarMode = async () => {
     try {
-      const res = await fetch('/api/war-mode');
+      const res = await screenFetch('/api/war-mode');
       const data = await res.json();
       if (data.success && data.data) setWarMode(data.data.is_active || false);
     } catch {}
@@ -340,7 +354,7 @@ export default function ScreenPage() {
 
   const fetchNotifications = async () => {
     try {
-      const res = await fetch('/api/notifications');
+      const res = await screenFetch('/api/notifications');
       const data = await res.json();
       setNotifications(data.notifications || []);
     } catch {}
@@ -348,7 +362,7 @@ export default function ScreenPage() {
 
   const fetchDepartments = async () => {
     try {
-      const res = await fetch('/api/departments');
+      const res = await screenFetch('/api/departments');
       const data = await res.json();
       if (data.success) {
         const secDept = data.data?.find(d => d.name?.includes('בטחון'));
@@ -374,8 +388,8 @@ export default function ScreenPage() {
       const yesterdayStr = formatDateForDB(yesterday);
 
       const [todayRes, yesterdayRes] = await Promise.all([
-        fetch(`/api/security-daily-order?department_id=${deptId}&order_date=${todayStr}`),
-        fetch(`/api/security-daily-order?department_id=${deptId}&order_date=${yesterdayStr}`)
+        screenFetch(`/api/security-daily-order?department_id=${deptId}&order_date=${todayStr}`),
+        screenFetch(`/api/security-daily-order?department_id=${deptId}&order_date=${yesterdayStr}`)
       ]);
 
       const todayData = await todayRes.json();
@@ -425,8 +439,8 @@ export default function ScreenPage() {
     try {
       const weekStart = formatDateForDB(getWeekStart(new Date()));
       const [rosterRes, contactsRes] = await Promise.all([
-        fetch(`/api/duty-roster?week_start_date=${weekStart}`),
-        fetch('/api/contacts')
+        screenFetch(`/api/duty-roster?week_start_date=${weekStart}`),
+        screenFetch('/api/contacts')
       ]);
       const rosterData = await rosterRes.json();
       const contactsData = await contactsRes.json();
@@ -458,7 +472,7 @@ export default function ScreenPage() {
 
   const fetchWeather = async () => {
     try {
-      const res = await fetch('/api/weather');
+      const res = await screenFetch('/api/weather');
       const data = await res.json();
       if (data.success && data.current) {
         setWeather({ current: data.current, daily: data.daily || [], alerts: data.alerts || [] });
@@ -470,7 +484,7 @@ export default function ScreenPage() {
     try {
       const deptId = callCenterDeptIdRef.current;
       if (!deptId) return;
-      const res = await fetch(`/api/call-center-schedule/current?department_id=${deptId}`, {
+      const res = await screenFetch(`/api/call-center-schedule/current?department_id=${deptId}`, {
         cache: 'no-store'
       });
       const data = await res.json();
@@ -495,7 +509,7 @@ export default function ScreenPage() {
         || localStorage.getItem('municipality_id') 
         || process.env.NEXT_PUBLIC_MUNICIPALITY_ID
         || '023b5984-7097-4f03-a8dd-7ef7e29a4bc4';
-      const res = await fetch(`/api/vacations?municipality_id=${municipalityId}&include_recently_returned=true`);
+      const res = await screenFetch(`/api/vacations?municipality_id=${municipalityId}&include_recently_returned=true`);
       const data = await res.json();
       if (data.success) {
         // Group by person (same name/phone) to avoid duplicates
@@ -529,7 +543,7 @@ export default function ScreenPage() {
 
   const submitShiftChange = async (entryId, changeType, data = {}) => {
     try {
-      const res = await fetch('/api/security-daily-order/entry', {
+      const res = await screenFetch('/api/security-daily-order/entry', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -557,7 +571,7 @@ export default function ScreenPage() {
     try {
       const deptId = securityDeptIdRef.current;
       if (!deptId) return;
-      const res = await fetch(`/api/security-staff?department_id=${deptId}`);
+      const res = await screenFetch(`/api/security-staff?department_id=${deptId}`);
       const data = await res.json();
       if (data.success) setStaffList(data.data || []);
     } catch {}
@@ -567,7 +581,7 @@ export default function ScreenPage() {
     setAddShiftSaving(true);
     try {
       const role_title = role === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני';
-      const res = await fetch('/api/security-daily-order/entry', {
+      const res = await screenFetch('/api/security-daily-order/entry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
