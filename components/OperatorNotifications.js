@@ -1,9 +1,10 @@
 'use client';
 import { useState, useEffect } from 'react';
 
-// Operator-facing notifications board: operators can add and delete messages
-// that show for everyone (and on the /screen display), via /api/notifications.
-export default function OperatorNotifications() {
+// לוח ההודעות של המוקד (מוצג גם על /screen).
+// canManage: פרסום ומחיקה - סמכות של אחמ״ש ומנהלת המוקד בלבד (docs/15,
+// הוחלט 2026-08-19). מוקדן רואה את הלוח בקריאה בלבד.
+export default function OperatorNotifications({ canManage = false, author = '' }) {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [title, setTitle] = useState('');
@@ -44,7 +45,7 @@ export default function OperatorNotifications() {
           title: title.trim(),
           message: message.trim(),
           type: urgent ? 'urgent' : 'info',
-          author: 'מוקדן'
+          author: author || 'אחמ״ש'
         })
       });
       const data = await res.json();
@@ -90,7 +91,7 @@ export default function OperatorNotifications() {
   return (
     <div className="space-y-3" dir="rtl">
       {/* Add message toggle / form */}
-      {!showForm ? (
+      {!canManage ? null : !showForm ? (
         <button
           onClick={() => setShowForm(true)}
           className="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-bold transition-colors"
@@ -149,13 +150,15 @@ export default function OperatorNotifications() {
                   <span>{typeIcon(n.type)}</span>
                   <h3 className="font-bold text-sm truncate">{n.title}</h3>
                 </div>
-                <button
-                  onClick={() => handleDelete(n.id, n.title)}
-                  className="text-lg leading-none opacity-70 hover:opacity-100 shrink-0"
-                  title="מחק הודעה"
-                >
-                  🗑️
-                </button>
+                {canManage && (
+                  <button
+                    onClick={() => handleDelete(n.id, n.title)}
+                    className="text-lg leading-none opacity-70 hover:opacity-100 shrink-0"
+                    title="מחק הודעה"
+                  >
+                    🗑️
+                  </button>
+                )}
               </div>
               <p className="text-xs opacity-90 whitespace-pre-wrap">{n.message}</p>
               <div className="text-[11px] opacity-75 mt-1">

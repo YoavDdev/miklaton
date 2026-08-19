@@ -41,7 +41,10 @@ export async function GET(request) {
 // POST new notification
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    // פרסום למסך הציבורי הוא סמכות של מי שמנהל את המשמרת - אחמ״ש או
+    // מנהלת המוקד. הורד ממוקדנים בהחלטת מדיניות (docs/15, 2026-08-19),
+    // כמו מצב החירום ב-YOA-25.
+    const auth = await requireRole(request, ['shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
     if (!supabase) {
       return NextResponse.json({ 
@@ -96,7 +99,9 @@ export async function POST(request) {
 // DELETE notification by ID
 export async function DELETE(request) {
   try {
-    const auth = await requireRole(request, ['operator', 'call_center_manager']);
+    // כמו הפרסום - סמכות משמרת, לא של כל נציג (קודם כל מוקדן יכול היה
+    // למחוק גם הודעה של מנהלת המוקד)
+    const auth = await requireRole(request, ['shift_supervisor', 'call_center_manager']);
     if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');

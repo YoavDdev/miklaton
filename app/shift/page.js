@@ -6,6 +6,7 @@ import toast, { Toaster } from 'react-hot-toast';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
 import OperatorTasks from '@/components/OperatorTasks';
 import CallCenterSchedule from '@/components/CallCenterSchedule';
+import OperatorNotifications from '@/components/OperatorNotifications';
 
 /**
  * קונסולת האחמ״ש - "מה קורה במשמרת שלי עכשיו".
@@ -185,6 +186,13 @@ export default function ShiftPage() {
           <p className="text-xs text-gray-400 mt-3">
             מבוסס על פעילות ב-15 הדקות האחרונות. מי שבסידור ואינו כאן - כנראה עדיין לא נכנס.
           </p>
+        </section>
+
+        {/* הודעות למסך הציבורי ולנציגים - פרסום ומחיקה הם סמכות משמרת:
+            הורדו ממוקדנים בהחלטת מדיניות (docs/15, 2026-08-19) */}
+        <section className="bg-white rounded-xl shadow p-5">
+          <h2 className="text-lg font-bold text-gray-900 mb-3">הודעות למוקד ולמסך</h2>
+          <OperatorNotifications canManage author={user?.full_name || 'אחמ״ש'} />
         </section>
 
         {/* סידור המוקד - אחמ״ש מזין משמרות תמיד, לא רק כשהוא במשמרת */}

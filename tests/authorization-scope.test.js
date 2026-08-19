@@ -128,6 +128,30 @@ describe('אחמ״ש — חלוקת הסמכויות במוקד (docs/15)', () =
     expect(res.status).not.toBe(401);
   });
 
+  // docs/15 + החלטת יואב 2026-08-19: פרסום למסך הציבורי ומחיקת הודעות הם
+  // סמכות של מי שמנהל את המשמרת. קודם כל מוקדן יכול היה למחוק כל הודעה -
+  // כולל של מנהלת המוקד.
+  it.each(['POST', 'DELETE'])('מוקדן אינו מפרסם/מוחק הודעות למסך (%s)', async (method) => {
+    const mod = await import('@/app/api/notifications/route');
+    const res = await mod[method](
+      asRole('operator', '/api/notifications?id=n1', {
+        method,
+        body: { title: 'בדיקה', message: 'תוכן' },
+      })
+    );
+    expect(res.status).toBe(403);
+  });
+
+  it.each(['shift_supervisor', 'call_center_manager'])('%s כן מפרסם ומוחק הודעות', async (role) => {
+    const mod = await import('@/app/api/notifications/route');
+    const post = await mod.POST(
+      asRole(role, '/api/notifications', { method: 'POST', body: { title: 'בדיקה', message: 'תוכן' } })
+    );
+    const del = await mod.DELETE(asRole(role, '/api/notifications?id=n1', { method: 'DELETE' }));
+    expect(post.status, `${role} POST`).not.toBe(403);
+    expect(del.status, `${role} DELETE`).not.toBe(403);
+  });
+
   // YOA-30: בלוק audit שהועתק מה-POST ל-GET השתמש במשתנים שלא קיימים שם,
   // וכל קריאת סטטוס נפלה ל-500 - הבאנר לא נטען באף דשבורד ולא במסך.
   it('קריאת סטטוס מצב חירום מחזירה 200 למשתמש מחובר', async () => {
