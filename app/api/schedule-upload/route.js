@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { verifyScheduleUploadToken } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
+import { replaceExcelLeaves } from '@/lib/security-leave-import';
 
 /**
  * מסלול העלאת סידור ביטחון מקישור חתום, בלי התחברות.
@@ -86,7 +87,7 @@ export async function GET(request) {
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { department_id, token, week_start, newShifts, entries } = body;
+    const { department_id, token, week_start, newShifts, entries, leaves } = body;
 
     if (!authorize(department_id, token)) {
       return NextResponse.json(
@@ -139,16 +140,10 @@ export async function POST(request) {
       createdShifts.push({ key: shift.key, id: data.id });
     }
 
-    // החלפת השבוע: מוחקים את הקיים ומכניסים מחדש
-    const { error: deleteError } = await supabase
-      .from('security_weekly_schedule')
-      .delete()
-      .eq('department_id', department_id)
-      .eq('week_start', week_start);
-    if (deleteError) throw deleteError;
-
     let inserted = 0;
     if (entries.length > 0) {
+      // הוולידציה לפני המחיקה - קודם קובץ עם מפתח משמרת לא מזוהה היה קודם
+      // מוחק את השבוע ורק אז נכשל, ומשאיר שבוע ריק.
       const unresolved = entries.filter((e) => !shiftIdByKey.has(e.shift_key));
       if (unresolved.length > 0) {
         return NextResponse.json(
@@ -159,6 +154,15 @@ export async function POST(request) {
           { status: 400 }
         );
       }
+
+      // החלפת השבוע: מוחקים את הקיים ומכניסים מחדש. המחיקה רק כשיש מה
+      // להכניס - גיליון שכל הסידור שלו בטבלה הימנית לא ימחק שבוע (YOA-38).
+      const { error: deleteError } = await supabase
+        .from('security_weekly_schedule')
+        .delete()
+        .eq('department_id', department_id)
+        .eq('week_start', week_start);
+      if (deleteError) throw deleteError;
 
       const rows = entries.map((e) => ({
         department_id,
@@ -181,9 +185,18 @@ export async function POST(request) {
       inserted = rows.length;
     }
 
+    // חופשות ומחלות מהטבלה הימנית של הקובץ (YOA-38)
+    const { count: leavesCount } = await replaceExcelLeaves(
+      supabase,
+      department_id,
+      week_start,
+      leaves
+    );
+
     return NextResponse.json({
       success: true,
       count: inserted,
+      leavesCount,
       createdShifts,
     });
   } catch (error) {

@@ -1466,7 +1466,8 @@ CREATE TABLE IF NOT EXISTS "public"."security_staff_leave" (
     "reason" "text",
     "notes" "text",
     "created_at" timestamp with time zone DEFAULT "now"(),
-    "updated_at" timestamp with time zone DEFAULT "now"()
+    "updated_at" timestamp with time zone DEFAULT "now"(),
+    "source" "text" DEFAULT 'manual'::"text" NOT NULL
 );
 
 

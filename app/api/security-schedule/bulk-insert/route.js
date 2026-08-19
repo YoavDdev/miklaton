@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireRole, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
+import { replaceExcelLeaves } from '@/lib/security-leave-import';
 
 // POST - bulk insert multiple schedule entries (for Excel import)
 export async function POST(request) {
@@ -8,20 +9,29 @@ export async function POST(request) {
     const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
     if (auth.error) return auth.error;
     const body = await request.json();
-    const { department_id, week_start, entries } = body;
+    const { department_id, week_start, entries, leaves } = body;
     const deptAccess = await requireDepartmentAccess(request, department_id);
     if (deptAccess.error) return deptAccess.error;
 
 
     if (!department_id || !week_start || !entries || !Array.isArray(entries)) {
-      return NextResponse.json({ 
-        success: false, 
-        error: 'department_id, week_start, and entries array required' 
+      return NextResponse.json({
+        success: false,
+        error: 'department_id, week_start, and entries array required'
       }, { status: 400 });
     }
 
+    // חופשות ומחלות מהטבלה הימנית של הקובץ (YOA-38) - גם כשאין שיבוצים
+    // (שבוע שכל הסידור שלו חי בטבלה הימנית)
+    const { count: leavesCount } = await replaceExcelLeaves(
+      supabase,
+      department_id,
+      week_start,
+      leaves
+    );
+
     if (entries.length === 0) {
-      return NextResponse.json({ success: true, count: 0, message: 'No entries to insert' });
+      return NextResponse.json({ success: true, count: 0, leavesCount, message: 'No entries to insert' });
     }
 
     // Prepare entries for insertion
@@ -52,10 +62,11 @@ export async function POST(request) {
 
     if (error) throw error;
 
-    return NextResponse.json({ 
-      success: true, 
+    return NextResponse.json({
+      success: true,
       count: data?.length || 0,
-      data 
+      leavesCount,
+      data
     });
   } catch (error) {
     console.error('Bulk insert error:', error);

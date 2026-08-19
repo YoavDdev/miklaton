@@ -21,7 +21,7 @@ export default function ScheduleUploadForm({ departmentId, token, staff, shifts,
     return data.success ? data.existingWeek : null;
   };
 
-  const uploader = async ({ week_start, newShifts, entries }) => {
+  const uploader = async ({ week_start, newShifts, entries, leaves }) => {
     const res = await fetch('/api/schedule-upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -32,6 +32,7 @@ export default function ScheduleUploadForm({ departmentId, token, staff, shifts,
         // הראוט מייצר את המשמרות החסרות ומחזיר את המזהים שלהן, ולכן
         // השיבוצים נשלחים עם המפתח ולא עם shift_id שעדיין לא קיים.
         newShifts,
+        leaves,
         entries: entries.map((e) => ({
           shift_key: e.shift_key,
           staff_id: e.staff_id,

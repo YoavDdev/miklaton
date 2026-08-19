@@ -146,6 +146,55 @@ describe('שעות בפועל בתא הן הנתון האמיתי (YOA-37)', () 
   });
 });
 
+describe('חופשות ומחלות מהטבלה הימנית (YOA-38)', () => {
+  // בכל גיליון יש טבלה שנייה: שורה לכל עובד (שם מלא) עם סטטוס יומי.
+  // חופש/מחלה/פגרה/קורס שם הם מקור האמת של ההיעדרויות - עד עכשיו
+  // המערכת הייתה עיוורת אליהם לגמרי.
+  const parsed = parseScheduleSheet(sheetRows('16.8-22.8'), STAFF, []);
+
+  it('עובד שמסומן מחלה כל השבוע יוצא כטווח אחד ראשון-שבת', () => {
+    // עומר פרץ - "מחלה" בכל שבעת הימים
+    const range = parsed.leaveRanges.find(r => r.staff_id === 's9');
+    expect(range).toMatchObject({ type: 'מחלה', from_day: 0, to_day: 6 });
+  });
+
+  it('פגרה של יום בודד יוצאת כטווח של יום אחד', () => {
+    // רונית ברקוביץ - פגרה ביום רביעי בלבד
+    const range = parsed.leaveRanges.find(r => r.staff_id === 's2' && r.type === 'פגרה');
+    expect(range).toMatchObject({ from_day: 3, to_day: 3 });
+  });
+
+  it('סוגים שונים ברצף נשארים טווחים נפרדים', () => {
+    // ורד פרידמן - חופש בשני, פגרה בשלישי-רביעי
+    const ranges = parsed.leaveRanges.filter(r => r.staff_id === 's7');
+    expect(ranges).toEqual([
+      expect.objectContaining({ type: 'חופש', from_day: 1, to_day: 1 }),
+      expect.objectContaining({ type: 'פגרה', from_day: 2, to_day: 3 }),
+    ]);
+  });
+
+  it('סטטוס עבודה או תא מעורב ("בוקר / פגרה") אינם חופשה', () => {
+    // בגיליון 2.8 יש "בוקר / פגרה" - עבודה חלקית, לא היעדרות
+    const p28 = parseScheduleSheet(sheetRows('2.8.26-8.8.26'), STAFF, []);
+    const mixed = p28.leaveRanges.filter(r => r.staff_id === 's6' && r.from_day === 2);
+    expect(mixed).toEqual([]);
+    // "בוקר"/"ערב"/"ללא"/"?" לעולם אינם חופשה
+    expect(parsed.leaveRanges.every(r => ['חופש', 'מחלה', 'פגרה', 'קורס'].includes(r.type))).toBe(true);
+  });
+
+  it('שם מלא בכתיב שונה מזוהה לפי שם פרטי ייחודי ("משה כהנוב" -> משה כהן)', () => {
+    const p28 = parseScheduleSheet(sheetRows('2.8.26-8.8.26'), STAFF, []);
+    const range = p28.leaveRanges.find(r => r.staff_id === 's1' && r.type === 'חופש');
+    expect(range).toMatchObject({ from_day: 4, to_day: 6 });
+  });
+
+  it('גיליון שכל הסידור שלו חי בטבלה הימנית עדיין מניב חופשות', () => {
+    const p28 = parseScheduleSheet(sheetRows('2.8.26-8.8.26'), STAFF, []);
+    expect(p28.entries.length).toBe(0);
+    expect(p28.leaveRanges.length).toBeGreaterThan(0);
+  });
+});
+
 describe('שורות שאינן שמות אינן הופכות לעובדים (YOA-35)', () => {
   const junky = parseScheduleSheet(sheetRows('24.5.26-30.5.26'), STAFF, []);
   const junky2 = parseScheduleSheet(sheetRows('17.5.26-23.5.26'), STAFF, []);

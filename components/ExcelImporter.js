@@ -140,9 +140,12 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
   const confirmImport = async () => {
     if (!preview) return;
 
-    // גיליון בלי שיבוצים (למשל שבוע שמנוהל רק בטבלת הסטטוס הימנית) -
-    // אישור היה מוחק את השבוע ומכניס כלום. חוסמים לפני הנזק (YOA-35).
-    if (preview.entries.length === 0) {
+    // גיליון בלי שיבוצים וגם בלי היעדרויות - אין מה לייבא, ואישור היה
+    // מוחק את השבוע ומכניס כלום (YOA-35). שבוע שמנוהל רק בטבלה הימנית
+    // כן עובר - מייבא היעדרויות בלי לגעת בסידור (YOA-38).
+    const hasEntries = preview.entries.length > 0;
+    const hasLeaves = (preview.leaveRanges || []).length > 0;
+    if (!hasEntries && !hasLeaves) {
       toast.error('בגיליון הזה אין שיבוצים - הייבוא בוטל כדי לא למחוק את הסידור הקיים');
       return;
     }
@@ -160,17 +163,54 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
         : currentWeekStart;
       const weekStartStr = formatDateForDB(targetWeekStart);
 
+      // היעדרויות מהטבלה הימנית -> טווחי תאריכים אמיתיים בתוך השבוע.
+      // רק שמות שזוהו נשלחים - אין רשומת חופשה בלי עובד.
+      const dayDate = (offset) => {
+        const d = new Date(targetWeekStart);
+        d.setDate(d.getDate() + offset);
+        return formatDateForDB(d);
+      };
+      const leaves = (preview.leaveRanges || []).map((r) => ({
+        staff_id: r.staff_id,
+        staff_name: r.staff_name,
+        start_date: dayDate(r.from_day),
+        end_date: dayDate(r.to_day),
+        reason: r.type,
+      }));
+
+      const successToast = (count, leavesCount) =>
+        toast.success(
+          `✅ ${count} שיבוצים יובאו לשבוע ${weekStartStr} מהגיליון "${preview.sheetName}"` +
+            (preview.existingWeek?.count > 0 ? ` (החליפו ${preview.existingWeek.count} קיימים)` : '') +
+            (leavesCount > 0 ? ` + ${leavesCount} היעדרויות` : '')
+        );
+
       if (uploader) {
         // מסלול הקישור החתום: העלאה אחת, בלי שלוש קריאות מאומתות
         const result = await uploader({
           week_start: weekStartStr,
           newShifts: preview.newShifts,
           entries: preview.entries,
+          leaves,
         });
-        toast.success(
-          `✅ ${result.count} שיבוצים יובאו לשבוע ${weekStartStr} מהגיליון "${preview.sheetName}"` +
-            (preview.existingWeek?.count > 0 ? ` (החליפו ${preview.existingWeek.count} קיימים)` : '')
-        );
+        successToast(result.count, result.leavesCount || 0);
+        setPreview(null);
+        setWorkbookData(null);
+        if (onImportComplete) onImportComplete(targetWeekStart);
+        return;
+      }
+
+      // גיליון של היעדרויות בלבד (הסידור חי בטבלה הימנית): לא נוגעים
+      // בסידור השבוע - רק מייבאים את ההיעדרויות.
+      if (!hasEntries) {
+        const res = await fetch('/api/security-schedule/bulk-insert', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ department_id: departmentId, week_start: weekStartStr, entries: [], leaves }),
+        });
+        const result = await res.json();
+        if (!result.success) throw new Error(result.error);
+        successToast(0, result.leavesCount || 0);
         setPreview(null);
         setWorkbookData(null);
         if (onImportComplete) onImportComplete(targetWeekStart);
@@ -224,15 +264,13 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
             actual_end: e.actual_end,
             notes: e.notes,
           })),
+          leaves,
         }),
       });
       const result = await insertRes.json();
       if (!result.success) throw new Error(result.error);
 
-      toast.success(
-        `✅ ${result.count} שיבוצים יובאו לשבוע ${weekStartStr} מהגיליון "${preview.sheetName}"` +
-          (preview.existingWeek?.count > 0 ? ` (החליפו ${preview.existingWeek.count} קיימים)` : '')
-      );
+      successToast(result.count, result.leavesCount || 0);
       setPreview(null);
       setWorkbookData(null);
       // מעבירים את השבוע שאליו יובא, כדי שהמסך יקפוץ אליו במקום להישאר על
@@ -315,6 +353,22 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
                 <div className="mb-3 p-2 bg-purple-50 border border-purple-200 rounded-lg text-xs text-purple-700">
                   <strong>שמות שלא נמצאו ברשימת העובדים (ייובאו כשם ידני):</strong>{' '}
                   {preview.manualNames.join(', ')}
+                </div>
+              )}
+              {(preview.leaveRanges || []).length > 0 && (
+                <div className="mb-3 p-2 bg-teal-50 border border-teal-200 rounded-lg text-xs text-teal-800">
+                  <strong>חופשות ומחלות שזוהו בקובץ (ייכנסו למסך ניהול החופשים):</strong>
+                  <ul className="mt-1 list-disc pr-4">
+                    {preview.leaveRanges.map((r, i) => (
+                      <li key={i}>
+                        {r.staff_name} — {r.type}{' '}
+                        {r.from_day === r.to_day
+                          ? `(${DAY_NAMES[r.from_day]})`
+                          : `(${DAY_NAMES[r.from_day]}–${DAY_NAMES[r.to_day]})`}
+                        {!r.staff_id && <span className="text-red-600 font-semibold"> — לא זוהה ברשימת העובדים, לא ייובא</span>}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
               {preview.skippedTokens.length > 0 && (
