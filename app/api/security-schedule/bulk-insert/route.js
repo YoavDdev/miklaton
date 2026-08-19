@@ -33,6 +33,10 @@ export async function POST(request) {
       staff_name: entry.staff_name || null, // Manual name for trainees/temporary workers
       day_of_week: entry.day_of_week,
       is_backup: entry.is_backup || false,
+      // שעות שנכתבו בתא של העובד - השעות שבהן עובדים בפועל (YOA-37).
+      // null = יורש את שעות המשמרת.
+      actual_start: entry.actual_start || null,
+      actual_end: entry.actual_end || null,
       notes: entry.notes || null
     }));
 

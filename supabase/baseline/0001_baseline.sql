@@ -1485,6 +1485,8 @@ CREATE TABLE IF NOT EXISTS "public"."security_weekly_schedule" (
     "created_at" timestamp with time zone DEFAULT "now"(),
     "updated_at" timestamp with time zone DEFAULT "now"(),
     "staff_name" "text",
+    "actual_start" time without time zone,
+    "actual_end" time without time zone,
     CONSTRAINT "security_weekly_schedule_day_of_week_check" CHECK ((("day_of_week" >= 0) AND ("day_of_week" <= 6)))
 );
 

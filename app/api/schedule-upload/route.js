@@ -149,6 +149,10 @@ export async function POST(request) {
         staff_name: e.staff_id ? null : e.staff_name || null,
         day_of_week: e.day_of_week,
         is_backup: e.is_backup || false,
+        // שעות שנכתבו בתא של העובד - השעות שבהן עובדים בפועל (YOA-37).
+        // null = יורש את שעות המשמרת.
+        actual_start: e.actual_start || null,
+        actual_end: e.actual_end || null,
         notes: e.notes || null,
       }));
       const { error: insertError } = await supabase

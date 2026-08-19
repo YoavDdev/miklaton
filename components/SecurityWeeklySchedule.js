@@ -686,6 +686,12 @@ function ExcelTable({ title, titleBg, shifts, weekDates, staff, allStaff, getCel
                                   {entry.staff?.full_name || entry.staff_name}
                                   {onLeave && <span className="text-[9px] text-red-500 no-underline"> 🏖️</span>}
                                   {entry.is_backup && !onLeave && <span className="text-[9px] text-orange-600"> (חלופי)</span>}
+                                  {/* שעות בפועל מהתא באקסל - כמו שהמנהל כותב אותן בקובץ (YOA-37) */}
+                                  {(entry.actual_start || entry.actual_end) && (
+                                    <div className="text-[9px] font-bold text-blue-600" dir="ltr">
+                                      {(entry.actual_start || shift.start_time)?.slice(0, 5)}-{(entry.actual_end || shift.end_time)?.slice(0, 5)}
+                                    </div>
+                                  )}
                                 </div>
                               );
                             })}
@@ -834,10 +840,11 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
         const shift = shifts.find(s => s.id === entry.shift_id);
         const staffMember = staff.find(s => s.id === entry.staff_id);
         const category = shift?.category || staffMember?.role || 'פיקוח';
-        const startTime = shift?.start_time || '07:00';
-        const endTime = shift?.end_time || '15:00';
+        // שעות בפועל מהתא באקסל גוברות על שעות המשמרת (YOA-37)
+        const startTime = entry.actual_start?.slice(0, 5) || shift?.start_time || '07:00';
+        const endTime = entry.actual_end?.slice(0, 5) || shift?.end_time || '15:00';
         const defaultTasks = category === 'שיטור' ? [...tasksShitur] : [...tasksPikuach];
-        
+
         // Check if we have saved details for this staff+time
         const savedDetail = savedEntriesMap.get(`${entry.staff_id}-${startTime}`);
         
@@ -903,8 +910,9 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
       const shift = shifts.find(s => s.id === entry.shift_id);
       const staffMember = staff.find(s => s.id === entry.staff_id);
       const category = shift?.category || staffMember?.role || 'פיקוח';
-      const startTime = shift?.start_time || '07:00';
-      const endTime = shift?.end_time || '15:00';
+      // שעות בפועל מהתא באקסל גוברות על שעות המשמרת (YOA-37)
+      const startTime = entry.actual_start?.slice(0, 5) || shift?.start_time || '07:00';
+      const endTime = entry.actual_end?.slice(0, 5) || shift?.end_time || '15:00';
       const defaultTasks = category === 'שיטור' ? [...tasksShitur] : [...tasksPikuach];
 
       // Check if this assignment already exists

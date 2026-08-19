@@ -194,6 +194,8 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
             staff_name: e.staff_id ? null : e.staff_name,
             day_of_week: e.day_of_week,
             is_backup: e.is_backup,
+            actual_start: e.actual_start,
+            actual_end: e.actual_end,
             notes: e.notes,
           })),
         }),
@@ -306,7 +308,13 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
                       {!entry.staff_id && <span className="text-purple-600 text-xs"> (ידני)</span>}
                     </span>
                     <span className="text-gray-600">{DAY_NAMES[entry.day_of_week]}</span>
-                    <span className="text-blue-600 whitespace-nowrap">{entry.shift_start}-{entry.shift_end}</span>
+                    {/* השעות האפקטיביות - כדי שהמנהל יראה שהמערכת הבינה את מה שכתב בתא */}
+                    <span className="text-blue-600 whitespace-nowrap">
+                      {entry.actual_start || entry.shift_start}-{entry.actual_end || entry.shift_end}
+                      {(entry.actual_start || entry.actual_end) && (
+                        <span className="text-gray-400 text-[10px]"> (במקום {entry.shift_start}-{entry.shift_end})</span>
+                      )}
+                    </span>
                     <span className="text-gray-500 text-[10px] hidden sm:inline">{entry.category}</span>
                     {entry.notes && <span className="text-gray-400 text-[10px] truncate max-w-[90px]">{entry.notes}</span>}
                     {entry.is_backup && <span className="text-orange-600 text-xs">(חלופי)</span>}

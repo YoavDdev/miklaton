@@ -53,9 +53,11 @@ describe('גיליון שבוע מלא ותקין', () => {
     expect(parsed.entries.every(e => e.staff_id)).toBe(true);
   });
 
-  it('תיקון שעות בתא ("07:00-16:00" מתחת לשם) נשמר כהערה ולא כעובד', () => {
-    const withOverride = parsed.entries.filter(e => e.notes?.includes('07:00-16:00'));
+  it('תיקון שעות בתא ("07:00-16:00" מתחת לשם) הופך לשעות בפועל, לא לעובד', () => {
+    // עד YOA-37 זה נשמר כהערת טקסט; עכשיו זה שדה אמיתי על השיבוץ.
+    const withOverride = parsed.entries.filter(e => e.actual_end === '16:00');
     expect(withOverride.length).toBeGreaterThan(0);
+    expect(parsed.entries.some(e => e.staff_name.includes('07:00'))).toBe(false);
   });
 
   it('רכב בסוגריים נשמר כהערה', () => {
@@ -74,6 +76,73 @@ describe('שבוע שמנוהל רק בטבלת הסטטוס הימנית', () =
     // (סטטוס פר עובד). הפרסר לא קורא אותן - אסור שהן ידלפו כשיבוצים.
     const parsed = parseScheduleSheet(sheetRows('2.8.26-8.8.26'), STAFF, []);
     expect(parsed.entries.length).toBe(0);
+  });
+});
+
+describe('שעות בפועל בתא הן הנתון האמיתי (YOA-37)', () => {
+  // כשאריאל כותב שעות בתא של עובד - אלה השעות הנכונות; שורת המשמרת היא
+  // תבנית בלבד. השעות עוברות לשדות actual_start/actual_end, לא להערה.
+  const parsed = parseScheduleSheet(sheetRows('16.8-22.8'), STAFF, []);
+
+  it('טווח מלא בתא ("12:00-22:00" מתחת לשם) הופך לשעות בפועל', () => {
+    // רבקה, יום שישי, בשורת המשמרת 10:00-18:00 - עובדת בפועל 12:00-22:00
+    const entry = parsed.entries.find(
+      e => e.staff_id === 's5' && e.day_of_week === 5 && e.shift_start === '10:00'
+    );
+    expect(entry.actual_start).toBe('12:00');
+    expect(entry.actual_end).toBe('22:00');
+  });
+
+  it('השעות אינן משוכפלות גם כהערה', () => {
+    const entry = parsed.entries.find(
+      e => e.staff_id === 's5' && e.day_of_week === 5 && e.shift_start === '10:00'
+    );
+    expect(entry.notes || '').not.toContain('12:00-22:00');
+    expect(entry.notes).toContain('סיאט'); // הרכב נשאר הערה
+  });
+
+  it('משמרת הלילה השיטתית: השורה אומרת 18:00-03:00, כולם בפועל 19:00-04:00', () => {
+    const night = parsed.entries.filter(
+      e => e.category === 'שיטור' && e.shift_start === '18:00' && e.actual_start
+    );
+    expect(night.length).toBeGreaterThanOrEqual(5);
+    expect(night.every(e => e.actual_start === '19:00' || e.actual_start === '20:00')).toBe(true);
+  });
+
+  it('"עד 11:00" קובע רק שעת סיום; ההתחלה יורשת מהמשמרת (null)', () => {
+    // רונית, יום ראשון, 07:00-15:00 - "עד 11:00"
+    const entry = parsed.entries.find(
+      e => e.staff_id === 's2' && e.day_of_week === 0 && e.shift_start === '07:00'
+    );
+    expect(entry.actual_end).toBe('11:00');
+    expect(entry.actual_start).toBeNull();
+    expect(entry.notes || '').not.toContain('עד');
+  });
+
+  it('שיבוץ בלי שעות בתא נשאר עם null - יורש את שעות המשמרת', () => {
+    const plain = parsed.entries.find(e => !e.actual_start && !e.actual_end);
+    expect(plain).toBeTruthy();
+    expect(plain.actual_start).toBeNull();
+    expect(plain.actual_end).toBeNull();
+  });
+
+  it('"מ-14:00" קובע רק שעת התחלה', () => {
+    const rows = [
+      ['משמרת', 'מחלקה', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'],
+      ['07:00-15:00', 'פיקוח', 'משה מ-14:00'],
+    ];
+    const { entries } = parseScheduleSheet(rows, STAFF, []);
+    expect(entries[0].actual_start).toBe('14:00');
+    expect(entries[0].actual_end).toBeNull();
+  });
+
+  it('"עד 11" בלי דקות מנורמל ל-11:00', () => {
+    const rows = [
+      ['משמרת', 'מחלקה', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'],
+      ['07:00-15:00', 'פיקוח', 'משה עד 11'],
+    ];
+    const { entries } = parseScheduleSheet(rows, STAFF, []);
+    expect(entries[0].actual_end).toBe('11:00');
   });
 });
 

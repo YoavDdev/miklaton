@@ -69,8 +69,10 @@ export async function GET(request) {
     const savedEntriesMap = new Map(savedEntries.map(e => [`${e.staff_id}-${e.start_time}`, e]));
     
     const merged = (scheduleEntries || []).map(entry => {
-      const startTime = entry.shift?.start_time || '07:00';
-      const endTime = entry.shift?.end_time || '15:00';
+      // שעות בפועל מהתא באקסל גוברות על שעות המשמרת - ככה המנהל עושה
+      // שינויים במשמרת (YOA-37). המשמרת היא ברירת המחדל בלבד.
+      const startTime = entry.actual_start?.slice(0, 5) || entry.shift?.start_time || '07:00';
+      const endTime = entry.actual_end?.slice(0, 5) || entry.shift?.end_time || '15:00';
       const category = entry.shift?.category || entry.staff?.role || 'פיקוח';
       
       // Check if we have saved details for this staff+time
