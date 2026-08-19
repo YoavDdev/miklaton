@@ -473,6 +473,12 @@ export default function CallCenterManagerPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <h1 className="text-xl font-bold">📋 ניהול מוקד</h1>
           <div className="flex items-center gap-2">
+            <a
+              href="/daily-report"
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-bold bg-white/10 hover:bg-white/20 border-2 border-white/20 text-white"
+            >
+              📄 דוח סיכום יומי
+            </a>
             <button
               onClick={async () => {
                 const username = localStorage.getItem('username') || 'מנהל מוקד';
