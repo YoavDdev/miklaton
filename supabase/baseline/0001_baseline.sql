@@ -901,6 +901,21 @@ CREATE TABLE IF NOT EXISTS "public"."contacts" (
 ALTER TABLE "public"."contacts" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."daily_reports" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "municipality_id" "uuid" NOT NULL,
+    "report_date" "date" NOT NULL,
+    "produced_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "produced_by" "uuid",
+    "produced_by_name" "text",
+    "source_file_name" "text",
+    "snapshot" "jsonb" NOT NULL
+);
+
+
+ALTER TABLE "public"."daily_reports" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."daily_updates" (
     "id" "uuid" DEFAULT "extensions"."uuid_generate_v4"() NOT NULL,
     "municipality_id" "uuid",
@@ -1672,6 +1687,11 @@ ALTER TABLE ONLY "public"."call_center_staff"
 
 ALTER TABLE ONLY "public"."contacts"
     ADD CONSTRAINT "contacts_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."daily_reports"
+    ADD CONSTRAINT "daily_reports_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2723,6 +2743,9 @@ ALTER TABLE "public"."call_center_staff" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."contacts" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."daily_reports" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."daily_updates" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3187,6 +3210,11 @@ GRANT ALL ON TABLE "public"."call_center_staff" TO "service_role";
 GRANT ALL ON TABLE "public"."contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."contacts" TO "service_role";
 GRANT SELECT ON TABLE "public"."contacts" TO "anon";
+
+
+
+GRANT ALL ON TABLE "public"."daily_reports" TO "authenticated";
+GRANT ALL ON TABLE "public"."daily_reports" TO "service_role";
 
 
 
