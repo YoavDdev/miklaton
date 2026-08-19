@@ -84,7 +84,7 @@ export async function POST(request, { params }) {
     if (error) throw error;
 
     // Add journal entry
-    await supabase.from('event_journal').insert({
+    const { error: journalError } = await supabase.from('event_journal').insert({
       event_id: eventId,
       participant_id: data.id,
       author_name: finalDisplayName,
@@ -92,6 +92,7 @@ export async function POST(request, { params }) {
       entry_type: 'system',
       content: `${finalDisplayName} הצטרף/ה לאירוע`,
     });
+    if (journalError) console.error('event journal write failed:', journalError);
 
     return NextResponse.json({ 
       success: true, 

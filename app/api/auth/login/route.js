@@ -39,12 +39,13 @@ export async function POST(request) {
       console.error('Login error:', authError);
       
       // Audit log for failed login
-      await supabase.from('audit_log').insert({
+      const { error: auditError } = await supabase.from('audit_log').insert({
         action: 'login_failed',
         details: { email, reason: authError.message },
         ip_address: request.headers.get('x-forwarded-for') || 'unknown',
         user_agent: request.headers.get('user-agent')
       });
+      if (auditError) console.error('login audit write failed:', auditError);
 
       return NextResponse.json(
         { error: 'אימייל או סיסמה שגויים' },
@@ -114,13 +115,14 @@ export async function POST(request) {
     });
 
     // Audit log for successful login
-    await supabase.from('audit_log').insert({
+    const { error: loginAuditError } = await supabase.from('audit_log').insert({
       user_id: authData.user.id,
       action: 'login_success',
       details: { role: profile.role },
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
     });
+    if (loginAuditError) console.error('login audit write failed:', loginAuditError);
 
     const response = NextResponse.json({ 
       success: true,

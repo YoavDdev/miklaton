@@ -149,11 +149,13 @@ export async function POST(request) {
 
     // If entries provided, delete old ones and insert new
     if (entries && Array.isArray(entries)) {
-      // Delete existing entries
-      await supabase
+      // Delete existing entries. כשל שקט כאן היה משאיר את הישנות ומוסיף
+      // את החדשות - פקודת יום כפולה.
+      const { error: deleteError } = await supabase
         .from('security_daily_order_entries')
         .delete()
         .eq('order_id', order.id);
+      if (deleteError) throw deleteError;
 
       // Insert new entries
       if (entries.length > 0) {

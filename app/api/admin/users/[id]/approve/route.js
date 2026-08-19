@@ -41,7 +41,7 @@ export async function POST(request, { params }) {
     }
 
     // Audit log
-    await supabase.from('audit_log').insert({
+    const { error: auditError } = await supabase.from('audit_log').insert({
       user_id: decoded.userId,
       action: 'user_approved',
       resource_type: 'user',
@@ -49,6 +49,7 @@ export async function POST(request, { params }) {
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
     });
+    if (auditError) console.error('user_approved audit write failed:', auditError);
 
     return NextResponse.json({
       success: true,

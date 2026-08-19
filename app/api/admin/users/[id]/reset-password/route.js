@@ -30,11 +30,12 @@ export async function POST(request, { params }) {
     // סיסמה זמנית קבועה בלי אכיפת החלפה, והאדמין היה רואה הצלחה).
 
     // ביטול איפוסים קודמים שלא נוצלו (מונע כפילויות)
-    await supabase
+    const { error: cancelError } = await supabase
       .from('password_resets')
       .update({ used_at: new Date().toISOString() })
       .eq('user_id', userId)
       .is('used_at', null);
+    if (cancelError) console.error('cancel of prior password_resets failed:', cancelError);
 
     // רישום האיפוס — בלי הסיסמה עצמה (היא נמסרת פעם אחת בתשובה לאדמין בלבד)
     const { error: insertError } = await supabase
@@ -54,11 +55,27 @@ export async function POST(request, { params }) {
       );
     }
 
-    // דגל גם בפרופיל (ה-login קורא אותו — מכסה גם משתמשים שנוצרו ע"י אדמין)
-    await supabase
+    // דגל גם בפרופיל (ה-login קורא אותו — מכסה גם משתמשים שנוצרו ע"י אדמין).
+    // עדיין לא נגענו בסיסמה, אז כשל כאן עוצר את התהליך במקום להשאיר
+    // סיסמה זמנית בלי אכיפת החלפה.
+    const { error: flagError } = await supabase
       .from('user_profiles')
       .update({ must_change_password: true })
       .eq('id', userId);
+
+    if (flagError) {
+      console.error('must_change_password flag failed:', flagError);
+      const { error: undoError } = await supabase
+        .from('password_resets')
+        .update({ used_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .is('used_at', null);
+      if (undoError) console.error('password_resets undo failed:', undoError);
+      return NextResponse.json(
+        { error: 'שגיאה ברישום האיפוס - הסיסמה לא שונתה' },
+        { status: 500 }
+      );
+    }
 
     // עדכון סיסמה ב-Supabase Auth
     const { error: updateError } = await supabase.auth.admin.updateUserById(
@@ -69,15 +86,17 @@ export async function POST(request, { params }) {
     if (updateError) {
       console.error('Reset password error:', updateError);
       // ביטול הרישום והדגל שנוצרו — הסיסמה לא שונתה בפועל
-      await supabase
+      const { error: undoResetError } = await supabase
         .from('password_resets')
         .update({ used_at: new Date().toISOString() })
         .eq('user_id', userId)
         .is('used_at', null);
-      await supabase
+      if (undoResetError) console.error('password_resets undo failed:', undoResetError);
+      const { error: undoFlagError } = await supabase
         .from('user_profiles')
         .update({ must_change_password: false })
         .eq('id', userId);
+      if (undoFlagError) console.error('must_change_password undo failed:', undoFlagError);
       return NextResponse.json(
         { error: 'שגיאה באיפוס סיסמה' },
         { status: 500 }
@@ -92,7 +111,7 @@ export async function POST(request, { params }) {
       .single();
 
     // Audit log
-    await supabase.from('audit_log').insert({
+    const { error: auditError } = await supabase.from('audit_log').insert({
       user_id: decoded.userId,
       action: 'password_reset_by_admin',
       resource_type: 'user',
@@ -101,6 +120,7 @@ export async function POST(request, { params }) {
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
     });
+    if (auditError) console.error('password_reset_by_admin audit write failed:', auditError);
 
     return NextResponse.json({
       success: true,

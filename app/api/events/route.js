@@ -67,22 +67,25 @@ export async function POST(request) {
 
     if (error) throw error;
 
-    // Auto-add creator as participant
-    await supabase.from('event_participants').insert({
+    // Auto-add creator as participant. האירוע כבר נוצר - כשל כאן לא מפיל
+    // את הבקשה (הפותח יכול להצטרף ידנית), אבל חייב להיראות בלוגים.
+    const { error: participantError } = await supabase.from('event_participants').insert({
       event_id: data.id,
       user_id: auth.user.userId,
       display_name: userProfile?.full_name || 'לא ידוע',
       role: auth.user.role,
       status: 'confirmed',
     });
+    if (participantError) console.error('creator participant insert failed:', participantError);
 
     // Add system journal entry
-    await supabase.from('event_journal').insert({
+    const { error: journalError } = await supabase.from('event_journal').insert({
       event_id: data.id,
       author_name: 'מערכת',
       entry_type: 'system',
       content: `אירוע נפתח על ידי ${userProfile?.full_name || 'לא ידוע'}`,
     });
+    if (journalError) console.error('event journal write failed:', journalError);
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
@@ -134,12 +137,13 @@ export async function PATCH(request) {
       if (error) throw error;
 
       // System journal entry
-      await supabase.from('event_journal').insert({
+      const { error: closeJournalError } = await supabase.from('event_journal').insert({
         event_id: id,
         author_name: 'מערכת',
         entry_type: 'system',
         content: `אירוע נסגר על ידי ${userProfile?.full_name || 'לא ידוע'}`,
       });
+      if (closeJournalError) console.error('event journal write failed:', closeJournalError);
 
       return NextResponse.json({ success: true, data });
     }

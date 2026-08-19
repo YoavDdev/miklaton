@@ -146,17 +146,19 @@ export async function DELETE(request) {
     // Delete all shifts for these contacts
     if (contacts && contacts.length > 0) {
       const contactIds = contacts.map(c => c.id);
-      await supabase
+      const { error: shiftsError } = await supabase
         .from('on_call_shifts')
         .delete()
         .in('contact_id', contactIds);
+      if (shiftsError) throw shiftsError;
     }
 
     // Delete all contacts for this department
-    await supabase
+    const { error: contactsError } = await supabase
       .from('on_call_contacts')
       .delete()
       .eq('department_id', id);
+    if (contactsError) throw contactsError;
 
     // Delete the department
     const { error } = await supabase

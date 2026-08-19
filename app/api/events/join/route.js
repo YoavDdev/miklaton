@@ -60,10 +60,13 @@ export async function POST(request) {
 
     if (existingParticipant) {
       if (action === 'decline') {
-        await supabase
+        // הסירוב הוא מטרת הבקשה - כשל בו חייב להיכשל, לא להחזיר
+        // "declined" מדומה על משתתף שנשאר מאושר.
+        const { error: declineError } = await supabase
           .from('event_participants')
           .update({ status: 'declined' })
           .eq('id', existingParticipant.id);
+        if (declineError) throw declineError;
 
         return NextResponse.json({
           success: true,
@@ -202,13 +205,14 @@ export async function POST(request) {
       if (error) throw error;
 
       // Journal entry
-      await supabase.from('event_journal').insert({
+      const { error: journalError } = await supabase.from('event_journal').insert({
         event_id: event.id,
         participant_id: data.id,
         author_name: 'מערכת',
         entry_type: 'system',
         content: `${participantData.display_name} הצטרף/ה לאירוע`,
       });
+      if (journalError) console.error('event journal write failed:', journalError);
 
       return NextResponse.json({ success: true, data, event: publicEvent(event), message: 'joined' });
     }

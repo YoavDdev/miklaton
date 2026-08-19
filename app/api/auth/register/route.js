@@ -78,7 +78,8 @@ export async function POST(request) {
     if (profileError) {
       console.error('Profile creation error:', profileError);
       // אם נכשל ליצור profile, מוחקים את המשתמש
-      await supabase.auth.admin.deleteUser(authData.user.id);
+      const { error: cleanupError } = await supabase.auth.admin.deleteUser(authData.user.id);
+      if (cleanupError) console.error('register rollback (deleteUser) failed:', cleanupError);
       return NextResponse.json(
         { error: 'שגיאה ביצירת פרופיל משתמש', details: profileError.message },
         { status: 500 }
@@ -86,7 +87,7 @@ export async function POST(request) {
     }
 
     // הוספת audit log
-    await supabase.from('audit_log').insert({
+    const { error: auditError } = await supabase.from('audit_log').insert({
       user_id: authData.user.id,
       action: 'user_registered',
       details: {
@@ -97,6 +98,7 @@ export async function POST(request) {
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
     });
+    if (auditError) console.error('register audit write failed:', auditError);
 
     // בדיקה אם צריך אישור Admin
     const { data: settings } = await supabase

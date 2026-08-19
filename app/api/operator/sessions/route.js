@@ -83,10 +83,11 @@ export async function POST(request) {
       // סגור כפילויות - השאר רק את הסשן האחרון
       if (activeSessions.length > 1) {
         const duplicateIds = activeSessions.slice(1).map(s => s.id);
-        await supabase
+        const { error: closeError } = await supabase
           .from('operator_sessions')
           .update({ is_active: false, session_end: new Date().toISOString() })
           .in('id', duplicateIds);
+        if (closeError) console.error('duplicate session close failed:', closeError);
       }
 
       // עדכן last_activity בסשן האחרון

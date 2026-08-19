@@ -107,27 +107,32 @@ export async function PUT(request) {
       );
     }
 
-    // עדכון must_change_password ל-false ב-user_profiles
-    await supabase
+    // עדכון must_change_password ל-false ב-user_profiles.
+    // הסיסמה כבר שונתה - כשל כאן לא מפיל את הבקשה, אבל חייב להישמע:
+    // המשמעות היא שהמשתמש יידרש להחליף סיסמה שוב בהתחברות הבאה.
+    const { error: flagError } = await supabase
       .from('user_profiles')
       .update({ must_change_password: false })
       .eq('id', decoded.userId);
+    if (flagError) console.error('must_change_password clear failed:', flagError);
 
     // סימון כל האיפוסים הפתוחים כמנוצלים (ייתכנו כמה אם האדמין איפס פעמיים)
-    await supabase
+    const { error: resetsError } = await supabase
       .from('password_resets')
       .update({ used_at: new Date().toISOString() })
       .eq('user_id', decoded.userId)
       .is('used_at', null);
+    if (resetsError) console.error('password_resets close failed:', resetsError);
 
     // Audit log
-    await supabase.from('audit_log').insert({
+    const { error: auditError } = await supabase.from('audit_log').insert({
       user_id: decoded.userId,
       action: isPasswordReset ? 'password_changed_after_reset' : 'password_changed',
       details: { method: isPasswordReset ? 'forced_change' : 'voluntary_change' },
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
     });
+    if (auditError) console.error('change-password audit write failed:', auditError);
 
     // הנפקת טוקן חדש בלי דגל mustChangePassword — אחרת ה-middleware
     // ימשיך להפנות ל-/change-password עד ההתחברות הבאה

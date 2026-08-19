@@ -12,7 +12,11 @@ async function syncShabbatObserverToContacts(supabase, name, phone, isObserver) 
       .ilike('full_name', name.trim());
     const contact = matches?.find(c => c.phone.replace(/\D/g, '') === normalizedPhone);
     if (contact) {
-      await supabase.from('contacts').update({ shabbat_observer: !!isObserver }).eq('id', contact.id);
+      const { error: syncError } = await supabase
+        .from('contacts')
+        .update({ shabbat_observer: !!isObserver })
+        .eq('id', contact.id);
+      if (syncError) console.error('shabbat_observer sync failed:', syncError);
     }
   } catch (err) {
     console.error('Failed to sync shabbat_observer to contacts:', err);

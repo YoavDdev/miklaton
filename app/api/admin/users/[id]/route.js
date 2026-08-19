@@ -45,7 +45,7 @@ export async function PUT(request, { params }) {
     }
 
     // Audit log
-    await supabase.from('audit_log').insert({
+    const { error: updateAuditError } = await supabase.from('audit_log').insert({
       user_id: decoded.userId,
       action: 'user_updated',
       resource_type: 'user',
@@ -54,6 +54,7 @@ export async function PUT(request, { params }) {
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
     });
+    if (updateAuditError) console.error('user_updated audit write failed:', updateAuditError);
 
     return NextResponse.json({
       success: true,
@@ -96,7 +97,7 @@ export async function DELETE(request, { params }) {
     }
 
     // Audit log
-    await supabase.from('audit_log').insert({
+    const { error: deleteAuditError } = await supabase.from('audit_log').insert({
       user_id: decoded.userId,
       action: 'user_deleted',
       resource_type: 'user',
@@ -104,6 +105,7 @@ export async function DELETE(request, { params }) {
       ip_address: request.headers.get('x-forwarded-for') || 'unknown',
       user_agent: request.headers.get('user-agent')
     });
+    if (deleteAuditError) console.error('user_deleted audit write failed:', deleteAuditError);
 
     return NextResponse.json({
       success: true,

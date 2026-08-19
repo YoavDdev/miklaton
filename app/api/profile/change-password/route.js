@@ -92,22 +92,25 @@ export async function POST(request) {
       );
     }
 
-    // עדכון שלא צריך לשנות סיסמה
+    // עדכון שלא צריך לשנות סיסמה. הסיסמה כבר שונתה - כשל כאן לא מפיל
+    // את הבקשה, אבל נרשם: המשתמש יידרש להחליף סיסמה שוב בהתחברות הבאה.
     console.log('✅ סיסמה עודכנה בהצלחה, מעדכן must_change_password');
-    await supabase
+    const { error: flagError } = await supabase
       .from('user_profiles')
       .update({
         must_change_password: false,
         updated_at: new Date().toISOString()
       })
       .eq('id', decoded.userId);
+    if (flagError) console.error('must_change_password clear failed:', flagError);
 
     // סימון איפוסים פתוחים כמנוצלים — אחרת המשתמש יסומן שוב בהתחברות הבאה
-    await supabase
+    const { error: resetsError } = await supabase
       .from('password_resets')
       .update({ used_at: new Date().toISOString() })
       .eq('user_id', decoded.userId)
       .is('used_at', null);
+    if (resetsError) console.error('password_resets close failed:', resetsError);
 
     console.log('🎉 הכל הצליח!');
     // הנפקת טוקן חדש בלי דגל mustChangePassword (ראה auth/change-password)
