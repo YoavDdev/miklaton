@@ -40,7 +40,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
             jsonData.push(row);
           }
           
-          console.log(`Read ${jsonData.length} rows from Excel`);
           resolve(jsonData);
         } catch (error) {
           reject(error);
@@ -60,7 +59,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
     const weekDate = new Date(currentWeekStart);
     const expectedDate = `${String(weekDate.getDate()).padStart(2, '0')}.${String(weekDate.getMonth() + 1).padStart(2, '0')}`;
     
-    console.log(`Looking for week starting with date: ${expectedDate}`);
     
     // Find the row with day names that matches our week's dates
     // Search through the entire file as there might be multiple week tables
@@ -83,10 +81,7 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
         const nextRow = rawData[i + 1];
         if (nextRow && nextRow.some(cell => cell && cell.toString().includes(expectedDate))) {
           dayRowIndex = i;
-          console.log(`✅ Found matching day row at index ${i} for week ${expectedDate}`);
           break;
-        } else {
-          console.log(`Found day row at ${i} but dates don't match our week`);
         }
       }
     }
@@ -97,8 +92,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       return entries;
     }
     
-    console.log(`Found day row at index ${dayRowIndex}`);
-    console.log('Day row content:', rawData[dayRowIndex]);
     
     // Find which column has "יום ראשון" - that's where the days start
     const dayRow = rawData[dayRowIndex];
@@ -110,7 +103,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       return entries;
     }
     
-    console.log(`Days start at column ${dayStartCol}`);
     
     // Process each row after dates row (limited to reasonable range)
     let lastShiftName = ''; // Remember last shift name for rows without shift type
@@ -204,7 +196,6 @@ export default function CallCenterExcelImporter({ departmentId, currentWeekStart
       }
     }
     
-    console.log(`Parsed ${entries.length} total entries`);
     return entries;
   };
 

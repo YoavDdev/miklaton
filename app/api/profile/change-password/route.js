@@ -10,10 +10,8 @@ const supabase = createClient(
 
 // POST - שינוי סיסמה
 export async function POST(request) {
-  console.log('🔵 API /api/profile/change-password - התחלה');
   try {
     const token = request.cookies.get('auth-token')?.value;
-    console.log('🔑 Token exists:', !!token);
 
     if (!token) {
       return NextResponse.json(
@@ -23,7 +21,6 @@ export async function POST(request) {
     }
 
     const decoded = verifyToken(token);
-    console.log('👤 Decoded user:', decoded?.userId, decoded?.role);
     if (!decoded) {
       return NextResponse.json(
         { error: 'טוקן לא תקין' },
@@ -36,7 +33,6 @@ export async function POST(request) {
     if (limited) return limited;
 
     const { currentPassword, newPassword } = await request.json();
-    console.log('📝 Request data - currentPassword exists:', !!currentPassword, 'newPassword exists:', !!newPassword);
 
     // ולידציה
     if (!currentPassword || !newPassword) {
@@ -67,10 +63,8 @@ export async function POST(request) {
       email: decoded.email,
       password: currentPassword
     });
-    console.log('🔓 Password verification - error:', signInError?.message, 'success:', !!signInData?.user);
 
     if (signInError || !signInData.user) {
-      console.log('❌ סיסמה נוכחית שגויה');
       return NextResponse.json(
         { error: 'סיסמה נוכחית שגויה' },
         { status: 401 }
@@ -78,7 +72,6 @@ export async function POST(request) {
     }
 
     // עדכון הסיסמה
-    console.log('🔄 מעדכן סיסמה עבור userId:', decoded.userId);
     const { error: updateError } = await supabase.auth.admin.updateUserById(
       decoded.userId,
       { password: newPassword }
@@ -94,7 +87,6 @@ export async function POST(request) {
 
     // עדכון שלא צריך לשנות סיסמה. הסיסמה כבר שונתה - כשל כאן לא מפיל
     // את הבקשה, אבל נרשם: המשתמש יידרש להחליף סיסמה שוב בהתחברות הבאה.
-    console.log('✅ סיסמה עודכנה בהצלחה, מעדכן must_change_password');
     const { error: flagError } = await supabase
       .from('user_profiles')
       .update({
@@ -112,7 +104,6 @@ export async function POST(request) {
       .is('used_at', null);
     if (resetsError) console.error('password_resets close failed:', resetsError);
 
-    console.log('🎉 הכל הצליח!');
     // הנפקת טוקן חדש בלי דגל mustChangePassword (ראה auth/change-password)
     const freshToken = signToken({
       userId: decoded.userId,

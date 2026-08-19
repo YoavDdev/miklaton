@@ -42,7 +42,6 @@ export async function GET(request, { params }) {
 
     const surveyId = params.id;
 
-    console.log('🔍 Survey ID:', surveyId, '| Service key:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'YES' : 'NO');
     
     // Get all responses for this survey
     const { data: responses, error } = await supabase
@@ -56,7 +55,6 @@ export async function GET(request, { params }) {
       return NextResponse.json({ error: 'Failed to fetch responses' }, { status: 500 });
     }
 
-    console.log(`📊 Found ${responses?.length || 0} responses, IDs: ${responses?.map(r => r.id).join(', ')}`);
 
     return NextResponse.json({ responses });
   } catch (error) {

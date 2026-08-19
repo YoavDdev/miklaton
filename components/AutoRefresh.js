@@ -20,6 +20,7 @@ export default function AutoRefresh() {
         }
 
         if (currentHash.current !== data.hash) {
+          // eslint-disable-next-line no-console -- לוג תפעולי של הקיוסק, מכוון
           console.log('New version detected, reloading...');
           window.location.reload();
         }

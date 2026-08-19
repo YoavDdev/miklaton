@@ -94,32 +94,19 @@ export default function ShelterSearch({ compact = false }) {
     try {
       const response = await fetch(`/api/geocode?q=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
-      
-      console.log('Geocode response:', data);
-      
+
       if (data && data.length > 0) {
         const firstResult = data[0];
         const userLat = parseFloat(firstResult.lat);
         const userLng = parseFloat(firstResult.lon);
-        
-        console.log('User location:', userLat, userLng);
-        console.log('Display name:', firstResult.display_name);
-        
+
         setSelectedLocation({
           lat: userLat,
           lng: userLng,
           displayName: firstResult.display_name,
         });
-        
+
         const nearest = findNearestShelters(userLat, userLng, shelters, 3);
-        
-        console.log('Nearest shelters found:');
-        nearest.forEach((shelter, i) => {
-          console.log(`${i + 1}. ${shelter.name} (${shelter.number}) - ${shelter.address}`);
-          console.log(`   Distance: ${(shelter.distance / 1000).toFixed(2)} km`);
-          console.log(`   Coordinates: ${shelter.lat}, ${shelter.lng}`);
-        });
-        
         setNearestShelters(nearest);
         setSuggestions([]);
         setStreetSuggestions([]);

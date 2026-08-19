@@ -179,6 +179,7 @@ export default function ScreenPage() {
     const checkDateChange = () => {
       const currentDate = formatDateForDB(new Date());
       if (currentDate !== lastDate) {
+        // eslint-disable-next-line no-console -- לוג תפעולי של הקיוסק, מכוון
         console.log('New day detected! Refreshing all data...', lastDate, '->', currentDate);
         lastDate = currentDate;
         fetchAll();
@@ -194,6 +195,7 @@ export default function ScreenPage() {
   useEffect(() => {
     const handleVisibilityChange = () => {
       if (document.visibilityState === 'visible') {
+        // eslint-disable-next-line no-console -- לוג תפעולי של הקיוסק, מכוון
         console.log('Screen became visible - refreshing data');
         fetchAll();
       }

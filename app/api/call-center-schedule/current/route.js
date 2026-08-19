@@ -135,7 +135,6 @@ export async function GET(request) {
     activeShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
     nextShifts.sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-    console.log('[Call Center API] time:', currentTime, '| active:', activeShifts.map(s => s.name).join(','), '| next:', nextShifts.map(s => s.name).join(','));
 
     const response = NextResponse.json({
       success: true,

@@ -148,8 +148,6 @@ export default function SurveyManager() {
       });
       if (res.ok) {
         const data = await res.json();
-        console.log('📊 Loaded responses:', data.responses?.length || 0, 'responses');
-        console.log('Full data:', data.responses);
         setResponses(data.responses || []);
       }
     } catch (error) {

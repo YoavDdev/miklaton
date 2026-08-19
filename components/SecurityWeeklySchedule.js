@@ -835,12 +835,6 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
       const dayOfWeek = date.getDay();
       const dayEntries = schedule.filter(s => s.day_of_week === dayOfWeek);
       
-      console.log('🔍 DEBUG פקודת יום:');
-      console.log('📅 תאריך נבחר:', selectedDate, 'יום בשבוע:', dayOfWeek);
-      console.log('📊 סידור שבועי כולל:', schedule.length, 'רשומות');
-      console.log('📋 משמרות להיום:', dayEntries.length);
-      console.log('👥 עובדים:', staff.length);
-      console.log('⏰ סוגי משמרות:', shifts.length);
       
       // 2. Load saved daily order details (vehicle, tasks, notes)
       const res = await fetch(`/api/security-daily-order?department_id=${departmentId}&order_date=${selectedDate}`);
@@ -893,8 +887,6 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
         }
       });
       
-      console.log('✅ סה"כ רשומות שמועברות ל-entries:', merged.length);
-      console.log('📝 רשומות:', merged);
       
       setEntries(merged);
       setGeneralNotes(data.success && data.data ? data.data.general_notes || '' : '');

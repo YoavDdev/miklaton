@@ -40,15 +40,7 @@ export async function GET(request) {
     }
 
     const googleData = await response.json();
-    
-    console.log('Google Geocoding API Response for:', query);
-    console.log('Status:', googleData.status);
-    console.log('Results count:', googleData.results?.length || 0);
-    if (googleData.results && googleData.results.length > 0) {
-      console.log('First result:', googleData.results[0].formatted_address);
-      console.log('Location:', googleData.results[0].geometry.location);
-    }
-    
+
     if (googleData.status !== 'OK' || !googleData.results || googleData.results.length === 0) {
       return NextResponse.json([]);
     }

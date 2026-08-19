@@ -292,9 +292,6 @@ export default function SectorManagerPage() {
 
       const data = await res.json();
       
-      console.log('🔍 User data from API:', data.user);
-      console.log('📋 department_id:', data.user.department_id);
-      console.log('🎭 role:', data.user.role);
       
       if (data.user.role !== 'sector_manager' && data.user.role !== 'admin') {
         toast.error('אין הרשאה לצפות בדף זה');
@@ -309,7 +306,6 @@ export default function SectorManagerPage() {
         return;
       }
 
-      console.log('✅ User authenticated with department_id:', data.user.department_id);
       setUser(data.user);
     } catch (error) {
       console.error('Auth error:', error);
@@ -334,19 +330,14 @@ export default function SectorManagerPage() {
   };
 
   const loadUserDepartments = async () => {
-    console.log('🔍 Loading user departments for user:', user.id);
     
     try {
       // קריאה ל-API במקום Supabase ישירות (עוקף RLS issues)
       const res = await fetch(`/api/user-departments?userId=${user.id}`);
       const { departments, error } = await res.json();
       
-      console.log('📊 User departments data:', departments);
-      console.log('❌ User departments error:', error);
-      console.log('📈 User departments count:', departments?.length || 0);
       
       if (departments && departments.length > 0) {
-        console.log('✅ Setting userDepartments to:', departments);
         setUserDepartments(departments);
         
         // טען את המחלקה השמורה מ-localStorage או את ה-primary

@@ -238,7 +238,6 @@ export default function VacationManager() {
       return handleUpdateVacation();
     }
 
-    console.log('Form submitted:', vacationForm);
 
     if (!vacationForm.contact_search || !vacationForm.vacation_start || !vacationForm.vacation_end) {
       alert('יש למלא שם כונן, תאריך התחלה וסיום');
@@ -289,8 +288,6 @@ export default function VacationManager() {
         return;
       } else {
         // Create new contact - phone is required, category is optional
-        console.log('Creating new contact - no existing contact found');
-        console.log('Has category?', !!vacationForm.contact_category_id);
         
         if (!vacationForm.contact_phone) {
           alert('כדי להוסיף כונן חדש, יש למלא טלפון');
@@ -335,7 +332,6 @@ export default function VacationManager() {
             })
           });
           const createData = await createRes.json();
-          console.log('Create on-call contact result:', createData);
           if (!createData.success) {
             alert('❌ ' + (createData.error || 'שגיאה ביצירת כונן'));
             return;

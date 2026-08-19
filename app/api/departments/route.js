@@ -33,7 +33,6 @@ export async function POST(request) {
     if (auth.error) return auth.error;
 
     const body = await request.json();
-    console.log('POST /api/departments - Request body:', body);
     
     const { municipality_id, name, display_order, manager_name, manager_phone } = body;
 
@@ -58,7 +57,6 @@ export async function POST(request) {
     }
 
     const nextOrder = maxOrder && maxOrder.length > 0 ? maxOrder[0].display_order + 1 : 1;
-    console.log('Next display_order:', nextOrder);
 
     const insertData = { 
       municipality_id,
@@ -68,7 +66,6 @@ export async function POST(request) {
       manager_phone,
       active: true
     };
-    console.log('Inserting department:', insertData);
 
     const { data, error } = await supabase
       .from('departments')
@@ -81,7 +78,6 @@ export async function POST(request) {
       throw error;
     }
 
-    console.log('Department created successfully:', data);
     return NextResponse.json({ success: true, data, message: 'מחלקה נוספה בהצלחה' });
   } catch (error) {
     console.error('POST /api/departments error:', error);
