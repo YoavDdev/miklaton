@@ -73,6 +73,8 @@ export default function SectorManagerPage() {
   // אחד-עשר מנהלי המכלול נחתו על דף עם טאבים ובלי גוף (YOA-26).
   const [activeTab, setActiveTab] = useState(null);
   const [warMode, setWarMode] = useState(false);
+  const [noDepartment, setNoDepartment] = useState(false);
+  const [dutyFormToken, setDutyFormToken] = useState(null);
   const [myDepartment, setMyDepartment] = useState(null);
   // 'טחון' ולא 'בטחון' - סובל גם את הכתיב המלא "ביטחון" (YOA-26)
   const isSecurityDept = Boolean(myDepartment?.name?.includes('טחון'));
@@ -265,6 +267,18 @@ export default function SectorManagerPage() {
     }
   }, [currentWeekStart, user, selectedDateTime]);
 
+  // טוקן חתום לטופס התורנות של המכלול הפעיל - אותו טופס פשוט שנשלח
+  // ב-WhatsApp, זמין כאן בשירות עצמי בלי לחכות לקישור (YOA-32 / R4.5)
+  useEffect(() => {
+    if (!user) return;
+    const deptId = activeDepartmentId || user.department_id;
+    if (!deptId) return;
+    fetch('/api/duty-form/links')
+      .then((res) => res.json())
+      .then((data) => setDutyFormToken((data.success && data.tokens[deptId]) || null))
+      .catch(() => setDutyFormToken(null));
+  }, [user, activeDepartmentId]);
+
   const checkAuth = async () => {
     try {
       const res = await fetch('/api/auth/me', {
@@ -288,11 +302,10 @@ export default function SectorManagerPage() {
         return;
       }
 
-      // Check for both null and undefined
-      if (!data.user.department_id || data.user.department_id === null) {
-        console.error('❌ No department_id found for user');
-        toast.error('לא הוקצה מכלול למשתמש זה. נא לפנות למנהל המערכת.');
-        setTimeout(() => router.push('/dashboard'), 2000);
+      // חשבון בלי מכלול מקבל מסך הסבר קבוע ולא טוסט חולף והפניה,
+      // כדי שיהיה ברור למי לפנות (YOA-33 / R4.4)
+      if (!data.user.department_id) {
+        setNoDepartment(true);
         return;
       }
 
@@ -766,6 +779,27 @@ export default function SectorManagerPage() {
     );
   }
 
+  if (noDepartment) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center" dir="rtl">
+        <div className="bg-white rounded-xl shadow-lg p-8 max-w-md mx-4 text-center">
+          <div className="text-5xl mb-4">🏢</div>
+          <h1 className="text-xl font-bold text-gray-900 mb-2">החשבון אינו משויך למכלול</h1>
+          <p className="text-gray-600 mb-6">
+            כדי לצפות בדף מנהל המכלול, החשבון שלך צריך להיות משויך למכלול.
+            נא לפנות למנהל המערכת כדי להשלים את השיוך.
+          </p>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-semibold transition-colors"
+          >
+            חזרה לדשבורד
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50" dir="rtl">
       <Toaster position="top-center" />
@@ -794,6 +828,26 @@ export default function SectorManagerPage() {
                 ))}
               </select>
             </div>
+          </div>
+        )}
+
+        {/* עדכון כוננויות בשירות עצמי - אותו טופס שנשלח ב-WhatsApp (YOA-32) */}
+        {dutyFormToken && (
+          <div className="bg-white rounded-lg shadow p-3 sm:p-4 mb-4 sm:mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <h2 className="font-bold text-gray-900">📋 עדכון כוננויות המכלול</h2>
+              <p className="text-sm text-gray-600 mt-1">
+                אותו טופס פשוט שמגיע בקישור ב-WhatsApp - זמין כאן ישירות, בלי לחכות לקישור מהמוקד
+              </p>
+            </div>
+            <a
+              href={`/duty-form/${activeDepartmentId || user.department_id}?t=${dutyFormToken}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-5 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold text-center transition-colors whitespace-nowrap"
+            >
+              פתח את הטופס
+            </a>
           </div>
         )}
 

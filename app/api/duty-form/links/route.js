@@ -9,6 +9,24 @@ export async function GET(request) {
     const auth = await requireRole(request, ['call_center_manager', 'sector_manager']);
     if (auth.error) return auth.error;
 
+    // טוקן הוא הרשאת כתיבה לתורנויות המכלול, ולכן מונפק לפי אותו מודל
+    // בעלות של /api/duty-form (YOA-22): מנהל מכלול מקבל רק את שלו,
+    // לפי הפרופיל בשרת ולא לפי הבקשה.
+    if (auth.user.role === 'sector_manager') {
+      const { data: profile, error } = await supabase
+        .from('user_profiles')
+        .select('department_id')
+        .eq('id', auth.user.userId)
+        .single();
+
+      if (error) throw error;
+
+      const tokens = profile?.department_id
+        ? { [profile.department_id]: signDutyFormToken(profile.department_id) }
+        : {};
+      return NextResponse.json({ success: true, tokens });
+    }
+
     const { data: departments, error } = await supabase
       .from('departments')
       .select('id')
