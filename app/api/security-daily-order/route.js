@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireRole, requireRoleOrScreen, requireDepartmentAccess } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
+import { vehicleFromNotes } from '@/lib/schedule-excel-parser';
 
 // GET - fetch daily order for a specific date (auto-merge with weekly schedule)
 export async function GET(request) {
@@ -65,9 +66,18 @@ export async function GET(request) {
       savedEntries = entries || [];
     }
 
+    // רשימת הרכבים המוגדרת - לזיהוי רכב מתוך הערות השיבוץ (YOA-37)
+    const { data: vehicleSetting } = await supabase
+      .from('security_settings')
+      .select('setting_value')
+      .eq('department_id', departmentId)
+      .eq('setting_key', 'vehicles')
+      .single();
+    const vehicles = Array.isArray(vehicleSetting?.setting_value) ? vehicleSetting.setting_value : [];
+
     // 3. Merge: weekly schedule + saved details
     const savedEntriesMap = new Map(savedEntries.map(e => [`${e.staff_id}-${e.start_time}`, e]));
-    
+
     const merged = (scheduleEntries || []).map(entry => {
       // שעות בפועל מהתא באקסל גוברות על שעות המשמרת - ככה המנהל עושה
       // שינויים במשמרת (YOA-37). המשמרת היא ברירת המחדל בלבד.
@@ -84,7 +94,8 @@ export async function GET(request) {
         staff_name: entry.staff?.full_name || '',
         category,
         role_title: category === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני',
-        vehicle: savedDetail?.vehicle || '',
+        // רכב שנכתב בקובץ ("קשקאי") ממופה לרכב המוגדר; עריכה ידנית גוברת
+        vehicle: savedDetail?.vehicle || vehicleFromNotes(entry.notes, vehicles) || '',
         start_time: startTime,
         end_time: endTime,
         is_backup: entry.is_backup || false,

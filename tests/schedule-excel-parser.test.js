@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { describe, it, expect } from 'vitest';
 import * as XLSX from 'xlsx';
-import { analyzeSheet, parseScheduleSheet } from '@/lib/schedule-excel-parser';
+import { analyzeSheet, parseScheduleSheet, vehicleFromNotes } from '@/lib/schedule-excel-parser';
 
 /**
  * YOA-35: הפרסר רץ כאן מול עותק מותמם של הקובץ האמיתי של מנהל הביטחון -
@@ -192,6 +192,31 @@ describe('חופשות ומחלות מהטבלה הימנית (YOA-38)', () => {
     const p28 = parseScheduleSheet(sheetRows('2.8.26-8.8.26'), STAFF, []);
     expect(p28.entries.length).toBe(0);
     expect(p28.leaveRanges.length).toBeGreaterThan(0);
+  });
+});
+
+describe('זיהוי רכב מהערות השיבוץ (YOA-37)', () => {
+  // הקובץ כותב קיצור ("קשקאי"), ההגדרות מחזיקות שם מלא ("ניסאן קשקאי").
+  // ההתאמה בזמן קריאה - עובדת גם על שבועות שכבר יובאו.
+  const VEHICLES = ['ניסאן קשקאי', 'חלופי', 'אופנוע פיקוח', 'ניסאן סנטרה שיטור', 'סיאט ארונה'];
+
+  it('קיצור מהקובץ מזוהה כרכב המוגדר המלא', () => {
+    expect(vehicleFromNotes('סיאט', VEHICLES)).toBe('סיאט ארונה');
+    expect(vehicleFromNotes('קשקאי', VEHICLES)).toBe('ניסאן קשקאי');
+    expect(vehicleFromNotes('אופנוע', VEHICLES)).toBe('אופנוע פיקוח');
+  });
+
+  it('הערה מרובת חלקים: הרכב מזוהה והשעות מדולגות', () => {
+    expect(vehicleFromNotes('קשקאי | 06:45-16:00', VEHICLES)).toBe('ניסאן קשקאי');
+  });
+
+  it('הערה שאינה רכב מחזירה null', () => {
+    expect(vehicleFromNotes('עם רינה', VEHICLES)).toBeNull();
+    expect(vehicleFromNotes(null, VEHICLES)).toBeNull();
+  });
+
+  it('קיצור דו-משמעי ("ניסאן" מתאים לשני רכבים) לא מנחש', () => {
+    expect(vehicleFromNotes('ניסאן', VEHICLES)).toBeNull();
   });
 });
 

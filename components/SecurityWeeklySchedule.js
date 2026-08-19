@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import toast from 'react-hot-toast';
 import ExcelImporter from './ExcelImporter';
 import ExcelTemplateDownloader from './ExcelTemplateDownloader';
+import { vehicleFromNotes } from '@/lib/schedule-excel-parser';
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 const DAYS_SHORT = ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'];
@@ -867,7 +868,8 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
           staff_name: staffMember?.full_name || '',
           category,
           role_title: category === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני',
-          vehicle: savedDetail?.vehicle || '',
+          // רכב שנכתב בקובץ ("קשקאי") ממופה לרכב המוגדר; עריכה ידנית גוברת
+          vehicle: savedDetail?.vehicle || vehicleFromNotes(entry.notes, vehicles) || '',
           start_time: startTime,
           end_time: endTime,
           is_backup: entry.is_backup || false,
@@ -942,7 +944,7 @@ function DailyOrderTab({ departmentId, staff, schedule, shifts, currentWeekStart
           staff_name: staffMember?.full_name || '',
           category,
           role_title: category === 'שיטור' ? 'שיטור עירוני' : 'פיקוח עירוני',
-          vehicle: '',
+          vehicle: vehicleFromNotes(entry.notes, vehicles) || '',
           start_time: startTime,
           end_time: endTime,
           is_backup: entry.is_backup || false,
