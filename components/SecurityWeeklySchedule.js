@@ -364,6 +364,19 @@ export default function SecurityWeeklySchedule({ departmentId }) {
               currentWeekStart={currentWeekStart}
               staff={staff}
               shifts={shifts}
+              // מה כבר קיים בשבוע היעד - לאזהרת הדריסה בתצוגה המקדימה (YOA-36)
+              checkExistingWeek={async (weekStart) => {
+                const res = await fetch(
+                  `/api/security-schedule?department_id=${departmentId}&week_start=${weekStart}`
+                );
+                const data = await res.json();
+                if (!data.success) return null;
+                const rows = data.data || [];
+                return {
+                  count: rows.length,
+                  last_updated: rows.reduce((m, r) => (r.created_at > m ? r.created_at : m), '') || null,
+                };
+              }}
               onImportComplete={(importedWeekStart) => {
                 fetchShifts();
                 // הייבוא נכנס לשבוע שבקובץ - עוברים אליו כדי שרואים את התוצאה.

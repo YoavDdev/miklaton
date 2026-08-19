@@ -50,11 +50,30 @@ export async function GET(request) {
       .eq('active', true);
     if (shiftsError) throw shiftsError;
 
+    // עם week_start: מה כבר קיים בשבוע היעד, כדי שהתצוגה המקדימה תזהיר
+    // לפני דריסה - קובץ ישן כבר דרס סידור עדכני בשקט (YOA-36)
+    const weekStart = searchParams.get('week_start');
+    let existingWeek;
+    if (weekStart) {
+      const { data: existing, error: existingError } = await supabase
+        .from('security_weekly_schedule')
+        .select('created_at')
+        .eq('department_id', departmentId)
+        .eq('week_start', weekStart);
+      if (existingError) throw existingError;
+      const rows = existing || [];
+      existingWeek = {
+        count: rows.length,
+        last_updated: rows.reduce((m, r) => (r.created_at > m ? r.created_at : m), '') || null,
+      };
+    }
+
     return NextResponse.json({
       success: true,
       department,
       staff: staff || [],
       shifts: shifts || [],
+      ...(existingWeek !== undefined ? { existingWeek } : {}),
     });
   } catch (error) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });

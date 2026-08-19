@@ -17,7 +17,7 @@ import {
  * המאומתות. משמשת את דף ההעלאה הציבורי, שאין לו session ולכן פונה לראוט
  * החתום. בלעדיה ההתנהגות זהה לקודם.
  */
-export default function ExcelImporter({ departmentId, currentWeekStart, staff, shifts, onImportComplete, uploader }) {
+export default function ExcelImporter({ departmentId, currentWeekStart, staff, shifts, onImportComplete, uploader, checkExistingWeek }) {
   const [importing, setImporting] = useState(false);
   const [preview, setPreview] = useState(null);
   const [workbookData, setWorkbookData] = useState(null); // { sheets: {name: rows}, sheetInfos: [...] }
@@ -28,6 +28,27 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
+  };
+
+  // השבוע שאליו הייבוא באמת ייכנס - התאריך שבגיליון קובע, לא השבוע המוצג
+  const targetWeekStr = (p) =>
+    formatDateForDB(
+      p.weekSunday
+        ? new Date(p.weekSunday.getUTCFullYear(), p.weekSunday.getUTCMonth(), p.weekSunday.getUTCDate())
+        : currentWeekStart
+    );
+
+  // מה כבר קיים בשבוע היעד - כדי להזהיר לפני דריסה. ההעלאה מחדש היא
+  // הזרימה הלגיטימית של המנהל, אז לא חוסמים - רק מוודאים שהוא יודע
+  // מה הוא מחליף וממתי (YOA-36).
+  const attachExistingWeek = (previewData) => {
+    if (!checkExistingWeek || !previewData) return;
+    const week = targetWeekStr(previewData);
+    checkExistingWeek(week)
+      .then((existingWeek) => {
+        setPreview((p) => (p && targetWeekStr(p) === week ? { ...p, existingWeek } : p));
+      })
+      .catch(() => {});
   };
 
   const parseExcelFile = (file) => {
@@ -97,6 +118,7 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
 
       setWorkbookData(sheets);
       setPreview({ ...previewData, fileName: file.name });
+      attachExistingWeek(previewData);
     } catch (error) {
       console.error('Error parsing Excel:', error);
       toast.error('שגיאה בקריאת הקובץ: ' + error.message);
@@ -109,7 +131,10 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
   const switchSheet = (sheetName) => {
     if (!workbookData) return;
     const previewData = buildPreview(workbookData, sheetName);
-    if (previewData) setPreview(p => ({ ...previewData, fileName: p.fileName }));
+    if (previewData) {
+      setPreview(p => ({ ...previewData, fileName: p.fileName }));
+      attachExistingWeek(previewData);
+    }
   };
 
   const confirmImport = async () => {
@@ -143,7 +168,8 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
           entries: preview.entries,
         });
         toast.success(
-          `✅ ${result.count} שיבוצים יובאו לשבוע ${weekStartStr} מהגיליון "${preview.sheetName}"`
+          `✅ ${result.count} שיבוצים יובאו לשבוע ${weekStartStr} מהגיליון "${preview.sheetName}"` +
+            (preview.existingWeek?.count > 0 ? ` (החליפו ${preview.existingWeek.count} קיימים)` : '')
         );
         setPreview(null);
         setWorkbookData(null);
@@ -204,7 +230,8 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
       if (!result.success) throw new Error(result.error);
 
       toast.success(
-        `✅ ${result.count} שיבוצים יובאו לשבוע ${weekStartStr} מהגיליון "${preview.sheetName}"`
+        `✅ ${result.count} שיבוצים יובאו לשבוע ${weekStartStr} מהגיליון "${preview.sheetName}"` +
+          (preview.existingWeek?.count > 0 ? ` (החליפו ${preview.existingWeek.count} קיימים)` : '')
       );
       setPreview(null);
       setWorkbookData(null);
@@ -329,7 +356,17 @@ export default function ExcelImporter({ departmentId, currentWeekStart, staff, s
             </div>
 
             <div className="border-t p-4 flex items-center gap-3 justify-between bg-gray-50">
-              <p className="text-[11px] text-red-600 font-semibold">⚠️ הייבוא מחליף את כל הסידור של השבוע המוצג</p>
+              {preview.existingWeek?.count > 0 ? (
+                <p className="text-[11px] text-red-600 font-semibold">
+                  ⚠️ בשבוע הזה יש כבר {preview.existingWeek.count} שיבוצים
+                  {preview.existingWeek.last_updated && (
+                    <> (עודכנו לאחרונה {new Date(preview.existingWeek.last_updated).toLocaleString('he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })})</>
+                  )}
+                  {' '}- הייבוא יחליף את כולם
+                </p>
+              ) : (
+                <p className="text-[11px] text-red-600 font-semibold">⚠️ הייבוא מחליף את כל הסידור של השבוע שבגיליון</p>
+              )}
               <div className="flex gap-3">
                 <button
                   onClick={() => setPreview(null)}

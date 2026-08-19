@@ -12,6 +12,15 @@ import ExcelImporter from '@/components/ExcelImporter';
 export default function ScheduleUploadForm({ departmentId, token, staff, shifts, onDone }) {
   const [lastResult, setLastResult] = useState(null);
 
+  // מה כבר קיים בשבוע היעד - לאזהרת הדריסה בתצוגה המקדימה (YOA-36)
+  const checkExistingWeek = async (weekStart) => {
+    const res = await fetch(
+      `/api/schedule-upload?departmentId=${departmentId}&t=${token}&week_start=${weekStart}`
+    );
+    const data = await res.json();
+    return data.success ? data.existingWeek : null;
+  };
+
   const uploader = async ({ week_start, newShifts, entries }) => {
     const res = await fetch('/api/schedule-upload', {
       method: 'POST',
@@ -29,6 +38,8 @@ export default function ScheduleUploadForm({ departmentId, token, staff, shifts,
           staff_name: e.staff_id ? null : e.staff_name,
           day_of_week: e.day_of_week,
           is_backup: e.is_backup,
+          actual_start: e.actual_start,
+          actual_end: e.actual_end,
           notes: e.notes,
         })),
       }),
@@ -55,6 +66,7 @@ export default function ScheduleUploadForm({ departmentId, token, staff, shifts,
           staff={staff}
           shifts={shifts}
           uploader={uploader}
+          checkExistingWeek={checkExistingWeek}
           onImportComplete={onDone}
         />
       </div>
