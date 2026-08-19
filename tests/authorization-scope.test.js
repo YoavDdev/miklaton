@@ -128,6 +128,20 @@ describe('אחמ״ש — חלוקת הסמכויות במוקד (docs/15)', () =
     expect(res.status).not.toBe(401);
   });
 
+  // YOA-30: בלוק audit שהועתק מה-POST ל-GET השתמש במשתנים שלא קיימים שם,
+  // וכל קריאת סטטוס נפלה ל-500 - הבאנר לא נטען באף דשבורד ולא במסך.
+  it('קריאת סטטוס מצב חירום מחזירה 200 למשתמש מחובר', async () => {
+    const mod = await import('@/app/api/war-mode/route');
+    const res = await mod.GET(asRole('operator', '/api/war-mode'));
+    expect(res.status).toBe(200);
+  });
+
+  it('קריאת סטטוס מצב חירום מחזירה 200 לטוקן מסך', async () => {
+    const mod = await import('@/app/api/war-mode/route');
+    const res = await mod.GET(makeRequest('/api/war-mode?key=test-screen-token'));
+    expect(res.status).toBe(200);
+  });
+
   it('אחמ״ש רואה מי מחובר, מוקדן לא', async () => {
     const mod = await import('@/app/api/operator/sessions/route');
     expect((await mod.GET(asRole('shift_supervisor', '/api/operator/sessions'))).status).not.toBe(403);

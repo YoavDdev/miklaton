@@ -14,17 +14,6 @@ export async function GET(request) {
 
     if (error) throw error;
 
-    // שינוי מצב חירום הוא הפעולה בעלת ההשלכות הרחבות ביותר במערכת.
-    // נרשם ב-audit_log כדי שתהיה תשובה לשאלה מי ומתי.
-    const { error: auditError } = await supabase.from('audit_log').insert({
-      user_id: auth.user.userId,
-      action: is_active ? 'war_mode_activated' : 'war_mode_deactivated',
-      details: { by: actor, notes: notes || null },
-      ip_address: request.headers.get('x-forwarded-for') || 'unknown',
-      user_agent: request.headers.get('user-agent'),
-    });
-    if (auditError) console.error('war-mode audit write failed:', auditError);
-
     return NextResponse.json({ success: true, data });
   } catch (error) {
     return NextResponse.json(
@@ -68,6 +57,18 @@ export async function POST(request) {
       .single();
 
     if (error) throw error;
+
+    // שינוי מצב חירום הוא הפעולה בעלת ההשלכות הרחבות ביותר במערכת.
+    // נרשם ב-audit_log כדי שתהיה תשובה לשאלה מי ומתי - הטבלה שומרת
+    // היסטוריה, בעוד war_mode עצמה נדרסת בכל מעבר.
+    const { error: auditError } = await supabase.from('audit_log').insert({
+      user_id: auth.user.userId,
+      action: is_active ? 'war_mode_activated' : 'war_mode_deactivated',
+      details: { by: actor, notes: notes || null },
+      ip_address: request.headers.get('x-forwarded-for') || 'unknown',
+      user_agent: request.headers.get('user-agent'),
+    });
+    if (auditError) console.error('war-mode audit write failed:', auditError);
 
     return NextResponse.json({ success: true, data });
   } catch (error) {
