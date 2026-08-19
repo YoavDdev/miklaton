@@ -8,6 +8,8 @@ const ROUTE_PERMISSIONS = {
   '/sector-manager': ['sector_manager', 'admin'],
   '/operator': ['operator', 'shift_supervisor', 'call_center_manager', 'admin'],
   '/shift': ['shift_supervisor', 'call_center_manager', 'admin'],
+  // דוח הסיכום היומי (YOA-42) - סמכות משמרת, כמו /shift
+  '/daily-report': ['shift_supervisor', 'call_center_manager', 'admin'],
   '/inspector': ['inspector', 'admin'],
   '/shelter-manager': ['shelter_manager', 'admin'],
   '/admin': ['admin'],
@@ -159,6 +161,8 @@ export const config = {
     '/on-call-query',
     '/shift/:path*',
     '/shift',
+    '/daily-report/:path*',
+    '/daily-report',
     '/inspection/:path*',
     '/inspection',
   ],
