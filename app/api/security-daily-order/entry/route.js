@@ -5,9 +5,11 @@ import { supabase } from '@/lib/supabase-server';
 // PATCH - update a single entry (change times, remove, etc.) + log the change
 export async function PATCH(request) {
   try {
-    // טוקן המסך יושב על מחשב תצוגה בקיר ואינו אמור לכתוב שינויי משמרת.
-    // requireRoleOrScreen נתן לו לעבור עם user מלאכותי (YOA-27).
-    const auth = await requireRole(request, ['operator', 'shift_supervisor', 'call_center_manager', 'sector_manager']);
+    // מסך הקיר יושב באזור צוות (מוקד) ומשמש את המוקדנים לעריכת סידור
+    // המשמרות בזמן אמת — כולל הוספת תגבור והחלפות. לכן טוקן המסך מורשה
+    // לכתוב כאן, לצד משתמשים מחוברים. (החזרה מ-requireRole של YOA-27,
+    // שחסם בטעות את זרימת העבודה התפעולית — YOA-43.)
+    const auth = await requireRoleOrScreen(request, ['operator', 'shift_supervisor', 'call_center_manager', 'sector_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();
@@ -152,9 +154,9 @@ export async function PATCH(request) {
 // POST - add a single new shift entry to a day's order (get-or-create the order)
 export async function POST(request) {
   try {
-    // טוקן המסך יושב על מחשב תצוגה בקיר ואינו אמור לכתוב שינויי משמרת.
-    // requireRoleOrScreen נתן לו לעבור עם user מלאכותי (YOA-27).
-    const auth = await requireRole(request, ['operator', 'shift_supervisor', 'call_center_manager', 'sector_manager']);
+    // מסך הקיר משמש את המוקדנים להוספת משמרות בזמן אמת (תגבור/walk-in).
+    // טוקן המסך מורשה לכתוב כאן, לצד משתמשים מחוברים. (YOA-43.)
+    const auth = await requireRoleOrScreen(request, ['operator', 'shift_supervisor', 'call_center_manager', 'sector_manager']);
     if (auth.error) return auth.error;
 
     const body = await request.json();

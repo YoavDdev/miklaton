@@ -256,7 +256,9 @@ describe('YOA-27 — בעלות על מכלול בכל שרשרת הביטחון
     expect(res.status).toBe(403);
   });
 
-  it('פקודת יום — טוקן מסך אינו כותב שינויי משמרת', async () => {
+  // YOA-43: המסך נמצא באזור צוות והוא כלי העבודה לעריכת סידור בזמן אמת,
+  // לכן טוקן המסך *כן* מורשה לכתוב פה (היפוך מכוון של החלטת YOA-27).
+  it('פקודת יום — טוקן מסך רשאי לכתוב שינויי משמרת', async () => {
     const m = await import('@/app/api/security-daily-order/entry/route');
     const req = makeRequest('/api/security-daily-order/entry', {
       method: 'PATCH',
@@ -264,7 +266,19 @@ describe('YOA-27 — בעלות על מכלול בכל שרשרת הביטחון
       body: { entry_id: 'e1', change_type: 'removed' },
     });
     const res = await m.PATCH(req);
-    expect(res.status).toBe(401);
+    expect(res.status).not.toBe(401);
+    expect(res.status).not.toBe(403);
+  });
+
+  it('פקודת יום — תפקיד לא-רלוונטי (פקח) נחסם 403', async () => {
+    const m = await import('@/app/api/security-daily-order/entry/route');
+    const res = await m.PATCH(
+      asRole('inspector', '/api/security-daily-order/entry', {
+        method: 'PATCH',
+        body: { entry_id: 'e1', change_type: 'removed' },
+      })
+    );
+    expect(res.status).toBe(403);
   });
 
   it('סימון הודעה כנקראה — מנהל מכלול נחסם', async () => {
