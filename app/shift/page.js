@@ -24,18 +24,14 @@ export default function ShiftPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
-  const [shift, setShift] = useState(null);
-  const [sessions, setSessions] = useState([]);
   const [warMode, setWarMode] = useState(false);
   const [callCenterDeptId, setCallCenterDeptId] = useState('');
   const [securityDeptId, setSecurityDeptId] = useState('');
 
   const load = useCallback(async () => {
     try {
-      const [meRes, shiftRes, sessionsRes, warRes] = await Promise.all([
+      const [meRes, warRes] = await Promise.all([
         fetch('/api/auth/me', { credentials: 'include' }),
-        fetch('/api/call-center-schedule/current', { credentials: 'include' }),
-        fetch('/api/operator/sessions', { credentials: 'include' }),
         fetch('/api/war-mode', { credentials: 'include' }),
       ]);
 
@@ -52,8 +48,6 @@ export default function ShiftPage() {
           setSecurityDeptId(securityDept?.id || '');
         }
       }
-      if (shiftRes.ok) setShift(await shiftRes.json());
-      if (sessionsRes.ok) setSessions((await sessionsRes.json()).sessions || []);
       if (warRes.ok) {
         const w = await warRes.json();
         setWarMode(w?.data?.is_active || false);
@@ -103,9 +97,6 @@ export default function ShiftPage() {
     );
   }
 
-  const activeShifts = shift?.activeShifts || [];
-  const nextShift = shift?.next || shift?.nextShifts?.[0] || null;
-
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       <Toaster position="top-center" />
@@ -153,63 +144,8 @@ export default function ShiftPage() {
         {/* סטטוס השטח של מכלול הביטחון - כמו בעמדת המוקדן */}
         <SecurityFieldStatus />
 
-        {/* מי במשמרת עכשיו */}
-        <section className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">המשמרת עכשיו</h2>
-          {activeShifts.length === 0 ? (
-            <p className="text-sm text-gray-500">אין משמרת פעילה בסידור לשעה זו.</p>
-          ) : (
-            <div className="space-y-3">
-              {activeShifts.map((s, i) => (
-                <div key={i} className="border border-gray-200 rounded-lg p-4">
-                  <div className="flex items-baseline justify-between flex-wrap gap-2">
-                    <span className="font-bold text-gray-900">{s.shift?.name}</span>
-                    <span className="text-sm text-gray-500">
-                      {s.shift?.start_time?.slice(0, 5)}–{s.shift?.end_time?.slice(0, 5)}
-                    </span>
-                  </div>
-                  <p className="text-sm mt-2">
-                    <span className="text-gray-500">אחמ״ש: </span>
-                    <span className="font-semibold">{s.managers?.join(', ') || '—'}</span>
-                  </p>
-                  <p className="text-sm">
-                    <span className="text-gray-500">נציגים: </span>
-                    {s.reps?.join(', ') || '—'}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-          {nextShift && (
-            <p className="text-xs text-gray-500 mt-3">
-              המשמרת הבאה: {nextShift.shift?.name} בשעה {nextShift.shift?.start_time?.slice(0, 5)}
-            </p>
-          )}
-        </section>
-
-        {/* מי מחובר בפועל */}
-        <section className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">
-            מחוברים כרגע ({sessions.length})
-          </h2>
-          {sessions.length === 0 ? (
-            <p className="text-sm text-gray-500">אף אחד לא מחובר כרגע.</p>
-          ) : (
-            <ul className="divide-y divide-gray-100">
-              {sessions.map((s) => (
-                <li key={s.user_id} className="py-2 flex items-center justify-between text-sm">
-                  <span className="font-medium text-gray-900">
-                    {s.user?.full_name || 'לא ידוע'}
-                  </span>
-                  <span className="text-gray-500">{s.user?.role === 'operator' ? 'מוקדן' : s.user?.role}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-          <p className="text-xs text-gray-400 mt-3">
-            מבוסס על פעילות ב-15 הדקות האחרונות. מי שבסידור ואינו כאן - כנראה עדיין לא נכנס.
-          </p>
-        </section>
+        {/* "המשמרת עכשיו" ו"מחוברים כרגע" הוסרו בבקשת יואב (26.08) -
+            המידע קיים ממילא על מסך המוקד */}
 
         {/* הודעות למסך הציבורי ולנציגים - פרסום ומחיקה הם סמכות משמרת:
             הורדו ממוקדנים בהחלטת מדיניות (docs/15, 2026-08-19) */}

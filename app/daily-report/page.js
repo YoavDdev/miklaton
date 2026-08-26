@@ -6,13 +6,13 @@ import toast, { Toaster } from 'react-hot-toast';
 import { parseTicketsCsv, prepareTickets, detectExportKind, computeAgafTable } from '@/lib/binaa-tickets';
 import { projectRowsForReport } from '@/lib/daily-report-city';
 import { downloadStyledExcel } from '@/lib/daily-report-excel';
-import { openPrintPdf } from '@/lib/daily-report-print';
+import { downloadPdf } from '@/lib/daily-report-print';
 
 /**
  * דוח הסיכום היומי (YOA-42, docs/16): שני ייצואים מבינה - קובץ היום
  * (נפתחו/טופלו) וקובץ הפתוחות (סך פתוחות/חורגות) - ממלאים את טבלת
- * האגפים אוטומטית. סימון ידני של חריגים, Excel מעוצב בפורמט הידני,
- * ו-PDF דרך עמוד הדפסה. אירועים ועבודות נגררים מהדוח הקודם.
+ * האגפים אוטומטית. חריגים מנוסחים מעדכוני ה-WhatsApp, Excel מעוצב
+ * בפורמט הידני, ו-PDF יורד כקובץ מוכן לשליחה.
  */
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -426,10 +426,15 @@ export default function DailyReportPage() {
     }
   };
 
-  const previewPdf = () => {
+  // PDF יורד כקובץ אמיתי עם שם מסודר - לא דרך חלון הדפסה (בקשת יואב 26.08)
+  const previewPdf = async () => {
     if (!reportDate) return;
-    if (!openPrintPdf(buildSnapshot(), reportDateLabel(reportDate))) {
-      toast.error('הדפדפן חסם את חלון ההדפסה - אפשר חלונות קופצים לאתר');
+    try {
+      toast('מכין את ה-PDF...', { icon: '⏳' });
+      await downloadPdf(buildSnapshot(), reportDateLabel(reportDate), `דוח סיכום יומי ${ilDate(reportDate)}.pdf`);
+      toast.success('ה-PDF ירד למחשב');
+    } catch (error) {
+      toast.error('יצירת ה-PDF נכשלה: ' + error.message);
     }
   };
 
@@ -438,10 +443,14 @@ export default function DailyReportPage() {
     await downloadStyledExcel(report.snapshot, reportDateLabel(d), `דוח סיכום יומי ${ilDate(d)}.xlsx`);
   };
 
-  const pdfFromHistory = (report) => {
+  const pdfFromHistory = async (report) => {
     const d = new Date(`${report.report_date}T00:00:00`);
-    if (!openPrintPdf(report.snapshot, reportDateLabel(d))) {
-      toast.error('הדפדפן חסם את חלון ההדפסה - אפשר חלונות קופצים לאתר');
+    try {
+      toast('מכין את ה-PDF...', { icon: '⏳' });
+      await downloadPdf(report.snapshot, reportDateLabel(d), `דוח סיכום יומי ${ilDate(d)}.pdf`);
+      toast.success('ה-PDF ירד למחשב');
+    } catch (error) {
+      toast.error('יצירת ה-PDF נכשלה: ' + error.message);
     }
   };
 
@@ -543,7 +552,7 @@ export default function DailyReportPage() {
                           onClick={() => pdfFromHistory(r)}
                           className="px-3 py-1 rounded-lg bg-blue-100 text-blue-800 font-semibold hover:bg-blue-200"
                         >
-                          🖨️ PDF
+                          ⬇️ PDF
                         </button>
                       </span>
                     </li>
@@ -828,13 +837,13 @@ export default function DailyReportPage() {
                 <span className="text-sm text-gray-500">מאשרת את הדוח: מירי צרפתי (קבוע)</span>
               </div>
               <p className="text-sm text-gray-600 w-full">
-                ההפקה שומרת את הדוח בהיסטוריה ומורידה Excel מעוצב בפורמט המוכר. PDF - דרך
-                חלון ההדפסה (שמירה כ-PDF). שליחה למירי ולרשימה - כמו היום.
+                ההפקה שומרת את הדוח בהיסטוריה ומורידה Excel מעוצב בפורמט המוכר. כפתור PDF
+                מוריד קובץ PDF מוכן לשליחה. שליחה למירי ולרשימה - כמו היום.
               </p>
               <div className="flex gap-2">
                 <button onClick={previewPdf}
                   className="px-4 py-2 rounded-lg font-bold text-blue-800 bg-blue-100 hover:bg-blue-200">
-                  🖨️ PDF
+                  ⬇️ PDF
                 </button>
                 <button onClick={produce} disabled={producing}
                   className="px-6 py-2 rounded-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300">
