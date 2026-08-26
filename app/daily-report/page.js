@@ -62,6 +62,9 @@ export default function DailyReportPage() {
   const [eventsSource, setEventsSource] = useState(''); // 'site' | 'previous' | ''
   const [works, setWorks] = useState([]);
   const [producing, setProducing] = useState(false);
+  // כותב/ת הדוח משתנה ממשמרת למשמרת (לפעמים שני שמות) - שדה חופשי
+  // שמתחיל מהמשתמש המחובר; "מאשרת את הדוח: מירי צרפתי" קבוע בתבנית.
+  const [writerName, setWriterName] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -140,6 +143,7 @@ export default function DailyReportPage() {
           ok: lastReport?.snapshot?.cameras?.ok ?? '',
           broken: lastReport?.snapshot?.cameras?.broken ?? '',
         });
+        setWriterName(user?.full_name || '');
         // המקורות האוטומטיים של שלב 3 - במקביל, בלי לעכב את הטיוטה
         loadCityEvents(nextDate);
         loadWorks(nextDate);
@@ -261,7 +265,7 @@ export default function DailyReportPage() {
         ticket_id: t.id,
         time_label: `${pad(t.openedAt.getDate())}.${pad(t.openedAt.getMonth() + 1)} ${pad(t.openedAt.getHours())}:${pad(t.openedAt.getMinutes())}`,
         description: `מספר פנייה: ${t.id}\nמיקום: ${t.address}\nתיאור הפנייה: ${t.description}`,
-        treatment: `טיפול בפנייה: ${t.lastTreatment || ''}`,
+        treatment: `טיפול בפנייה: ${t.lastTreatment && t.lastTreatment.trim() !== '-' ? t.lastTreatment.trim() : ''}`,
         handler: t.handler || '',
       },
     ]);
@@ -294,7 +298,7 @@ export default function DailyReportPage() {
       .map(({ description, start, end, owner }) => ({ description, start, end, owner })),
     ticket_ids: tickets.map((t) => t.id),
     open_ticket_count: openInfo?.tickets.length ?? null,
-    writer_name: user?.full_name || '',
+    writer_name: writerName.trim() || user?.full_name || '',
   });
 
   const produce = async () => {
@@ -681,9 +685,18 @@ export default function DailyReportPage() {
                 className="text-sm text-emerald-700 font-semibold hover:underline">➕ עבודה חדשה</button>
             </section>
 
-            {/* הפקה */}
+            {/* חתימות והפקה */}
             <section className="bg-white rounded-xl shadow p-5 flex items-center justify-between flex-wrap gap-3">
-              <p className="text-sm text-gray-600">
+              <div className="flex items-center gap-3 flex-wrap">
+                <label className="text-sm font-bold text-gray-900 flex items-center gap-2">
+                  ✍️ כותב/ת הדוח:
+                  <input value={writerName} onChange={(e) => setWriterName(e.target.value)}
+                    placeholder="למשל: דנה אהרון - עפרי מדר"
+                    className="w-64 px-2 py-1 border border-gray-300 rounded text-sm font-normal text-gray-900" />
+                </label>
+                <span className="text-sm text-gray-500">מאשרת את הדוח: מירי צרפתי (קבוע)</span>
+              </div>
+              <p className="text-sm text-gray-600 w-full">
                 ההפקה שומרת את הדוח בהיסטוריה ומורידה Excel מעוצב בפורמט המוכר. PDF - דרך
                 חלון ההדפסה (שמירה כ-PDF). שליחה למירי ולרשימה - כמו היום.
               </p>
