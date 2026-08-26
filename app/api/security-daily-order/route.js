@@ -133,12 +133,15 @@ export async function GET(request) {
 // POST - create or update daily order with entries
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    // אחמ"ש: סמכות משמרת חוצת-מכלולים על סידור הביטחון (בקשת יואב 26.08)
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager', 'shift_supervisor']);
     if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, order_date, general_notes, signoff_message, entries } = body;
-    const deptAccess = await requireDepartmentAccess(request, department_id);
-    if (deptAccess.error) return deptAccess.error;
+    if (auth.user.role !== 'shift_supervisor') {
+      const deptAccess = await requireDepartmentAccess(request, department_id);
+      if (deptAccess.error) return deptAccess.error;
+    }
 
 
     if (!department_id || !order_date) {

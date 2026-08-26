@@ -63,12 +63,15 @@ export async function GET(request) {
 // POST - create a new leave entry
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    // אחמ"ש: סמכות משמרת חוצת-מכלולים על סידור הביטחון (בקשת יואב 26.08)
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager', 'shift_supervisor']);
     if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, staff_id, start_date, end_date, reason, notes } = body;
-    const deptAccess = await requireDepartmentAccess(request, department_id);
-    if (deptAccess.error) return deptAccess.error;
+    if (auth.user.role !== 'shift_supervisor') {
+      const deptAccess = await requireDepartmentAccess(request, department_id);
+      if (deptAccess.error) return deptAccess.error;
+    }
 
 
     if (!department_id || !staff_id || !start_date || !end_date) {
@@ -96,12 +99,14 @@ export async function POST(request) {
 // PATCH - update a leave entry
 export async function PATCH(request) {
   try {
-    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager', 'shift_supervisor']);
     if (auth.error) return auth.error;
     const body = await request.json();
     const { id, ...updates } = body;
-    const rowAccess = await accessForRow(request, id);
-    if (rowAccess.error) return rowAccess.error;
+    if (auth.user.role !== 'shift_supervisor') {
+      const rowAccess = await accessForRow(request, id);
+      if (rowAccess.error) return rowAccess.error;
+    }
 
 
     if (!id) {
@@ -126,12 +131,14 @@ export async function PATCH(request) {
 // DELETE - remove a leave entry
 export async function DELETE(request) {
   try {
-    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    const auth = await requireRole(request, ['sector_manager', 'call_center_manager', 'shift_supervisor']);
     if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const rowAccess = await accessForRow(request, id);
-    if (rowAccess.error) return rowAccess.error;
+    if (auth.user.role !== 'shift_supervisor') {
+      const rowAccess = await accessForRow(request, id);
+      if (rowAccess.error) return rowAccess.error;
+    }
 
 
     if (!id) {

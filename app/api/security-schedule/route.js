@@ -4,7 +4,13 @@ import { supabase } from '@/lib/supabase-server';
 
 /**
  * המכלול נקבע לפי השורה הקיימת ולא לפי מה שהבקשה מצהירה (YOA-27).
+ *
+ * אחמ"ש (shift_supervisor) הוא סמכות משמרת חוצת-מכלולים על סידור
+ * הביטחון - עורך מקונסולת המשמרת (בקשת יואב 26.08; תקדים YOA-43:
+ * מסך המוקד כותב לפקודת היום). המכלול שלו הוא המוקד, לכן בדיקת
+ * המכלול מדולגת עבורו בכתיבות כאן.
  */
+const WRITE_ROLES = ['sector_manager', 'call_center_manager', 'shift_supervisor'];
 async function accessForRow(request, id) {
   if (!id) {
     return { error: NextResponse.json({ success: false, error: 'id required' }, { status: 400 }) };
@@ -56,12 +62,14 @@ export async function GET(request) {
 // POST - assign staff to a shift on a specific day
 export async function POST(request) {
   try {
-    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    const auth = await requireRole(request, WRITE_ROLES);
     if (auth.error) return auth.error;
     const body = await request.json();
     const { department_id, shift_id, staff_id, week_start, day_of_week, is_backup, notes } = body;
-    const deptAccess = await requireDepartmentAccess(request, department_id);
-    if (deptAccess.error) return deptAccess.error;
+    if (auth.user.role !== 'shift_supervisor') {
+      const deptAccess = await requireDepartmentAccess(request, department_id);
+      if (deptAccess.error) return deptAccess.error;
+    }
 
 
     if (!department_id || !shift_id || !staff_id || !week_start || day_of_week === undefined) {
@@ -97,12 +105,14 @@ export async function POST(request) {
 // PATCH - update a schedule entry
 export async function PATCH(request) {
   try {
-    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    const auth = await requireRole(request, WRITE_ROLES);
     if (auth.error) return auth.error;
     const body = await request.json();
     const { id, staff_id, is_backup, notes } = body;
-    const rowAccess = await accessForRow(request, id);
-    if (rowAccess.error) return rowAccess.error;
+    if (auth.user.role !== 'shift_supervisor') {
+      const rowAccess = await accessForRow(request, id);
+      if (rowAccess.error) return rowAccess.error;
+    }
 
 
     if (!id) {
@@ -136,12 +146,14 @@ export async function PATCH(request) {
 // DELETE - remove a schedule entry or bulk delete for a week
 export async function DELETE(request) {
   try {
-    const auth = await requireRole(request, ['sector_manager', 'call_center_manager']);
+    const auth = await requireRole(request, WRITE_ROLES);
     if (auth.error) return auth.error;
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
-    const rowAccess = await accessForRow(request, id);
-    if (rowAccess.error) return rowAccess.error;
+    if (auth.user.role !== 'shift_supervisor') {
+      const rowAccess = await accessForRow(request, id);
+      if (rowAccess.error) return rowAccess.error;
+    }
 
     const departmentId = searchParams.get('department_id');
     const weekStart = searchParams.get('week_start');

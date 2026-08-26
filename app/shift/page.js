@@ -7,8 +7,12 @@ import ActiveEventBanner from '@/components/ActiveEventBanner';
 import OperatorTasks from '@/components/OperatorTasks';
 import CallCenterSchedule from '@/components/CallCenterSchedule';
 import OperatorNotifications from '@/components/OperatorNotifications';
-import SecurityOrderEditor from '@/components/SecurityOrderEditor';
+import SecurityWeeklySchedule from '@/components/SecurityWeeklySchedule';
 import CityWorksManager from '@/components/CityWorksManager';
+import SecurityFieldStatus from '@/components/SecurityFieldStatus';
+import CallGuide from '@/components/CallGuide';
+import PanicButtonSearch from '@/components/PanicButtonSearch';
+import GarbageStreetSearch from '@/components/GarbageStreetSearch';
 
 /**
  * קונסולת האחמ״ש - "מה קורה במשמרת שלי עכשיו".
@@ -24,6 +28,7 @@ export default function ShiftPage() {
   const [sessions, setSessions] = useState([]);
   const [warMode, setWarMode] = useState(false);
   const [callCenterDeptId, setCallCenterDeptId] = useState('');
+  const [securityDeptId, setSecurityDeptId] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -43,6 +48,8 @@ export default function ShiftPage() {
           const list = (await deptRes.json()).data || [];
           const mokedDept = list.find((d) => (d.name || '').includes('מוקד'));
           setCallCenterDeptId(me?.department_id || mokedDept?.id || '');
+          const securityDept = list.find((d) => (d.name || '').includes('טחון'));
+          setSecurityDeptId(securityDept?.id || '');
         }
       }
       if (shiftRes.ok) setShift(await shiftRes.json());
@@ -110,6 +117,11 @@ export default function ShiftPage() {
             <h1 className="text-2xl font-bold">ניהול משמרת</h1>
             <p className="text-sm opacity-80">{user?.full_name || 'אחמ״ש'}</p>
           </div>
+          {/* כלי החיפוש של עמדת המוקדן - גם לאחמ"ש (בקשת יואב 26.08) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <PanicButtonSearch />
+            <GarbageStreetSearch />
+          </div>
           <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/daily-report')}
@@ -138,6 +150,9 @@ export default function ShiftPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* סטטוס השטח של מכלול הביטחון - כמו בעמדת המוקדן */}
+        <SecurityFieldStatus />
+
         {/* מי במשמרת עכשיו */}
         <section className="bg-white rounded-xl shadow p-5">
           <h2 className="text-lg font-bold text-gray-900 mb-3">המשמרת עכשיו</h2>
@@ -203,6 +218,11 @@ export default function ShiftPage() {
           <OperatorNotifications canManage author={user?.full_name || 'אחמ״ש'} />
         </section>
 
+        {/* כוננויות - מדריך ההתקשרות של עמדת המוקדן */}
+        <section className="bg-white rounded-xl shadow overflow-hidden">
+          <CallGuide />
+        </section>
+
         {/* סידור המוקד - אחמ״ש מזין משמרות תמיד, לא רק כשהוא במשמרת */}
         {callCenterDeptId && (
           <section className="bg-white rounded-xl shadow p-5">
@@ -211,13 +231,15 @@ export default function ShiftPage() {
           </section>
         )}
 
-        {/* סידור הביטחון היום - אותן פעולות שיש למסך המוקד (YOA-43),
-            נגישות גם מהקונסולה (בקשת יואב 26.08) */}
-        <section className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">🛡️ סידור הביטחון היום</h2>
-          <p className="text-xs text-gray-500 mb-3">שינוי כאן מתעדכן מיד על מסך המוקד, עם תיעוד מלא של השינויים.</p>
-          <SecurityOrderEditor userName={user?.full_name} />
-        </section>
+        {/* סידור הביטחון - אותה טבלה שיש לאריאל (מנהל המכלול) ולמירי
+            (מנהלת המוקד), נגישה גם לאחמ"ש (בקשת יואב 26.08) */}
+        {securityDeptId && (
+          <section className="bg-white rounded-xl shadow p-5">
+            <h2 className="text-lg font-bold text-gray-900 mb-1">🛡️ סידור הביטחון</h2>
+            <p className="text-xs text-gray-500 mb-3">אותה טבלה של מנהל המכלול ומנהלת המוקד - שינוי כאן מתעדכן מיד על מסך המוקד.</p>
+            <SecurityWeeklySchedule departmentId={securityDeptId} />
+          </section>
+        )}
 
         {/* עבודות בעיר - הרשימה המנוהלת של הדוח היומי והמסך */}
         <section className="bg-white rounded-xl shadow p-5">
