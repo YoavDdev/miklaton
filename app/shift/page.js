@@ -20,11 +20,21 @@ import GarbageStreetSearch from '@/components/GarbageStreetSearch';
  * אחמ״ש מנהל את משמרת המוקד. עד היום התפקיד היה קיים בארגון ובתסריטי
  * ההתראה, אבל לא בתוכנה - שהכירה רק נציג ומנהלת מוקד (docs/15).
  */
+const TABS = [
+  { id: 'notifications', label: '📢 הודעות' },
+  { id: 'oncall', label: '📞 כוננויות' },
+  { id: 'callcenter', label: '🗓️ סידור המוקד' },
+  { id: 'security', label: '🛡️ סידור הביטחון' },
+  { id: 'works', label: '🚧 עבודות בעיר' },
+  { id: 'tasks', label: '✅ משימות' },
+];
+
 export default function ShiftPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [warMode, setWarMode] = useState(false);
+  const [activeTab, setActiveTab] = useState('notifications');
   const [callCenterDeptId, setCallCenterDeptId] = useState('');
   const [securityDeptId, setSecurityDeptId] = useState('');
 
@@ -140,52 +150,71 @@ export default function ShiftPage() {
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
-        {/* סטטוס השטח של מכלול הביטחון - כמו בעמדת המוקדן */}
+      <main className="max-w-6xl mx-auto px-4 py-5">
+        {/* סטטוס השטח - מבצעי-חי, תמיד גלוי מעל הלשוניות */}
         <SecurityFieldStatus />
 
-        {/* "המשמרת עכשיו" ו"מחוברים כרגע" הוסרו בבקשת יואב (26.08) -
-            המידע קיים ממילא על מסך המוקד */}
+        {/* לשוניות במקום גלילה אינסופית (בקשת יואב 26.08, UI בלבד).
+            התוכן נשאר mounted (hidden) כדי לא לאבד מצב ולא לרענן לחינם. */}
+        <nav className="sticky top-0 z-20 -mx-4 px-4 py-2 bg-gray-50/95 backdrop-blur border-b border-gray-200 mb-5">
+          <div className="flex gap-1 overflow-x-auto">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                onClick={() => setActiveTab(t.id)}
+                className={`shrink-0 px-4 py-2 rounded-lg text-sm font-bold transition-colors ${
+                  activeTab === t.id
+                    ? 'bg-indigo-700 text-white shadow'
+                    : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+                }`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+        </nav>
 
-        {/* הודעות למסך הציבורי ולנציגים - פרסום ומחיקה הם סמכות משמרת:
-            הורדו ממוקדנים בהחלטת מדיניות (docs/15, 2026-08-19) */}
-        <section className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">הודעות למוקד ולמסך</h2>
+        {/* הודעות - פרסום ומחיקה הם סמכות משמרת (docs/15) */}
+        <section className={activeTab === 'notifications' ? 'bg-white rounded-xl shadow p-5' : 'hidden'}>
+          <h2 className="text-lg font-bold text-gray-900 mb-3">📢 הודעות למוקד ולמסך</h2>
           <OperatorNotifications canManage author={user?.full_name || 'אחמ״ש'} />
         </section>
 
         {/* כוננויות - מדריך ההתקשרות של עמדת המוקדן */}
-        <section className="bg-white rounded-xl shadow overflow-hidden">
+        <section className={activeTab === 'oncall' ? 'bg-white rounded-xl shadow overflow-hidden' : 'hidden'}>
           <CallGuide />
         </section>
 
-        {/* סידור המוקד - אחמ״ש מזין משמרות תמיד, לא רק כשהוא במשמרת */}
-        {callCenterDeptId && (
-          <section className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-bold text-gray-900 mb-3">סידור המוקד</h2>
+        {/* סידור המוקד - אחמ״ש מזין משמרות תמיד */}
+        <section className={activeTab === 'callcenter' ? 'bg-white rounded-xl shadow p-5' : 'hidden'}>
+          <h2 className="text-lg font-bold text-gray-900 mb-3">🗓️ סידור המוקד</h2>
+          {callCenterDeptId ? (
             <CallCenterSchedule departmentId={callCenterDeptId} canEdit />
-          </section>
-        )}
+          ) : (
+            <p className="text-sm text-gray-500">מכלול המוקד לא נמצא.</p>
+          )}
+        </section>
 
-        {/* סידור הביטחון - אותה טבלה שיש לאריאל (מנהל המכלול) ולמירי
-            (מנהלת המוקד), נגישה גם לאחמ"ש (בקשת יואב 26.08) */}
-        {securityDeptId && (
-          <section className="bg-white rounded-xl shadow p-5">
-            <h2 className="text-lg font-bold text-gray-900 mb-1">🛡️ סידור הביטחון</h2>
-            <p className="text-xs text-gray-500 mb-3">אותה טבלה של מנהל המכלול ומנהלת המוקד - שינוי כאן מתעדכן מיד על מסך המוקד.</p>
+        {/* סידור הביטחון - הטבלה של מנהל המכלול ומנהלת המוקד */}
+        <section className={activeTab === 'security' ? 'bg-white rounded-xl shadow p-5' : 'hidden'}>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">🛡️ סידור הביטחון</h2>
+          <p className="text-xs text-gray-500 mb-3">אותה טבלה של מנהל המכלול ומנהלת המוקד - שינוי כאן מתעדכן מיד על מסך המוקד.</p>
+          {securityDeptId ? (
             <SecurityWeeklySchedule departmentId={securityDeptId} />
-          </section>
-        )}
+          ) : (
+            <p className="text-sm text-gray-500">מכלול הביטחון לא נמצא.</p>
+          )}
+        </section>
 
         {/* עבודות בעיר - הרשימה המנוהלת של הדוח היומי והמסך */}
-        <section className="bg-white rounded-xl shadow p-5">
+        <section className={activeTab === 'works' ? 'bg-white rounded-xl shadow p-5' : 'hidden'}>
           <h2 className="text-lg font-bold text-gray-900 mb-1">🚧 עבודות בעיר</h2>
           <CityWorksManager />
         </section>
 
         {/* משימות המשמרת */}
-        <section className="bg-white rounded-xl shadow p-5">
-          <h2 className="text-lg font-bold text-gray-900 mb-3">משימות</h2>
+        <section className={activeTab === 'tasks' ? 'bg-white rounded-xl shadow p-5' : 'hidden'}>
+          <h2 className="text-lg font-bold text-gray-900 mb-3">✅ משימות</h2>
           <OperatorTasks />
         </section>
       </main>
