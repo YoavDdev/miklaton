@@ -305,22 +305,21 @@ export default function DailyReportPage() {
 
       const map = Object.fromEntries(body.data.map((r) => [r.id, r]));
       setAiMap(map);
-      const flagged = prepared
-        .filter((t) => !t.groupedInto && map[t.id] && map[t.id].category !== 'routine')
-        .sort((a, b) => {
-          const rank = (t) => (map[t.id].category === 'danger' ? 0 : 1);
-          return rank(a) - rank(b) || a.openedAt - b.openedAt;
-        });
+      // לדוח נכנסות רק סכנות (החלטת יואב 26.08); "חשוב לידיעה" נשאר
+      // תגית ברשימה - רמז לעין, בלי להכניס לדוח. רוב הימים: מקטע ריק.
+      const dangers = prepared
+        .filter((t) => !t.groupedInto && map[t.id]?.category === 'danger')
+        .sort((a, b) => a.openedAt - b.openedAt);
       setExceptional((prev) => {
         const existing = new Set(prev.map((e) => e.ticket_id));
-        return [...prev, ...flagged.filter((t) => !existing.has(t.id)).map((t) => draftEntry(t, map[t.id]))];
+        return [...prev, ...dangers.filter((t) => !existing.has(t.id)).map((t) => draftEntry(t, map[t.id]))];
       });
-      const dangers = flagged.filter((t) => map[t.id].category === 'danger').length;
+      const notable = Object.values(map).filter((v) => v.category === 'notable').length;
       setAiStatus('done');
       toast.success(
-        flagged.length
-          ? `🤖 ה-AI זיהה ${flagged.length} אירועים לדוח (${dangers} סכנה) - עבור עליהם ואשר`
-          : '🤖 ה-AI לא זיהה אירועים חריגים היום - אפשר להוסיף ידנית'
+        dangers.length
+          ? `🤖 ${dangers.length} סכנות נכנסו לדוח - עבור עליהן ואשר${notable ? ` (עוד ${notable} מסומנות 🟡 ברשימה)` : ''}`
+          : `🤖 אין סכנות היום - המקטע נשאר ריק${notable ? ` (${notable} מסומנות 🟡 ברשימה אם תרצה להוסיף)` : ''}`
       );
     } catch (error) {
       setAiStatus('failed');
