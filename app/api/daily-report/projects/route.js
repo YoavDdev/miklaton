@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
-import { requireRole } from '@/lib/auth';
+import { requireRole, requireRoleOrScreen } from '@/lib/auth';
 import { supabase } from '@/lib/supabase-server';
 import { parseIlDate } from '@/lib/daily-report-city';
 
 // עבודות בעיר (YOA-42 שלב 3, docs/16): רשימה מנוהלת עם טווחי תאריכים.
-// אותה סמכות משמרת כמו הדוח עצמו.
+// כתיבה - סמכות משמרת כמו הדוח; קריאה פתוחה גם למסך המוקד ולמוקדנים
+// (בקשת יואב 26.08: שהמוקדנים יראו על המסך מה פעיל בעיר).
 const ROLES = ['shift_supervisor', 'call_center_manager'];
 
 // "20.08.2026" → end_date; "ספטמבר" → end_date_approx; ריק/"אין צפי" → שניהם null
@@ -18,7 +19,7 @@ function endFields(end) {
 
 export async function GET(request) {
   try {
-    const auth = await requireRole(request, ROLES);
+    const auth = await requireRoleOrScreen(request);
     if (auth.error) return auth.error;
 
     const { data, error } = await supabase

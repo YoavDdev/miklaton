@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { projectRowsForReport } from '@/lib/daily-report-city';
 import { createClient } from '@supabase/supabase-js';
 import { getMunicipalityId } from '@/lib/municipality';
 import WeatherAlertBar from '@/components/WeatherAlertBar';
@@ -92,6 +93,7 @@ export default function ScreenPage() {
   const [statusModal, setStatusModal] = useState({ open: false, staffId: null, staffName: null });
   const [timingMode, setTimingMode] = useState('immediate');
   const [vacations, setVacations] = useState([]);
+  const [cityWorks, setCityWorks] = useState([]);
   const [actionMenu, setActionMenu] = useState({ open: false, entry: null }); // quick action menu on staff card
   const [shiftChangeModal, setShiftChangeModal] = useState({ open: false, entry: null, type: null }); // 'end_time_change', 'time_change', 'replaced', 'removed'
   const [addShiftModal, setAddShiftModal] = useState({ open: false }); // add a new shift for a security staff member
@@ -275,6 +277,15 @@ export default function ScreenPage() {
       )
       .subscribe();
 
+    // Realtime city works changes (managed from the daily-report draft)
+    const worksChannel = supabase
+      .channel('screen_city_works')
+      .on('postgres_changes',
+        { event: '*', schema: 'public', table: 'report_projects' },
+        () => fetchCityWorks()
+      )
+      .subscribe();
+
     // Realtime duty roster changes
     const rosterChannel = supabase
       .channel('screen_duty_roster')
@@ -301,6 +312,7 @@ export default function ScreenPage() {
       supabase.removeChannel(directVacationChannel);
       supabase.removeChannel(rosterChannel);
       supabase.removeChannel(contactsChannel);
+      supabase.removeChannel(worksChannel);
     };
   }, []);
 
@@ -339,6 +351,7 @@ export default function ScreenPage() {
       fetchNotifications(),
       fetchDutyRoster(),
       fetchVacations(),
+      fetchCityWorks(),
       securityDeptIdRef.current ? fetchSecurityStatus() : Promise.resolve(),
       callCenterDeptIdRef.current ? fetchCallCenterShift() : Promise.resolve()
     ]);
@@ -500,6 +513,19 @@ export default function ScreenPage() {
       }
     } catch (error) {
       console.error('Error fetching call center shift:', error);
+    }
+  };
+
+  // עבודות פעילות בעיר (YOA-42): אותה רשימה מנוהלת של הדוח היומי -
+  // מסוננת לפי טווחי התאריכים להיום, כדי שמוקדן שמסתכל על המסך יודע
+  // מה פתוח בעיר כשתושב מתקשר. קריאה בלבד.
+  const fetchCityWorks = async () => {
+    try {
+      const res = await screenFetch('/api/daily-report/projects');
+      const data = await res.json();
+      if (data.success) setCityWorks(projectRowsForReport(data.data, new Date()));
+    } catch (error) {
+      console.error('Error fetching city works:', error);
     }
   };
 
@@ -998,7 +1024,32 @@ export default function ScreenPage() {
               )}
             </div>
           </div>
-          
+
+          {/* עבודות פעילות בעיר (YOA-42) - מהרשימה המנוהלת של הדוח היומי */}
+          {cityWorks.length > 0 && (
+            <div className="bg-white/5 border border-white/10 rounded-xl overflow-hidden shrink-0">
+              <div className="px-4 py-2 bg-gradient-to-l from-amber-900/30 to-transparent border-b border-white/5 flex items-center gap-2">
+                <span className="text-base">🚧</span>
+                <h2 className="font-bold text-sm text-amber-100">עבודות פעילות בעיר</h2>
+                <span className="text-[10px] bg-amber-800/50 text-amber-200 px-1.5 py-0.5 rounded-full">{cityWorks.length}</span>
+              </div>
+              <div className="px-3 py-2 space-y-1">
+                {cityWorks.map((w) => (
+                  <div key={w.id} className="flex items-center gap-2 text-sm">
+                    <span className="text-amber-400 shrink-0">•</span>
+                    <span className="text-gray-200 truncate flex-1">{(w.description || '').split('\n')[0]}</span>
+                    {w.owner && (
+                      <span className="text-[10px] bg-white/10 text-gray-300 px-1.5 py-0.5 rounded-full shrink-0">{w.owner}</span>
+                    )}
+                    <span className="text-xs text-gray-400 shrink-0">
+                      {w.end === 'אין צפי לסיום' ? 'ללא צפי סיום' : `עד ${w.end}`}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Urgent Notifications */}
           {urgentNotifs.length > 0 && (
             <div className="flex flex-col gap-2 shrink-0">

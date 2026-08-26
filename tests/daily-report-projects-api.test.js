@@ -42,16 +42,22 @@ const asRole = (role, options = {}) =>
   });
 
 describe('/api/daily-report/projects — הרשאות', () => {
-  it.each(['GET', 'POST', 'PATCH'])('%s חסום למוקדן', async (method) => {
+  it.each(['POST', 'PATCH'])('כתיבה (%s) חסומה למוקדן', async (method) => {
     const mod = await import('@/app/api/daily-report/projects/route');
-    const options = method === 'GET' ? { method } : { method, body: {} };
-    const res = await mod[method](asRole('operator', options));
+    const res = await mod[method](asRole('operator', { method, body: {} }));
     expect(res.status).toBe(403);
   });
 
-  it('GET עובר לאחמ"ש', async () => {
+  // הקריאה פתוחה לכל מחובר - מסך המוקד והמוקדנים רואים מה פעיל בעיר
+  it.each(['shift_supervisor', 'operator'])('GET עובר ל-%s', async (role) => {
     const mod = await import('@/app/api/daily-report/projects/route');
-    expect((await mod.GET(asRole('shift_supervisor'))).status).toBe(200);
+    expect((await mod.GET(asRole(role))).status).toBe(200);
+  });
+
+  it('GET בלי שום אימות - נחסם', async () => {
+    const mod = await import('@/app/api/daily-report/projects/route');
+    const res = await mod.GET(makeRequest('/api/daily-report/projects'));
+    expect([401, 403]).toContain(res.status);
   });
 });
 
