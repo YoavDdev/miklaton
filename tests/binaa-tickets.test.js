@@ -1,7 +1,15 @@
 import fs from 'fs';
 import path from 'path';
 import { describe, it, expect } from 'vitest';
-import { parseTicketsCsv, reportWindow, prepareTickets, stripPii } from '@/lib/binaa-tickets';
+import {
+  parseTicketsCsv,
+  reportWindow,
+  prepareTickets,
+  stripPii,
+  isClosedStatus,
+  detectExportKind,
+  computeAgafTable,
+} from '@/lib/binaa-tickets';
 
 /**
  * YOA-42 (docs/16): הפרסר של ייצוא הפניות מבינה 360. ה-fixture סינתטי
@@ -85,6 +93,117 @@ describe('prepareTickets', () => {
     const tree = tickets.filter(t => t.address.includes('הדקל') && !t.groupedInto);
     expect(tree.length).toBe(1);
     expect(tree[0].groupCount).toBe(2);
+  });
+});
+
+/**
+ * הפורמט האמיתי של הייצוא (אומת 26.08 מול שלושה קבצים אמיתיים):
+ * 19 עמודות, עמודת "אגף" מובנית, מדד SLA באחוזים. שני סוגי ייצוא -
+ * קובץ יום (מסונן תאריך) וקובץ פתוחות (מסונן סטטוס).
+ */
+const DAY_FIXTURE = fs.readFileSync(
+  path.join(process.cwd(), 'tests', 'fixtures', 'binaa-day-sample.csv'),
+  'utf8'
+);
+const OPEN_FIXTURE = fs.readFileSync(
+  path.join(process.cwd(), 'tests', 'fixtures', 'binaa-open-sample.csv'),
+  'utf8'
+);
+
+describe('הפורמט החדש - אגף ו-SLA', () => {
+  const day = parseTicketsCsv(DAY_FIXTURE);
+
+  it('קורא את כל השורות של הפורמט החדש', () => {
+    expect(day.length).toBe(12);
+  });
+
+  it('מנרמל את עמודת האגף - קידומת "אגף " יורדת', () => {
+    expect(day.find(t => t.id === '700001').agaf).toBe('שפ"ע');
+    expect(day.find(t => t.id === '700006').agaf).toBe('בטחון');
+    expect(day.find(t => t.id === '700010').agaf).toBe('חינוך');
+  });
+
+  it('מפענח את מדד ה-SLA לאחוז מספרי, " -" הופך ל-null', () => {
+    expect(day.find(t => t.id === '700002').slaPct).toBe(26.29);
+    expect(day.find(t => t.id === '700004').slaPct).toBe(100);
+    expect(day.find(t => t.id === '700003').slaPct).toBeNull();
+  });
+
+  it('הפורמט הישן (בלי עמודת אגף) ממשיך להיקרא', () => {
+    const old = parseTicketsCsv(FIXTURE);
+    expect(old.length).toBe(10);
+    expect(old[0].agaf).toBe('');
+    expect(old[0].slaPct).toBe(5);
+  });
+});
+
+describe('isClosedStatus', () => {
+  it('מזהה את משפחת הסטטוסים הסגורים', () => {
+    expect(isClosedStatus('הטיפול הסתיים')).toBe(true);
+    expect(isClosedStatus('תהליך הסתיים')).toBe(true);
+    expect(isClosedStatus('וטרינריה - סטטוס סגור')).toBe(true);
+    expect(isClosedStatus('לא יבוצע')).toBe(true);
+    expect(isClosedStatus('פניה כפולה')).toBe(true);
+  });
+
+  it('סטטוסים פתוחים אינם סגורים', () => {
+    expect(isClosedStatus('פניה נפתחה במערכת המוקד')).toBe(false);
+    expect(isClosedStatus('בטיפול')).toBe(false);
+    expect(isClosedStatus('מוחזרת עי הפונה')).toBe(false);
+    expect(isClosedStatus('בתכנית עבודה')).toBe(false);
+  });
+});
+
+describe('detectExportKind', () => {
+  it('קובץ יום: יום אחד עם סטטוסים מעורבים', () => {
+    expect(detectExportKind(parseTicketsCsv(DAY_FIXTURE))).toBe('day');
+  });
+
+  it('קובץ פתוחות: הרבה תאריכים, אפס סגורות', () => {
+    expect(detectExportKind(parseTicketsCsv(OPEN_FIXTURE))).toBe('open');
+  });
+});
+
+describe('computeAgafTable', () => {
+  const day = parseTicketsCsv(DAY_FIXTURE);
+  const open = parseTicketsCsv(OPEN_FIXTURE);
+  const reportDate = new Date(2026, 7, 25);
+
+  it('נפתחו וטופלו מקובץ היום - כולל פניות-בנות, לפי חלון הדוח', () => {
+    const table = computeAgafTable(day, open, reportDate);
+    expect(table['שפ"ע'].opened).toBe(6);
+    expect(table['שפ"ע'].handled).toBe(3);
+    expect(table['בטחון'].opened).toBe(4);
+    expect(table['בטחון'].handled).toBe(2);
+    expect(table['חינוך'].opened).toBe(2);
+    expect(table['חינוך'].handled).toBe(0);
+    expect(table['הנדסה'].opened).toBe(0);
+    expect(table['הנדסה'].handled).toBe(0);
+  });
+
+  it('סך פתוחות וחורגות מקובץ הפתוחות - ספירה גולמית ו-SLA מעל 100', () => {
+    const table = computeAgafTable(day, open, reportDate);
+    expect(table['שפ"ע'].open_total).toBe(4);
+    expect(table['שפ"ע'].overdue).toBe(1);
+    expect(table['בטחון'].open_total).toBe(2);
+    expect(table['בטחון'].overdue).toBe(1);
+    expect(table['חינוך'].open_total).toBe(3);
+    expect(table['חינוך'].overdue).toBe(2);
+    expect(table['הנדסה'].open_total).toBe(1);
+    expect(table['הנדסה'].overdue).toBe(1);
+  });
+
+  it('בלי קובץ פתוחות - העמודות שלו נשארות ריקות למילוי ידני', () => {
+    const table = computeAgafTable(day, null, reportDate);
+    expect(table['שפ"ע'].opened).toBe(6);
+    expect(table['שפ"ע'].open_total).toBe('');
+    expect(table['שפ"ע'].overdue).toBe('');
+  });
+
+  it('בלי קובץ יום - נפתחו/טופלו ריקות', () => {
+    const table = computeAgafTable(null, open, reportDate);
+    expect(table['חינוך'].opened).toBe('');
+    expect(table['חינוך'].open_total).toBe(3);
   });
 });
 
