@@ -65,6 +65,11 @@ export default function DailyReportPage() {
   // כותב/ת הדוח משתנה ממשמרת למשמרת (לפעמים שני שמות) - שדה חופשי
   // שמתחיל מהמשתמש המחובר; "מאשרת את הדוח: מירי צרפתי" קבוע בתבנית.
   const [writerName, setWriterName] = useState('');
+  // סיווג ה-AI: idle | running | done | failed. המפה: ticket_id -> {category, reason}
+  const [aiStatus, setAiStatus] = useState('idle');
+  const [aiMap, setAiMap] = useState({});
+  const [rulesOpen, setRulesOpen] = useState(false);
+  const [rulesText, setRulesText] = useState('');
 
   const load = useCallback(async () => {
     try {
@@ -144,9 +149,10 @@ export default function DailyReportPage() {
           broken: lastReport?.snapshot?.cameras?.broken ?? '',
         });
         setWriterName(user?.full_name || '');
-        // המקורות האוטומטיים של שלב 3 - במקביל, בלי לעכב את הטיוטה
+        // המקורות האוטומטיים - במקביל, בלי לעכב את הטיוטה
         loadCityEvents(nextDate);
         loadWorks(nextDate);
+        classifyTickets(prepared);
       }
       if (nextOpen !== openInfo) setOpenInfo(nextOpen);
 
@@ -257,22 +263,101 @@ export default function DailyReportPage() {
   const updateWork = (i, field, value) =>
     setWorks((prev) => prev.map((w, idx) => (idx === i ? { ...w, [field]: value, dirty: true } : w)));
 
+  const draftEntry = (t, ai) => ({
+    ticket_id: t.id,
+    time_label: `${pad(t.openedAt.getDate())}.${pad(t.openedAt.getMonth() + 1)} ${pad(t.openedAt.getHours())}:${pad(t.openedAt.getMinutes())}`,
+    description: `מספר פנייה: ${t.id}\nמיקום: ${t.address}\nתיאור הפנייה: ${t.description}`,
+    treatment: `טיפול בפנייה: ${t.lastTreatment && t.lastTreatment.trim() !== '-' ? t.lastTreatment.trim() : ''}`,
+    handler: t.handler || '',
+    ...(ai ? { ai_category: ai.category, ai_reason: ai.reason } : {}),
+  });
+
   const addToReport = (t) => {
     if (exceptional.some((e) => e.ticket_id === t.id)) return;
-    setExceptional((prev) => [
-      ...prev,
-      {
-        ticket_id: t.id,
-        time_label: `${pad(t.openedAt.getDate())}.${pad(t.openedAt.getMonth() + 1)} ${pad(t.openedAt.getHours())}:${pad(t.openedAt.getMinutes())}`,
-        description: `מספר פנייה: ${t.id}\nמיקום: ${t.address}\nתיאור הפנייה: ${t.description}`,
-        treatment: `טיפול בפנייה: ${t.lastTreatment && t.lastTreatment.trim() !== '-' ? t.lastTreatment.trim() : ''}`,
-        handler: t.handler || '',
-      },
-    ]);
+    setExceptional((prev) => [...prev, draftEntry(t, aiMap[t.id]?.category !== 'routine' ? aiMap[t.id] : null)]);
+  };
+
+  // שלב 2 (docs/16): קריאה אחת עם כל פניות היום, נטולות PII כבר כאן.
+  // סכנה וחשוב-לידיעה נכנסים לטיוטה אוטומטית - סכנות תחילה; ה-AI
+  // אינו תנאי - כשל משאיר את הסימון הידני בדיוק כמו קודם.
+  const classifyTickets = async (prepared) => {
+    setAiStatus('running');
+    setAiMap({});
+    try {
+      const payload = prepared.map((t) => ({
+        id: t.id,
+        openedAt: t.openedAt?.toISOString(),
+        department: t.department,
+        subject: t.subject,
+        description: t.description,
+        address: t.address,
+        lastTreatment: t.lastTreatment,
+        groupCount: t.groupCount,
+      }));
+      const res = await fetch('/api/daily-report/classify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tickets: payload }),
+      });
+      const body = await res.json();
+      if (!body.success) throw new Error(body.error || 'הסיווג נכשל');
+
+      const map = Object.fromEntries(body.data.map((r) => [r.id, r]));
+      setAiMap(map);
+      const flagged = prepared
+        .filter((t) => !t.groupedInto && map[t.id] && map[t.id].category !== 'routine')
+        .sort((a, b) => {
+          const rank = (t) => (map[t.id].category === 'danger' ? 0 : 1);
+          return rank(a) - rank(b) || a.openedAt - b.openedAt;
+        });
+      setExceptional((prev) => {
+        const existing = new Set(prev.map((e) => e.ticket_id));
+        return [...prev, ...flagged.filter((t) => !existing.has(t.id)).map((t) => draftEntry(t, map[t.id]))];
+      });
+      const dangers = flagged.filter((t) => map[t.id].category === 'danger').length;
+      setAiStatus('done');
+      toast.success(
+        flagged.length
+          ? `🤖 ה-AI זיהה ${flagged.length} אירועים לדוח (${dangers} סכנה) - עבור עליהם ואשר`
+          : '🤖 ה-AI לא זיהה אירועים חריגים היום - אפשר להוסיף ידנית'
+      );
+    } catch (error) {
+      setAiStatus('failed');
+      toast(`ה-AI לא זמין (${error.message}) - סמן ידנית כרגיל`, { icon: '⚠️' });
+    }
   };
 
   const updateExceptional = (i, field, value) =>
     setExceptional((prev) => prev.map((e, idx) => (idx === i ? { ...e, [field]: value } : e)));
+
+  const openRules = async () => {
+    if (!rulesOpen && !rulesText) {
+      try {
+        const res = await fetch('/api/daily-report/classify', { credentials: 'include' });
+        const body = await res.json();
+        if (body.success) setRulesText(body.data.classification_rules);
+      } catch { /* הטקסט יישאר ריק - עדיף מלחסום */ }
+    }
+    setRulesOpen((v) => !v);
+  };
+
+  const saveRules = async () => {
+    try {
+      const res = await fetch('/api/daily-report/classify', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ classification_rules: rulesText }),
+      });
+      const body = await res.json();
+      if (!body.success) throw new Error(body.error || 'השמירה נכשלה');
+      toast.success('הכללים נשמרו - ייכנסו לתוקף בסיווג הבא');
+      setRulesOpen(false);
+    } catch (error) {
+      toast.error('שמירת הכללים נכשלה: ' + error.message);
+    }
+  };
 
   const updateRow = (setter) => (i, field, value) =>
     setter((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
@@ -331,6 +416,8 @@ export default function DailyReportPage() {
       setDayAll([]);
       setOpenInfo(null);
       setFileName('');
+      setAiStatus('idle');
+      setAiMap({});
       await load();
     } catch (error) {
       toast.error('שגיאה בהפקה: ' + error.message);
@@ -563,15 +650,47 @@ export default function DailyReportPage() {
 
             {/* 2. אירועים חריגים */}
             <section className="bg-white rounded-xl shadow p-5">
-              <h3 className="font-bold text-gray-900 mb-3">אירועים חריגים ({exceptional.length} בדוח)</h3>
+              <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
+                <h3 className="font-bold text-gray-900">אירועים חריגים ({exceptional.length} בדוח)</h3>
+                <div className="flex items-center gap-2 text-xs">
+                  {aiStatus === 'running' && <span className="px-2 py-1 rounded bg-blue-50 text-blue-700 font-bold">🤖 ה-AI קורא את פניות היום...</span>}
+                  {aiStatus === 'done' && <span className="px-2 py-1 rounded bg-emerald-50 text-emerald-700 font-bold">🤖 סיווג AI הושלם - עבור על ההצעות ואשר</span>}
+                  {aiStatus === 'failed' && <span className="px-2 py-1 rounded bg-orange-50 text-orange-700 font-bold">⚠️ AI לא זמין - סימון ידני</span>}
+                  <button onClick={openRules} className="px-2 py-1 rounded bg-gray-100 text-gray-700 font-bold hover:bg-gray-200">
+                    ⚙️ כללי הסיווג
+                  </button>
+                </div>
+              </div>
+
+              {rulesOpen && (
+                <div className="border-2 border-gray-200 rounded-lg p-3 mb-3 bg-gray-50">
+                  <p className="text-xs text-gray-600 mb-2">
+                    הכללים כתובים בעברית חופשית וה-AI מציית להם. שינוי כאן משפיע מהסיווג הבא.
+                  </p>
+                  <textarea value={rulesText} onChange={(e) => setRulesText(e.target.value)} rows={6}
+                    className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 mb-2" />
+                  <div className="flex gap-2">
+                    <button onClick={saveRules} className="px-3 py-1 rounded bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700">💾 שמור כללים</button>
+                    <button onClick={() => setRulesOpen(false)} className="px-3 py-1 rounded bg-gray-200 text-gray-700 text-sm font-bold">סגור</button>
+                  </div>
+                </div>
+              )}
 
               {exceptional.map((e, i) => (
-                <div key={e.ticket_id} className="border-2 border-emerald-200 bg-emerald-50/40 rounded-lg p-3 mb-3">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-emerald-800">{e.time_label} · פנייה {e.ticket_id}</span>
+                <div key={e.ticket_id}
+                  className={`border-2 rounded-lg p-3 mb-3 ${e.ai_category === 'danger' ? 'border-red-300 bg-red-50/40' : e.ai_category === 'notable' ? 'border-yellow-300 bg-yellow-50/40' : 'border-emerald-200 bg-emerald-50/40'}`}>
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-1">
+                    <span className="text-xs font-bold text-emerald-800">
+                      {e.time_label} · פנייה {e.ticket_id}
+                      {e.ai_category === 'danger' && <span className="mr-2 px-1.5 py-0.5 rounded bg-red-100 text-red-700">🔴 סכנה</span>}
+                      {e.ai_category === 'notable' && <span className="mr-2 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-800">🟡 חשוב לידיעה</span>}
+                    </span>
                     <button onClick={() => setExceptional((prev) => prev.filter((_, idx) => idx !== i))}
                       className="text-red-500 font-bold text-sm hover:text-red-700">✕ הסר</button>
                   </div>
+                  {e.ai_reason && (
+                    <p className="text-xs text-gray-600 mb-2">🤖 {e.ai_reason}</p>
+                  )}
                   <textarea value={e.description} onChange={(ev) => updateExceptional(i, 'description', ev.target.value)}
                     rows={3} className="w-full px-2 py-1 border border-gray-300 rounded text-sm text-gray-900 mb-2" />
                   <div className="flex gap-2 flex-wrap">
@@ -604,6 +723,8 @@ export default function DailyReportPage() {
                             {pad(t.openedAt.getHours())}:{pad(t.openedAt.getMinutes())} · {t.department}
                             {t.linkedDepartments?.length ? ` (+${t.linkedDepartments.join(', ')})` : ''} · {t.address}
                             {t.groupCount > 1 && <span className="text-purple-600 font-bold"> · {t.groupCount} פניות</span>}
+                            {aiMap[t.id]?.category === 'danger' && <span className="mr-1 px-1.5 py-0.5 rounded bg-red-100 text-red-700 font-bold">🔴 סכנה</span>}
+                            {aiMap[t.id]?.category === 'notable' && <span className="mr-1 px-1.5 py-0.5 rounded bg-yellow-100 text-yellow-800 font-bold">🟡 חשוב</span>}
                             {isNew && <span className="mr-1 px-1.5 py-0.5 rounded bg-orange-100 text-orange-700 font-bold">חדש מאז ההפקה הקודמת</span>}
                           </div>
                           <div className="text-gray-900 truncate">{t.description}</div>

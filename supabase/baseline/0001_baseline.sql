@@ -901,6 +901,17 @@ CREATE TABLE IF NOT EXISTS "public"."contacts" (
 ALTER TABLE "public"."contacts" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."daily_report_settings" (
+    "municipality_id" "uuid" NOT NULL,
+    "classification_rules" "text" NOT NULL,
+    "ai_model" "text" DEFAULT 'gpt-4o-mini'::"text" NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."daily_report_settings" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."daily_reports" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "municipality_id" "uuid" NOT NULL,
@@ -1704,6 +1715,11 @@ ALTER TABLE ONLY "public"."call_center_staff"
 
 ALTER TABLE ONLY "public"."contacts"
     ADD CONSTRAINT "contacts_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."daily_report_settings"
+    ADD CONSTRAINT "daily_report_settings_pkey" PRIMARY KEY ("municipality_id");
 
 
 
@@ -2765,6 +2781,9 @@ ALTER TABLE "public"."call_center_staff" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."contacts" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."daily_report_settings" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."daily_reports" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3235,6 +3254,11 @@ GRANT ALL ON TABLE "public"."call_center_staff" TO "service_role";
 GRANT ALL ON TABLE "public"."contacts" TO "authenticated";
 GRANT ALL ON TABLE "public"."contacts" TO "service_role";
 GRANT SELECT ON TABLE "public"."contacts" TO "anon";
+
+
+
+GRANT ALL ON TABLE "public"."daily_report_settings" TO "authenticated";
+GRANT ALL ON TABLE "public"."daily_report_settings" TO "service_role";
 
 
 
