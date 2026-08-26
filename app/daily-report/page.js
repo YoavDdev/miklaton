@@ -3,14 +3,15 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
-import * as XLSX from 'xlsx';
-import { parseTicketsCsv, prepareTickets } from '@/lib/binaa-tickets';
-import { buildReportWorkbook } from '@/lib/daily-report-excel';
+import { parseTicketsCsv, prepareTickets, detectExportKind, computeAgafTable } from '@/lib/binaa-tickets';
+import { downloadStyledExcel } from '@/lib/daily-report-excel';
+import { openPrintPdf } from '@/lib/daily-report-print';
 
 /**
- * דוח הסיכום היומי (YOA-42, docs/16) - שלב 1: העלאת ייצוא הפניות מבינה,
- * סימון ידני של אירועים חריגים, מילוי המספרים, והפקת Excel בפורמט הקיים.
- * מקטעי האירועים והעבודות מאוכלסים מהדוח הקודם - סוף עידן ההעתק-מחק.
+ * דוח הסיכום היומי (YOA-42, docs/16): שני ייצואים מבינה - קובץ היום
+ * (נפתחו/טופלו) וקובץ הפתוחות (סך פתוחות/חורגות) - ממלאים את טבלת
+ * האגפים אוטומטית. סימון ידני של חריגים, Excel מעוצב בפורמט הידני,
+ * ו-PDF דרך עמוד הדפסה. אירועים ועבודות נגררים מהדוח הקודם.
  */
 
 const DAY_NAMES = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
@@ -49,6 +50,8 @@ export default function DailyReportPage() {
   // מצב הטיוטה
   const [reportDate, setReportDate] = useState(null);
   const [tickets, setTickets] = useState([]);
+  const [dayAll, setDayAll] = useState([]); // הפרסינג הגולמי - לספירת האגפים (כולל פניות-בנות)
+  const [openInfo, setOpenInfo] = useState(null); // { tickets, name } של קובץ הפתוחות
   const [fileName, setFileName] = useState('');
   const [search, setSearch] = useState('');
   const [agaf, setAgaf] = useState(emptyAgaf());
@@ -82,37 +85,74 @@ export default function DailyReportPage() {
     : null;
   const previousTicketIds = new Set(previousSameDay?.snapshot?.ticket_ids || []);
 
-  const handleFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // טבלת האגפים של computeAgafTable → ערכי המחרוזת של שדות הקלט
+  const agafToInputs = (table) =>
+    Object.fromEntries(
+      AGAF_ORDER.map((name) => [
+        name,
+        Object.fromEntries(AGAF_FIELDS.map(([f]) => [f, table[name][f] === '' ? '' : String(table[name][f])])),
+      ])
+    );
+
+  const handleFiles = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    // הקבצים מסווגים לבד: קובץ יום (סטטוסים מעורבים, יום אחד) מול
+    // קובץ פתוחות (הכול פתוח, תאריכים מכל התקופה)
+    let nextDayAll = dayAll;
+    let nextOpen = openInfo;
+    let nextDate = reportDate;
+    let dayFileArrived = false;
     try {
-      const text = await file.text();
-      const all = parseTicketsCsv(text);
-      if (all.length === 0) {
-        toast.error('לא זוהו פניות בקובץ - ודא שזה ייצוא הפניות מבינה');
-        return;
+      for (const file of files) {
+        const all = parseTicketsCsv(await file.text());
+        if (all.length === 0) {
+          toast.error(`${file.name}: לא זוהו פניות - ודא שזה ייצוא מבינה`);
+          continue;
+        }
+        if (detectExportKind(all) === 'open') {
+          nextOpen = { tickets: all, name: file.name };
+          toast.success(`${file.name}: זוהה כקובץ הפניות הפתוחות (${all.length} פניות)`);
+        } else {
+          const latest = all.reduce((m, t) => (t.openedAt > m ? t.openedAt : m), all[0].openedAt);
+          nextDate = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate());
+          nextDayAll = all;
+          dayFileArrived = true;
+          setFileName(file.name);
+          toast.success(`${file.name}: זוהה כקובץ פניות היום`);
+        }
       }
-      // תאריך הדוח = היום המאוחר ביותר בקובץ
-      const latest = all.reduce((m, t) => (t.openedAt > m ? t.openedAt : m), all[0].openedAt);
-      const rDate = new Date(latest.getFullYear(), latest.getMonth(), latest.getDate());
-      const { tickets: prepared } = prepareTickets(all, rDate);
-      if (prepared.length === 0) {
-        toast.error('אין פניות בחלון הזמן של הדוח');
-        return;
+
+      if (dayFileArrived) {
+        const { tickets: prepared } = prepareTickets(nextDayAll, nextDate);
+        if (prepared.length === 0) {
+          toast.error('אין פניות בחלון הזמן של הדוח');
+          return;
+        }
+        setReportDate(nextDate);
+        setTickets(prepared);
+        setDayAll(nextDayAll);
+        setExceptional([]);
+        setSearch('');
+        // אכלוס מהדוח האחרון: אירועים ועבודות נגררים
+        setCityEvents((lastReport?.snapshot?.city_events || []).map((ev) => ({ ...ev })));
+        setWorks((lastReport?.snapshot?.works || []).map((w) => ({ ...w })));
+        setCameras({
+          ok: lastReport?.snapshot?.cameras?.ok ?? '',
+          broken: lastReport?.snapshot?.cameras?.broken ?? '',
+        });
       }
-      setReportDate(rDate);
-      setTickets(prepared);
-      setFileName(file.name);
-      setExceptional([]);
-      setSearch('');
-      // אכלוס מהדוח האחרון: אירועים ועבודות נגררים, מספרי האגפים רק לייחוס
-      setCityEvents((lastReport?.snapshot?.city_events || []).map((ev) => ({ ...ev })));
-      setWorks((lastReport?.snapshot?.works || []).map((w) => ({ ...w })));
-      setAgaf(emptyAgaf());
-      setCameras({
-        ok: lastReport?.snapshot?.cameras?.ok ?? '',
-        broken: lastReport?.snapshot?.cameras?.broken ?? '',
-      });
+      if (nextOpen !== openInfo) setOpenInfo(nextOpen);
+
+      // טבלת האגפים מחושבת מכל מה שהועלה עד עכשיו; אפשר לתקן ידנית
+      if ((dayFileArrived || nextOpen !== openInfo) && (nextDate || reportDate)) {
+        const table = computeAgafTable(
+          nextDayAll.length ? nextDayAll : null,
+          nextOpen?.tickets || null,
+          nextDate || reportDate
+        );
+        setAgaf(agafToInputs(table));
+      }
     } catch (error) {
       console.error('CSV parse error:', error);
       toast.error('שגיאה בקריאת הקובץ: ' + error.message);
@@ -142,48 +182,56 @@ export default function DailyReportPage() {
     setter((prev) => prev.map((r, idx) => (idx === i ? { ...r, [field]: value } : r)));
   const removeRow = (setter) => (i) => setter((prev) => prev.filter((_, idx) => idx !== i));
 
+  const buildSnapshot = () => ({
+    agaf: Object.fromEntries(
+      AGAF_ORDER.map((name) => [
+        name,
+        Object.fromEntries(
+          AGAF_FIELDS.map(([f]) => [f, agaf[name][f] === '' ? '' : Number(agaf[name][f])])
+        ),
+      ])
+    ),
+    cameras: {
+      ok: cameras.ok === '' ? '' : Number(cameras.ok),
+      broken: cameras.broken === '' ? '' : Number(cameras.broken),
+    },
+    exceptional,
+    city_events: cityEvents.filter((ev) => ev.name?.trim()),
+    works: works.filter((w) => w.description?.trim()),
+    ticket_ids: tickets.map((t) => t.id),
+    open_ticket_count: openInfo?.tickets.length ?? null,
+    writer_name: user?.full_name || '',
+  });
+
   const produce = async () => {
     if (!reportDate) return;
     setProducing(true);
     try {
-      const snapshot = {
-        agaf: Object.fromEntries(
-          AGAF_ORDER.map((name) => [
-            name,
-            Object.fromEntries(
-              AGAF_FIELDS.map(([f]) => [f, agaf[name][f] === '' ? '' : Number(agaf[name][f])])
-            ),
-          ])
-        ),
-        cameras: {
-          ok: cameras.ok === '' ? '' : Number(cameras.ok),
-          broken: cameras.broken === '' ? '' : Number(cameras.broken),
-        },
-        exceptional,
-        city_events: cityEvents.filter((ev) => ev.name?.trim()),
-        works: works.filter((w) => w.description?.trim()),
-        ticket_ids: tickets.map((t) => t.id),
-        writer_name: user?.full_name || '',
-      };
+      const snapshot = buildSnapshot();
       const res = await fetch('/api/daily-report', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
           report_date: dateStr(reportDate),
-          source_file_name: fileName,
+          source_file_name: [fileName, openInfo?.name].filter(Boolean).join(' + '),
           snapshot,
         }),
       });
       const data = await res.json();
       if (!data.success) throw new Error(data.error || 'השמירה נכשלה');
 
-      const wb = buildReportWorkbook(snapshot, reportDateLabel(reportDate));
-      XLSX.writeFile(wb, `דוח סיכום יומי ${ilDate(reportDate)}.xlsx`);
+      await downloadStyledExcel(
+        snapshot,
+        reportDateLabel(reportDate),
+        `דוח סיכום יומי ${ilDate(reportDate)}.xlsx`
+      );
 
       toast.success('הדוח הופק ונשמר בהיסטוריה');
       setReportDate(null);
       setTickets([]);
+      setDayAll([]);
+      setOpenInfo(null);
       await load();
     } catch (error) {
       toast.error('שגיאה בהפקה: ' + error.message);
@@ -192,10 +240,23 @@ export default function DailyReportPage() {
     }
   };
 
-  const downloadFromHistory = (report) => {
+  const previewPdf = () => {
+    if (!reportDate) return;
+    if (!openPrintPdf(buildSnapshot(), reportDateLabel(reportDate))) {
+      toast.error('הדפדפן חסם את חלון ההדפסה - אפשר חלונות קופצים לאתר');
+    }
+  };
+
+  const downloadFromHistory = async (report) => {
     const d = new Date(`${report.report_date}T00:00:00`);
-    const wb = buildReportWorkbook(report.snapshot, reportDateLabel(d));
-    XLSX.writeFile(wb, `דוח סיכום יומי ${ilDate(d)}.xlsx`);
+    await downloadStyledExcel(report.snapshot, reportDateLabel(d), `דוח סיכום יומי ${ilDate(d)}.xlsx`);
+  };
+
+  const pdfFromHistory = (report) => {
+    const d = new Date(`${report.report_date}T00:00:00`);
+    if (!openPrintPdf(report.snapshot, reportDateLabel(d))) {
+      toast.error('הדפדפן חסם את חלון ההדפסה - אפשר חלונות קופצים לאתר');
+    }
   };
 
   if (loading) {
@@ -232,23 +293,30 @@ export default function DailyReportPage() {
       </header>
 
       <main className="max-w-6xl mx-auto px-4 py-6 space-y-6">
+        {/* ה-input חי מחוץ לתנאי כדי ש"העלה אותו" יעבוד גם מתוך הטיוטה */}
+        <input ref={fileRef} type="file" accept=".csv" multiple onChange={handleFiles} className="hidden" id="report-upload" />
         {!reportDate ? (
           <>
             {/* העלאה */}
             <section className="bg-white rounded-xl shadow p-5">
-              <h2 className="text-lg font-bold text-gray-900 mb-2">העלאת ייצוא פניות מבינה</h2>
+              <h2 className="text-lg font-bold text-gray-900 mb-2">העלאת ייצואי הפניות מבינה</h2>
               <p className="text-sm text-gray-600 mb-4">
-                ייצא מבינה את פניות היום (CSV) וגרור לכאן. המערכת תזהה את תאריך הדוח לבד -
-                ביום ראשון הדוח יכסה גם את שישי ושבת.
+                שני ייצואים (CSV): <b>פניות היום</b> (נפתחו/טופלו) ו<b>הפניות הפתוחות</b> (סך
+                פתוחות/חורגות). אפשר לגרור את שניהם יחד - המערכת מזהה לבד איזה קובץ הוא מה,
+                וביום ראשון הדוח יכסה גם את שישי ושבת.
               </p>
-              <input ref={fileRef} type="file" accept=".csv" onChange={handleFile} className="hidden" id="report-upload" />
               <label
                 htmlFor="report-upload"
                 className="block border-2 border-dashed border-emerald-300 rounded-xl p-10 text-center bg-emerald-50/50 cursor-pointer hover:bg-emerald-50 transition-colors"
               >
                 <div className="text-4xl mb-2">🗂️</div>
-                <span className="font-semibold text-emerald-800">בחר או גרור קובץ CSV</span>
+                <span className="font-semibold text-emerald-800">בחר או גרור את שני קובצי ה-CSV</span>
               </label>
+              {openInfo && (
+                <p className="text-sm mt-3 text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
+                  ✓ קובץ הפתוחות נטען ({openInfo.name}, {openInfo.tickets.length} פניות) - עכשיו העלה את קובץ פניות היום.
+                </p>
+              )}
             </section>
 
             {/* היסטוריה */}
@@ -267,12 +335,20 @@ export default function DailyReportPage() {
                         הופק {new Date(r.produced_at).toLocaleString('he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })}
                         {r.produced_by_name ? ` · ${r.produced_by_name}` : ''}
                       </span>
-                      <button
-                        onClick={() => downloadFromHistory(r)}
-                        className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-semibold hover:bg-emerald-200"
-                      >
-                        ⬇️ Excel
-                      </button>
+                      <span className="flex gap-2">
+                        <button
+                          onClick={() => downloadFromHistory(r)}
+                          className="px-3 py-1 rounded-lg bg-emerald-100 text-emerald-800 font-semibold hover:bg-emerald-200"
+                        >
+                          ⬇️ Excel
+                        </button>
+                        <button
+                          onClick={() => pdfFromHistory(r)}
+                          className="px-3 py-1 rounded-lg bg-blue-100 text-blue-800 font-semibold hover:bg-blue-200"
+                        >
+                          🖨️ PDF
+                        </button>
+                      </span>
                     </li>
                   ))}
                 </ul>
@@ -307,9 +383,19 @@ export default function DailyReportPage() {
             {/* 1. אגפים */}
             <section className="bg-white rounded-xl shadow p-5">
               <h3 className="font-bold text-gray-900 mb-1">טבלת אגפים</h3>
-              <p className="text-xs text-gray-500 mb-3">
-                המספרים נלקחים מהסינון בבינה. {lastReport ? 'באפור - הערכים מהדוח הקודם.' : ''}
+              <p className="text-xs text-gray-500 mb-1">
+                חושב אוטומטית מהקבצים - אפשר לתקן ידנית. {lastReport ? 'באפור - הערכים מהדוח הקודם.' : ''}
               </p>
+              {!openInfo ? (
+                <p className="text-xs mb-3 text-orange-700 bg-orange-50 border border-orange-200 rounded px-2 py-1 inline-block">
+                  ⚠️ קובץ הפניות הפתוחות לא הועלה - "סך פתוחות" ו"חורגות" ריקות.{' '}
+                  <label htmlFor="report-upload" className="underline font-semibold cursor-pointer">העלה אותו</label>
+                </p>
+              ) : (
+                <p className="text-xs mb-3 text-gray-500">
+                  פתוחות מתוך {openInfo.name} ({openInfo.tickets.length} פניות) · חורגת = SLA של 100% ומעלה
+                </p>
+              )}
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
@@ -462,12 +548,19 @@ export default function DailyReportPage() {
             {/* הפקה */}
             <section className="bg-white rounded-xl shadow p-5 flex items-center justify-between flex-wrap gap-3">
               <p className="text-sm text-gray-600">
-                ההפקה שומרת את הדוח בהיסטוריה ומורידה Excel בפורמט המוכר. שליחה למירי ולרשימה - כמו היום.
+                ההפקה שומרת את הדוח בהיסטוריה ומורידה Excel מעוצב בפורמט המוכר. PDF - דרך
+                חלון ההדפסה (שמירה כ-PDF). שליחה למירי ולרשימה - כמו היום.
               </p>
-              <button onClick={produce} disabled={producing}
-                className="px-6 py-2 rounded-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300">
-                {producing ? '⏳ מפיק...' : '📄 הפק דוח'}
-              </button>
+              <div className="flex gap-2">
+                <button onClick={previewPdf}
+                  className="px-4 py-2 rounded-lg font-bold text-blue-800 bg-blue-100 hover:bg-blue-200">
+                  🖨️ PDF
+                </button>
+                <button onClick={produce} disabled={producing}
+                  className="px-6 py-2 rounded-lg font-bold text-white bg-emerald-600 hover:bg-emerald-700 disabled:bg-gray-300">
+                  {producing ? '⏳ מפיק...' : '📄 הפק דוח'}
+                </button>
+              </div>
             </section>
           </>
         )}
