@@ -232,6 +232,7 @@ export default function DailyReportPage() {
       setTickets([]);
       setDayAll([]);
       setOpenInfo(null);
+      setFileName('');
       await load();
     } catch (error) {
       toast.error('שגיאה בהפקה: ' + error.message);
@@ -311,12 +312,23 @@ export default function DailyReportPage() {
               >
                 <div className="text-4xl mb-2">🗂️</div>
                 <span className="font-semibold text-emerald-800">בחר או גרור את שני קובצי ה-CSV</span>
+                <p className="text-xs text-emerald-700 mt-1">אפשר גם אחד-אחד - המערכת מזהה לבד</p>
               </label>
-              {openInfo && (
-                <p className="text-sm mt-3 text-emerald-800 bg-emerald-50 border border-emerald-200 rounded px-2 py-1">
-                  ✓ קובץ הפתוחות נטען ({openInfo.name}, {openInfo.tickets.length} פניות) - עכשיו העלה את קובץ פניות היום.
-                </p>
-              )}
+              <div className="grid sm:grid-cols-2 gap-3 mt-4 text-sm">
+                <div className="rounded-lg border-2 border-gray-200 bg-gray-50 px-3 py-2">
+                  <span className="font-bold text-gray-800">📅 פניות היום</span>
+                  <span className="text-gray-500"> — לחישוב "נפתחו" ו"טופלו". </span>
+                  <span className="text-gray-500">ההעלאה שלו פותחת את הטיוטה למילוי.</span>
+                </div>
+                <div className={`rounded-lg border-2 px-3 py-2 ${openInfo ? 'border-emerald-300 bg-emerald-50' : 'border-gray-200 bg-gray-50'}`}>
+                  <span className="font-bold text-gray-800">📂 פניות פתוחות</span>
+                  {openInfo ? (
+                    <span className="text-emerald-800"> — ✓ נטען ({openInfo.name}, {openInfo.tickets.length} פניות)</span>
+                  ) : (
+                    <span className="text-gray-500"> — לחישוב "סך פתוחות" ו"חורגות". טרם הועלה.</span>
+                  )}
+                </div>
+              </div>
             </section>
 
             {/* היסטוריה */}
