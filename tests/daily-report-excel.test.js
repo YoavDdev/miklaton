@@ -131,3 +131,14 @@ describe('buildStyledWorkbook — סמל העירייה', () => {
     expect(ws.getImages().length).toBe(0);
   });
 });
+
+describe('buildReportRows — יום בלי אירועים חריגים', () => {
+  it('שורת "לא נרשמו אירועים חריגים" במקום מקטע ריק', () => {
+    const rows = buildReportRows({ ...SNAPSHOT, exceptional: [] }, 'יום חמישי 27.08.2026');
+    const i = rows.findIndex(r => r[0] === 'אירועים חריגים');
+    expect(rows[i + 2][1]).toBe('לא נרשמו אירועים חריגים ביום זה.');
+    // כשיש אירועים - השורה לא מופיעה
+    const withEvents = buildReportRows(SNAPSHOT, 'יום שלישי 18.08.2026');
+    expect(JSON.stringify(withEvents)).not.toContain('לא נרשמו אירועים');
+  });
+});
