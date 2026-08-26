@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildReportRows } from '@/lib/daily-report-excel';
+import { buildReportRows, buildReportLayout, buildStyledWorkbook } from '@/lib/daily-report-excel';
 
 /**
  * YOA-42 (docs/16): ה-Excel המופק חייב להיות זהה בפורמט לדוח הידני
@@ -60,5 +60,54 @@ describe('buildReportRows — הפורמט של הדוח הקיים', () => {
     expect(rows2[3][0]).toBe('שפ"ע');
     expect(rows2[3][1]).toBe('');
     expect(rows2[rows2.length - 2][1]).toBe('כותב/ת הדוח: בודק');
+  });
+});
+
+describe('buildReportLayout — מבנה עם סוגי שורות לעיצוב', () => {
+  const layout = buildReportLayout(SNAPSHOT, 'יום שלישי 18.08.2026');
+
+  it('אותו סדר שורות כמו buildReportRows', () => {
+    const rows = buildReportRows(SNAPSHOT, 'יום שלישי 18.08.2026');
+    expect(layout.map(r => r.cells)).toEqual(rows);
+  });
+
+  it('סוגי השורות נכונים: כותרת, כותרות מקטע, נתונים וחתימות', () => {
+    expect(layout[0].kind).toBe('title');
+    expect(layout[1].kind).toBe('spacer');
+    expect(layout[2].kind).toBe('header');
+    expect(layout[3].kind).toBe('data');
+    const section = layout.find(r => r.cells[0] === 'אירועים חריגים');
+    expect(section.kind).toBe('section');
+    expect(layout[layout.length - 1].kind).toBe('signature');
+  });
+});
+
+describe('buildStyledWorkbook — העיצוב של הדוח הידני', () => {
+  const wb = buildStyledWorkbook(SNAPSHOT, 'יום שלישי 18.08.2026');
+  const ws = wb.getWorksheet('גיליון1');
+
+  it('גיליון RTL עם רוחבי עמודות', () => {
+    expect(ws.views[0].rightToLeft).toBe(true);
+    expect(ws.getColumn(1).width).toBeGreaterThan(20);
+  });
+
+  it('שורת הכותרת כחולה ומודגשת', () => {
+    const c = ws.getCell('A1');
+    expect(c.fill.fgColor.argb).toBe('FF8EAADB');
+    expect(c.font.bold).toBe(true);
+  });
+
+  it('כותרת טבלת האגפים בכחול בהיר, הנתונים עם גבולות', () => {
+    expect(ws.getCell('A3').fill.fgColor.argb).toBe('FFB4C6E7');
+    expect(ws.getCell('A3').font.bold).toBe(true);
+    expect(ws.getCell('B4').value).toBe(97);
+    expect(ws.getCell('B4').border.top.style).toBe('thin');
+  });
+
+  it('שורת אירוע ארוכה מקבלת גובה מוגדל וגלישת טקסט', () => {
+    const i = 1 + buildReportRows(SNAPSHOT, 'x').findIndex(r => String(r[1] || '').includes('600005'));
+    const row = ws.getRow(i);
+    expect(row.height).toBeGreaterThan(30);
+    expect(ws.getCell(`B${i}`).alignment.wrapText).toBe(true);
   });
 });
