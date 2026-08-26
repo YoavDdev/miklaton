@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { parseTicketsCsv, prepareTickets, detectExportKind, computeAgafTable } from '@/lib/binaa-tickets';
+import { projectRowsForReport } from '@/lib/daily-report-city';
 import { downloadStyledExcel } from '@/lib/daily-report-excel';
 import { openPrintPdf } from '@/lib/daily-report-print';
 
@@ -58,6 +59,7 @@ export default function DailyReportPage() {
   const [cameras, setCameras] = useState({ ok: '', broken: '' });
   const [exceptional, setExceptional] = useState([]);
   const [cityEvents, setCityEvents] = useState([]);
+  const [eventsSource, setEventsSource] = useState(''); // 'site' | 'previous' | ''
   const [works, setWorks] = useState([]);
   const [producing, setProducing] = useState(false);
 
@@ -134,13 +136,13 @@ export default function DailyReportPage() {
         setDayAll(nextDayAll);
         setExceptional([]);
         setSearch('');
-        // אכלוס מהדוח האחרון: אירועים ועבודות נגררים
-        setCityEvents((lastReport?.snapshot?.city_events || []).map((ev) => ({ ...ev })));
-        setWorks((lastReport?.snapshot?.works || []).map((w) => ({ ...w })));
         setCameras({
           ok: lastReport?.snapshot?.cameras?.ok ?? '',
           broken: lastReport?.snapshot?.cameras?.broken ?? '',
         });
+        // המקורות האוטומטיים של שלב 3 - במקביל, בלי לעכב את הטיוטה
+        loadCityEvents(nextDate);
+        loadWorks(nextDate);
       }
       if (nextOpen !== openInfo) setOpenInfo(nextOpen);
 
@@ -160,6 +162,96 @@ export default function DailyReportPage() {
       if (fileRef.current) fileRef.current.value = '';
     }
   };
+
+  // אירועים בעיר: קודם אתר העירייה; אם אין - נגרר מהדוח הקודם לעריכה
+  const loadCityEvents = async (rDate) => {
+    try {
+      const res = await fetch(`/api/daily-report/city-events?date=${dateStr(rDate)}`, { credentials: 'include' });
+      const body = await res.json();
+      if (res.ok && body.data?.length) {
+        setCityEvents(body.data);
+        setEventsSource('site');
+        return;
+      }
+      if (body.warning) toast(body.warning, { icon: '⚠️' });
+    } catch {
+      toast('אתר העירייה לא זמין - האירועים נגררו מהדוח הקודם', { icon: '⚠️' });
+    }
+    setCityEvents((lastReport?.snapshot?.city_events || []).map((ev) => ({ ...ev })));
+    setEventsSource('previous');
+  };
+
+  // עבודות בעיר: הרשימה המנוהלת, מסוננת לפי טווחי התאריכים
+  const loadWorks = async (rDate) => {
+    try {
+      const res = await fetch('/api/daily-report/projects', { credentials: 'include' });
+      const body = await res.json();
+      if (res.ok && body.success) {
+        setWorks(projectRowsForReport(body.data, rDate));
+        return;
+      }
+      throw new Error(body.error);
+    } catch {
+      toast('רשימת העבודות לא נטענה - נגררה מהדוח הקודם', { icon: '⚠️' });
+      setWorks((lastReport?.snapshot?.works || []).map((w) => ({ ...w })));
+    }
+  };
+
+  const patchWork = async (row, changes, onDone) => {
+    try {
+      const res = await fetch('/api/daily-report/projects', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ id: row.id, ...changes }),
+      });
+      const body = await res.json();
+      if (!body.success) throw new Error(body.error);
+      onDone?.();
+    } catch (error) {
+      toast.error('שמירת העבודה נכשלה: ' + error.message);
+    }
+  };
+
+  const saveWorkRow = async (i) => {
+    const row = works[i];
+    if (!row.description?.trim()) { toast.error('תיאור העבודה ריק'); return; }
+    if (row.isNew) {
+      try {
+        const res = await fetch('/api/daily-report/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ description: row.description, owner: row.owner, start: row.start, end: row.end }),
+        });
+        const body = await res.json();
+        if (!body.success) throw new Error(body.error);
+        setWorks((prev) => prev.map((w, idx) =>
+          idx === i ? { ...projectRowsForReport([body.data], reportDate)[0] || w, dirty: false } : w
+        ));
+        toast.success('העבודה נשמרה - תיגרר אוטומטית לדוחות הבאים');
+      } catch (error) {
+        toast.error('שמירת העבודה נכשלה: ' + error.message);
+      }
+      return;
+    }
+    await patchWork(row, { description: row.description, owner: row.owner, start: row.start, end: row.end }, () => {
+      setWorks((prev) => prev.map((w, idx) => (idx === i ? { ...w, dirty: false, overdue: false } : w)));
+      toast.success('העבודה עודכנה');
+    });
+  };
+
+  const endWork = async (i) => {
+    const row = works[i];
+    if (row.isNew || !row.id) { setWorks((prev) => prev.filter((_, idx) => idx !== i)); return; }
+    await patchWork(row, { status: 'ended' }, () => {
+      setWorks((prev) => prev.filter((_, idx) => idx !== i));
+      toast.success('העבודה סומנה כהסתיימה ולא תופיע יותר');
+    });
+  };
+
+  const updateWork = (i, field, value) =>
+    setWorks((prev) => prev.map((w, idx) => (idx === i ? { ...w, [field]: value, dirty: true } : w)));
 
   const addToReport = (t) => {
     if (exceptional.some((e) => e.ticket_id === t.id)) return;
@@ -197,7 +289,9 @@ export default function DailyReportPage() {
     },
     exceptional,
     city_events: cityEvents.filter((ev) => ev.name?.trim()),
-    works: works.filter((w) => w.description?.trim()),
+    works: works
+      .filter((w) => w.description?.trim())
+      .map(({ description, start, end, owner }) => ({ description, start, end, owner })),
     ticket_ids: tickets.map((t) => t.id),
     open_ticket_count: openInfo?.tickets.length ?? null,
     writer_name: user?.full_name || '',
@@ -445,18 +539,21 @@ export default function DailyReportPage() {
                   </tbody>
                 </table>
               </div>
-              <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100">
-                <span className="font-bold text-gray-900 text-sm">תקינות מצלמות:</span>
-                <label className="text-sm text-gray-700 flex items-center gap-1">
-                  תקין
-                  <input type="number" value={cameras.ok} onChange={(e) => setCameras((p) => ({ ...p, ok: e.target.value }))}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-gray-900" />
-                </label>
-                <label className="text-sm text-gray-700 flex items-center gap-1">
-                  לא תקין
-                  <input type="number" value={cameras.broken} onChange={(e) => setCameras((p) => ({ ...p, broken: e.target.value }))}
-                    className="w-20 px-2 py-1 border border-gray-300 rounded text-gray-900" />
-                </label>
+              <div className="mt-4 pt-3 border-t border-gray-100 rounded-lg bg-amber-50/60 border-2 border-amber-200 p-3">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <span className="font-bold text-gray-900 text-sm">📷 תקינות מצלמות</span>
+                  <label className="text-sm text-gray-700 flex items-center gap-1">
+                    תקין
+                    <input type="number" value={cameras.ok} onChange={(e) => setCameras((p) => ({ ...p, ok: e.target.value }))}
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-gray-900" />
+                  </label>
+                  <label className="text-sm text-gray-700 flex items-center gap-1">
+                    לא תקין
+                    <input type="number" value={cameras.broken} onChange={(e) => setCameras((p) => ({ ...p, broken: e.target.value }))}
+                      className="w-20 px-2 py-1 border border-gray-300 rounded text-gray-900" />
+                  </label>
+                  <span className="text-xs text-gray-500">מילוי ידני מהבדיקה היומית - נכנס לדוח אוטומטית (מתחיל מערכי הדוח הקודם)</span>
+                </div>
               </div>
             </section>
 
@@ -520,7 +617,15 @@ export default function DailyReportPage() {
             {/* 3. אירועים בעיר */}
             <section className="bg-white rounded-xl shadow p-5">
               <h3 className="font-bold text-gray-900 mb-1">אירועים בעיר</h3>
-              <p className="text-xs text-gray-500 mb-3">מאוכלס מהדוח הקודם - עדכן לפי היום.</p>
+              <p className="text-xs mb-3">
+                {eventsSource === 'site' ? (
+                  <span className="text-emerald-700 bg-emerald-50 border border-emerald-200 rounded px-2 py-0.5">
+                    🌐 נמשך אוטומטית מאתר העירייה ({cityEvents.length} אירועים ליום הדוח) - מחק מה שלא רלוונטי
+                  </span>
+                ) : (
+                  <span className="text-gray-500">נגרר מהדוח הקודם - עדכן לפי היום.</span>
+                )}
+              </p>
               {cityEvents.map((ev, i) => (
                 <div key={i} className="flex gap-2 mb-2">
                   <input value={ev.name || ''} onChange={(e) => updateRow(setCityEvents)(i, 'name', e.target.value)}
@@ -536,25 +641,44 @@ export default function DailyReportPage() {
                 className="text-sm text-emerald-700 font-semibold hover:underline">➕ אירוע</button>
             </section>
 
-            {/* 4. עבודות בעיר */}
+            {/* 4. עבודות בעיר - רשימה מנוהלת שנשמרת קדימה */}
             <section className="bg-white rounded-xl shadow p-5">
               <h3 className="font-bold text-gray-900 mb-1">עבודות בעיר</h3>
-              <p className="text-xs text-gray-500 mb-3">מאוכלס מהדוח הקודם - מחק מה שהסתיים, הוסף מה שחדש.</p>
+              <p className="text-xs text-gray-500 mb-3">
+                💾 רשימה קבועה שנשמרת במערכת ונגררת אוטומטית מדוח לדוח לפי טווח התאריכים.
+                עבודה שהסתיימה - סמן "הסתיימה" והיא תיעלם מהדוחות הבאים.
+              </p>
               {works.map((w, i) => (
-                <div key={i} className="flex gap-2 mb-2 items-start">
-                  <textarea value={w.description || ''} onChange={(e) => updateRow(setWorks)(i, 'description', e.target.value)}
-                    rows={2} placeholder="תיאור העבודה" className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-                  <input value={w.start || ''} onChange={(e) => updateRow(setWorks)(i, 'start', e.target.value)}
-                    placeholder="התחלה" className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-                  <input value={w.end || ''} onChange={(e) => updateRow(setWorks)(i, 'end', e.target.value)}
-                    placeholder="צפי סיום" className="w-28 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-                  <input value={w.owner || ''} onChange={(e) => updateRow(setWorks)(i, 'owner', e.target.value)}
-                    placeholder="אחריות" className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-                  <button onClick={() => removeRow(setWorks)(i)} className="text-red-500 font-bold px-1">✕</button>
+                <div key={w.id || `new-${i}`}
+                  className={`rounded-lg border-2 p-2 mb-2 ${w.overdue ? 'border-orange-300 bg-orange-50/60' : w.isNew ? 'border-blue-200 bg-blue-50/40' : 'border-gray-100'}`}>
+                  {w.overdue && (
+                    <p className="text-xs font-bold text-orange-700 mb-1">
+                      ⏰ תאריך הסיום ({w.end}) עבר - להסיר? לחץ "✔ הסתיימה", או עדכן את צפי הסיום ושמור.
+                    </p>
+                  )}
+                  {w.isNew && <p className="text-xs font-bold text-blue-700 mb-1">עבודה חדשה - עוד לא נשמרה</p>}
+                  <div className="flex gap-2 items-start flex-wrap">
+                    <textarea value={w.description || ''} onChange={(e) => updateWork(i, 'description', e.target.value)}
+                      rows={2} placeholder="תיאור העבודה" className="flex-1 min-w-[240px] px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+                    <input value={w.start || ''} onChange={(e) => updateWork(i, 'start', e.target.value)}
+                      placeholder="התחלה (20.08.2026)" className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+                    <input value={w.end || ''} onChange={(e) => updateWork(i, 'end', e.target.value)}
+                      placeholder="צפי סיום / ספטמבר" className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+                    <input value={w.owner || ''} onChange={(e) => updateWork(i, 'owner', e.target.value)}
+                      placeholder="אחריות" className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+                    {(w.dirty || w.isNew) && (
+                      <button onClick={() => saveWorkRow(i)}
+                        className="px-2 py-1 rounded bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700">💾 שמור</button>
+                    )}
+                    <button onClick={() => endWork(i)}
+                      className="px-2 py-1 rounded bg-gray-100 text-gray-700 text-sm font-bold hover:bg-red-100 hover:text-red-700">
+                      {w.isNew ? '✕' : '✔ הסתיימה'}
+                    </button>
+                  </div>
                 </div>
               ))}
-              <button onClick={() => setWorks((p) => [...p, { description: '', start: '', end: '', owner: '' }])}
-                className="text-sm text-emerald-700 font-semibold hover:underline">➕ עבודה</button>
+              <button onClick={() => setWorks((p) => [...p, { isNew: true, description: '', start: '', end: '', owner: '' }])}
+                className="text-sm text-emerald-700 font-semibold hover:underline">➕ עבודה חדשה</button>
             </section>
 
             {/* הפקה */}

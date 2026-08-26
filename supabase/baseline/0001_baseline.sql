@@ -1364,6 +1364,23 @@ CREATE TABLE IF NOT EXISTS "public"."password_resets" (
 ALTER TABLE "public"."password_resets" OWNER TO "postgres";
 
 
+CREATE TABLE IF NOT EXISTS "public"."report_projects" (
+    "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
+    "municipality_id" "uuid" NOT NULL,
+    "description" "text" NOT NULL,
+    "owner" "text",
+    "start_date" "date",
+    "end_date" "date",
+    "end_date_approx" "text",
+    "status" "text" DEFAULT 'active'::"text" NOT NULL,
+    "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
+    "updated_at" timestamp with time zone DEFAULT "now"() NOT NULL
+);
+
+
+ALTER TABLE "public"."report_projects" OWNER TO "postgres";
+
+
 CREATE TABLE IF NOT EXISTS "public"."security_daily_order_entries" (
     "id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "order_id" "uuid",
@@ -1797,6 +1814,11 @@ ALTER TABLE ONLY "public"."panic_buttons"
 
 ALTER TABLE ONLY "public"."password_resets"
     ADD CONSTRAINT "password_resets_pkey" PRIMARY KEY ("id");
+
+
+
+ALTER TABLE ONLY "public"."report_projects"
+    ADD CONSTRAINT "report_projects_pkey" PRIMARY KEY ("id");
 
 
 
@@ -2803,6 +2825,9 @@ ALTER TABLE "public"."panic_buttons" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "public"."password_resets" ENABLE ROW LEVEL SECURITY;
 
 
+ALTER TABLE "public"."report_projects" ENABLE ROW LEVEL SECURITY;
+
+
 ALTER TABLE "public"."security_daily_order_entries" ENABLE ROW LEVEL SECURITY;
 
 
@@ -3312,6 +3337,11 @@ GRANT ALL ON TABLE "public"."panic_buttons" TO "service_role";
 
 GRANT ALL ON TABLE "public"."password_resets" TO "authenticated";
 GRANT ALL ON TABLE "public"."password_resets" TO "service_role";
+
+
+
+GRANT ALL ON TABLE "public"."report_projects" TO "authenticated";
+GRANT ALL ON TABLE "public"."report_projects" TO "service_role";
 
 
 
