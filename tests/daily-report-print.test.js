@@ -62,3 +62,11 @@ describe('buildReportHtml', () => {
     expect(evil).toContain('&lt;script&gt;');
   });
 });
+
+describe('buildReportHtml — סמל העירייה', () => {
+  it('הסמל והכיתוב בראש הדוח', () => {
+    const html = buildReportHtml({ writer_name: 'בודקת' }, 'יום רביעי 26.08.2026');
+    expect(html).toContain('/city-logo.png');
+    expect(html).toContain('עיריית יהוד-מונוסון');
+  });
+});

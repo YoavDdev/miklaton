@@ -111,3 +111,23 @@ describe('buildStyledWorkbook — העיצוב של הדוח הידני', () => 
     expect(ws.getCell(`B${i}`).alignment.wrapText).toBe(true);
   });
 });
+
+describe('buildStyledWorkbook — סמל העירייה', () => {
+  it('עם לוגו: שורת סמל בראש, הכותרת יורדת לשורה 2 והתמונה מוטמעת', async () => {
+    const { buildStyledWorkbook } = await import('@/lib/daily-report-excel');
+    const logo = Buffer.from([0x89, 0x50, 0x4e, 0x47]); // תחילת PNG - מספיק להטמעה
+    const wb = buildStyledWorkbook(SNAPSHOT, 'יום שלישי 18.08.2026', logo);
+    const ws = wb.getWorksheet('גיליון1');
+    expect(ws.getCell('A2').value).toContain('דוח סיכום יומי');
+    expect(ws.getImages().length).toBe(1);
+    expect(ws.getRow(1).height).toBe(78);
+  });
+
+  it('בלי לוגו: הפורמט הישן בדיוק - הכותרת בשורה 1', async () => {
+    const { buildStyledWorkbook } = await import('@/lib/daily-report-excel');
+    const wb = buildStyledWorkbook(SNAPSHOT, 'יום שלישי 18.08.2026');
+    const ws = wb.getWorksheet('גיליון1');
+    expect(ws.getCell('A1').value).toContain('דוח סיכום יומי');
+    expect(ws.getImages().length).toBe(0);
+  });
+});
