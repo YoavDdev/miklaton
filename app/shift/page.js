@@ -7,6 +7,8 @@ import ActiveEventBanner from '@/components/ActiveEventBanner';
 import OperatorTasks from '@/components/OperatorTasks';
 import CallCenterSchedule from '@/components/CallCenterSchedule';
 import OperatorNotifications from '@/components/OperatorNotifications';
+import SecurityOrderEditor from '@/components/SecurityOrderEditor';
+import CityWorksManager from '@/components/CityWorksManager';
 
 /**
  * קונסולת האחמ״ש - "מה קורה במשמרת שלי עכשיו".
@@ -208,6 +210,20 @@ export default function ShiftPage() {
             <CallCenterSchedule departmentId={callCenterDeptId} canEdit />
           </section>
         )}
+
+        {/* סידור הביטחון היום - אותן פעולות שיש למסך המוקד (YOA-43),
+            נגישות גם מהקונסולה (בקשת יואב 26.08) */}
+        <section className="bg-white rounded-xl shadow p-5">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">🛡️ סידור הביטחון היום</h2>
+          <p className="text-xs text-gray-500 mb-3">שינוי כאן מתעדכן מיד על מסך המוקד, עם תיעוד מלא של השינויים.</p>
+          <SecurityOrderEditor userName={user?.full_name} />
+        </section>
+
+        {/* עבודות בעיר - הרשימה המנוהלת של הדוח היומי והמסך */}
+        <section className="bg-white rounded-xl shadow p-5">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">🚧 עבודות בעיר</h2>
+          <CityWorksManager />
+        </section>
 
         {/* משימות המשמרת */}
         <section className="bg-white rounded-xl shadow p-5">
