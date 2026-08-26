@@ -118,23 +118,15 @@ export default function ShiftPage() {
             <h1 className="text-2xl font-bold">ניהול משמרת</h1>
             <p className="text-sm opacity-80">{user?.full_name || 'אחמ״ש'}</p>
           </div>
-          {/* כלי החיפוש של עמדת המוקדן - גם לאחמ"ש (בקשת יואב 26.08) */}
+          {/* שורה אחת: חיפושי המוקדן + הכפתורים (בקשת יואב 26.08) */}
           <div className="flex items-center gap-2 flex-wrap">
             <PanicButtonSearch />
             <GarbageStreetSearch />
-          </div>
-          <div className="flex items-center gap-2">
             <button
               onClick={() => router.push('/daily-report')}
               className="px-3 py-2 rounded-lg text-sm font-bold bg-white/10 hover:bg-white/20 border-2 border-white/20"
             >
               📄 דוח סיכום יומי
-            </button>
-            <button
-              onClick={() => router.push('/operator')}
-              className="px-3 py-2 rounded-lg text-sm font-bold bg-white/10 hover:bg-white/20 border-2 border-white/20"
-            >
-              🎧 עמדת מוקדן
             </button>
             <button
               onClick={toggleWarMode}
