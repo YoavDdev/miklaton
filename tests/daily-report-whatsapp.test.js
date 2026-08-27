@@ -60,10 +60,12 @@ describe('parseWhatsappResponse', () => {
     expect(events[2].location).toBe(''); // בלי מיקום - מחרוזת ריקה, לא undefined
   });
 
-  it('המיקום מוגדר בהנחיות כשדה נפרד', () => {
+  it('ההנחיות: מיקום כשדה נפרד, דיווח אינו טיפול, הצלבה גם בניסוח שונה', () => {
     const messages = buildWhatsappMessages('טקסט', TICKETS, '');
     expect(messages[0].content).toContain('location');
-    expect(messages[0].content).toContain('אל תכלול את המיקום בתיאור');
+    expect(messages[0].content).toContain('בלי המיקום');
+    expect(messages[0].content).toContain('אינם דרך טיפול');
+    expect(messages[0].content).toContain('גם כשהניסוח שונה');
   });
 
   it('אירוע בלי תיאור נזרק; JSON שבור זורק שגיאה', () => {
