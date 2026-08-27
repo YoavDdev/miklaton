@@ -45,16 +45,25 @@ describe('parseWhatsappResponse', () => {
   it('אירועים תקינים ממופים, הצלבה נשמרת רק למספר שקיים בקובץ', () => {
     const raw = JSON.stringify({
       events: [
-        { time_label: '26.08 13:05', description: 'שריפת קוצים בשטח פתוח מאחורי רחוב העצמאות', treatment: 'כיבוי אש במקום - הציר נסגר על ידי הפיקוח', handler: 'כיבוי אש', ticket_id: null },
-        { time_label: '26.08 16:20', description: 'עמוד תאורה עקום ברם כהן 5', treatment: 'חשמל ותאורה - בטיפול', handler: 'חשמל ותאורה', ticket_id: '508484' },
+        { time_label: '26.08 13:05', description: 'שריפת קוצים בשטח פתוח', location: 'מאחורי רחוב העצמאות', treatment: 'כיבוי אש במקום - הציר נסגר על ידי הפיקוח', handler: 'כיבוי אש', ticket_id: null },
+        { time_label: '26.08 16:20', description: 'עמוד תאורה עקום', location: 'רם כהן 5', treatment: 'חשמל ותאורה - בטיפול', handler: 'חשמל ותאורה', ticket_id: '508484' },
         { time_label: '', description: 'אירוע עם מספר מומצא', treatment: '', handler: '', ticket_id: '999999' },
       ],
     });
     const events = parseWhatsappResponse(raw, TICKETS);
     expect(events.length).toBe(3);
     expect(events[0].ticket_id).toBeNull();
+    expect(events[0].location).toBe('מאחורי רחוב העצמאות');
     expect(events[1].ticket_id).toBe('508484');
+    expect(events[1].location).toBe('רם כהן 5');
     expect(events[2].ticket_id).toBeNull(); // המספר לא בקובץ - נמחק
+    expect(events[2].location).toBe(''); // בלי מיקום - מחרוזת ריקה, לא undefined
+  });
+
+  it('המיקום מוגדר בהנחיות כשדה נפרד', () => {
+    const messages = buildWhatsappMessages('טקסט', TICKETS, '');
+    expect(messages[0].content).toContain('location');
+    expect(messages[0].content).toContain('אל תכלול את המיקום בתיאור');
   });
 
   it('אירוע בלי תיאור נזרק; JSON שבור זורק שגיאה', () => {

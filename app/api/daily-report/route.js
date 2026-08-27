@@ -47,11 +47,18 @@ export async function POST(request) {
       .eq('id', auth.user.userId)
       .single();
     if (profileError) throw profileError;
+    // בלי שיוך - שגיאה ברורה בעברית במקום קריסת constraint (קרה לדנה 27.08)
+    if (!profile?.municipality_id) {
+      return NextResponse.json(
+        { success: false, error: 'לפרופיל שלך לא משויכת רשות - פנה למנהל המערכת' },
+        { status: 400 }
+      );
+    }
 
     const { data, error } = await supabase
       .from('daily_reports')
       .insert({
-        municipality_id: profile?.municipality_id || null,
+        municipality_id: profile.municipality_id,
         report_date,
         produced_by: auth.user.userId,
         produced_by_name: auth.user.name || null,

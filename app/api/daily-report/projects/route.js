@@ -52,11 +52,17 @@ export async function POST(request) {
       .eq('id', auth.user.userId)
       .single();
     if (profileError) throw profileError;
+    if (!profile?.municipality_id) {
+      return NextResponse.json(
+        { success: false, error: 'לפרופיל שלך לא משויכת רשות - פנה למנהל המערכת' },
+        { status: 400 }
+      );
+    }
 
     const { data, error } = await supabase
       .from('report_projects')
       .insert({
-        municipality_id: profile?.municipality_id || null,
+        municipality_id: profile.municipality_id,
         description: description.trim(),
         owner: owner?.trim() || null,
         start_date: parseIlDate(start),

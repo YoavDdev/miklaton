@@ -303,14 +303,25 @@ export default function DailyReportPage() {
       const body = await res.json();
       if (!body.success) throw new Error(body.error || 'הניסוח נכשל');
 
-      const entries = body.data.map((ev, i) => ({
-        ticket_id: ev.ticket_id || `wa-${Date.now()}-${i}`,
-        time_label: ev.time_label || '',
-        description: ev.ticket_id ? `פניה- ${ev.ticket_id}\n${ev.description}` : ev.description,
-        treatment: ev.treatment || '',
-        handler: ev.handler || '',
-        source: 'whatsapp',
-      }));
+      // הפורמט המלא של הדוח הידני: מספר פנייה / מיקום / תיאור, כל
+      // אחד בשורה משלו (בקשת יואב 27.08). המיקום - מההודעה, ואם אין
+      // אז מהפנייה התואמת בקובץ.
+      const entries = body.data.map((ev, i) => {
+        const matched = ev.ticket_id ? tickets.find((t) => t.id === ev.ticket_id) : null;
+        const location = ev.location || matched?.address || '';
+        const lines = [];
+        if (ev.ticket_id) lines.push(`מספר פנייה: ${ev.ticket_id}`);
+        if (location) lines.push(`מיקום: ${location}`);
+        lines.push(`${ev.ticket_id ? 'תיאור הפנייה' : 'תיאור האירוע'}: ${ev.description}`);
+        return {
+          ticket_id: ev.ticket_id || `wa-${Date.now()}-${i}`,
+          time_label: ev.time_label || '',
+          description: lines.join('\n'),
+          treatment: ev.treatment || '',
+          handler: ev.handler || '',
+          source: 'whatsapp',
+        };
+      });
       setExceptional((prev) => {
         const existing = new Set(prev.map((e) => e.ticket_id));
         return [...prev, ...entries.filter((e) => !existing.has(e.ticket_id))];
