@@ -2,27 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
+import { ilToIso, isoToIl, todayIl } from '@/lib/daily-report-city';
 
 /**
- * ניהול שוטף של עבודות בעיר מקונסולת האחמ"ש (בקשת יואב 26.08) -
- * אותה רשימה מנוהלת של הדוח היומי (report_projects): מה שנשמר כאן
- * מופיע מיד על מסך המוקד ונגרר אוטומטית לדוחות לפי טווח התאריכים.
+ * ניהול שוטף של עבודות בעיר מקונסולת האחמ"ש - אותה רשימה מנוהלת של
+ * הדוח היומי (report_projects): מה שנשמר כאן מופיע מיד על מסך המוקד
+ * ונגרר אוטומטית לדוחות לפי טווח התאריכים.
+ *
+ * התאריכים נבחרים מלוח שנה, ועבודה שתאריך הסיום שלה עבר נעלמת
+ * מעצמה למחרת - בלי שום פעולה ידנית (החלטת יואב 27.08).
  */
-const pad = (n) => String(n).padStart(2, '0');
-const ilDate = (iso) => {
-  if (!iso) return '';
-  const d = new Date(`${iso}T12:00:00`);
-  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
-};
+const ilDateStr = (iso) => isoToIl(iso) || '';
 
 const toRow = (p) => ({
   id: p.id,
   description: p.description || '',
   owner: p.owner || '',
-  start: ilDate(p.start_date),
-  end: p.end_date ? ilDate(p.end_date) : p.end_date_approx || '',
-  overdue: p.end_date ? new Date(`${p.end_date}T23:59:59`) < new Date() : false,
+  start: ilDateStr(p.start_date),
+  // end כמחרוזת הדוח: תאריך, הערכה ("ספטמבר"), או ריק = אין צפי
+  end: p.end_date ? ilDateStr(p.end_date) : p.end_date_approx || '',
 });
+
+const isExpired = (p) => p.end_date && new Date(`${p.end_date}T23:59:59`) < new Date();
 
 export default function CityWorksManager() {
   const [works, setWorks] = useState([]);
@@ -32,7 +33,8 @@ export default function CityWorksManager() {
     try {
       const res = await fetch('/api/daily-report/projects', { credentials: 'include' });
       const body = await res.json();
-      if (body.success) setWorks(body.data.map(toRow));
+      // עבודות שתאריך הסיום שלהן עבר לא מוצגות - הסתיימו מעצמן
+      if (body.success) setWorks(body.data.filter((p) => !isExpired(p)).map(toRow));
     } catch (error) {
       console.error('Error loading city works:', error);
     } finally {
@@ -96,22 +98,34 @@ export default function CityWorksManager() {
   return (
     <div>
       <p className="text-xs text-gray-500 mb-3">
-        💾 שינוי כאן מתעדכן מיד על מסך המוקד ונגרר אוטומטית לדוחות היומיים לפי התאריכים.
+        💾 שינוי כאן מתעדכן מיד על מסך המוקד ובדוחות. עבודה עם תאריך סיום יורדת
+        מעצמה למחרת התאריך; עבודה בלי תאריך סיום ("אין צפי") - עד שתסמן "הסתיימה".
       </p>
       {works.map((w, i) => (
         <div key={w.id || `new-${i}`}
-          className={`rounded-lg border-2 p-2 mb-2 ${w.overdue ? 'border-orange-300 bg-orange-50/60' : w.id ? 'border-gray-100' : 'border-blue-200 bg-blue-50/40'}`}>
-          {w.overdue && (
-            <p className="text-xs font-bold text-orange-700 mb-1">⏰ תאריך הסיום ({w.end}) עבר - סמן "הסתיימה" או עדכן ושמור.</p>
-          )}
+          className={`rounded-lg border-2 p-2 mb-2 ${w.id ? 'border-gray-100' : 'border-blue-200 bg-blue-50/40'}`}>
           {!w.id && <p className="text-xs font-bold text-blue-700 mb-1">עבודה חדשה - עוד לא נשמרה</p>}
           <div className="flex gap-2 items-start flex-wrap">
             <textarea value={w.description} onChange={(e) => update(i, 'description', e.target.value)}
               rows={2} placeholder="תיאור העבודה" className="flex-1 min-w-[240px] px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-            <input value={w.start} onChange={(e) => update(i, 'start', e.target.value)}
-              placeholder="התחלה (20.08.2026)" className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-            <input value={w.end} onChange={(e) => update(i, 'end', e.target.value)}
-              placeholder="צפי סיום / ספטמבר" className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+            <label className="text-xs text-gray-500">
+              התחלה
+              <input type="date" value={ilToIso(w.start)} onChange={(e) => update(i, 'start', isoToIl(e.target.value))}
+                className="block px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+            </label>
+            <label className="text-xs text-gray-500">
+              צפי סיום
+              <input type="date" value={ilToIso(w.end)} onChange={(e) => update(i, 'end', isoToIl(e.target.value))}
+                className="block px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+              {!w.end ? (
+                <span className="block text-gray-400 mt-0.5">אין צפי לסיום</span>
+              ) : !ilToIso(w.end) ? (
+                <span className="block text-amber-700 mt-0.5">📝 {w.end}</span>
+              ) : (
+                <button type="button" onClick={() => update(i, 'end', '')}
+                  className="block text-blue-600 hover:underline mt-0.5">↩︎ אין צפי לסיום</button>
+              )}
+            </label>
             <input value={w.owner} onChange={(e) => update(i, 'owner', e.target.value)}
               placeholder="אחריות" className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
             {(w.dirty || !w.id) && (
@@ -125,7 +139,7 @@ export default function CityWorksManager() {
           </div>
         </div>
       ))}
-      <button onClick={() => setWorks((p) => [...p, { id: null, description: '', owner: '', start: '', end: '' }])}
+      <button onClick={() => setWorks((p) => [...p, { id: null, description: '', owner: '', start: todayIl(), end: '' }])}
         className="text-sm text-emerald-700 font-semibold hover:underline">➕ עבודה חדשה</button>
     </div>
   );

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { mapCityEvents, projectRowsForReport, parseIlDate } from '@/lib/daily-report-city';
+import { mapCityEvents, projectRowsForReport, parseIlDate, ilToIso, isoToIl } from '@/lib/daily-report-city';
 
 /**
  * YOA-42 שלב 3 (docs/16): אירועים בעיר נמשכים מאתר העירייה לפי חלון
@@ -70,8 +70,9 @@ describe('projectRowsForReport', () => {
 
   const rows = projectRowsForReport(projects, new Date(2026, 7, 26));
 
-  it('פעילות בלבד, בלי עתידיות ובלי שהסתיימו', () => {
-    expect(rows.map(r => r.id)).toEqual(['p1', 'p2', 'p3', 'p4']);
+  it('פעילות בלבד, בלי עתידיות, בלי שהסתיימו - ותאריך סיום שעבר נעלם לבד', () => {
+    // p4 (סיום 20.08) לא ברשימה של 26.08 - הסתיימה אוטומטית, בלי מגע יד
+    expect(rows.map(r => r.id)).toEqual(['p1', 'p2', 'p3']);
   });
 
   it('תצוגת התאריכים כמו בדוח הידני', () => {
@@ -82,19 +83,24 @@ describe('projectRowsForReport', () => {
     expect(rows.find(r => r.id === 'p1').start).toBe('');
   });
 
-  it('תאריך סיום שעבר מסומן בדגל - לא נמחק בשקט', () => {
-    const p4 = rows.find(r => r.id === 'p4');
-    expect(p4.overdue).toBe(true);
-    expect(p4.end).toBe('20.08.2026');
-    expect(rows.find(r => r.id === 'p3').overdue).toBe(false);
+  it('עבודה שנגמרת בדיוק ביום הדוח עדיין מופיעה - נעלמת רק למחרת', () => {
+    const projectsToday = [{ id: 'p', description: 'א', status: 'active', start_date: null, end_date: '2026-08-26', end_date_approx: null }];
+    expect(projectRowsForReport(projectsToday, new Date(2026, 7, 26)).length).toBe(1);
+    expect(projectRowsForReport(projectsToday, new Date(2026, 7, 27)).length).toBe(0);
+  });
+});
+
+describe('המרות תאריכים לבורר', () => {
+  it('parseIlDate מקבל גם ISO מבורר התאריכים', () => {
+    expect(parseIlDate('2026-08-20')).toBe('2026-08-20');
+    expect(parseIlDate('20.08.2026')).toBe('2026-08-20');
   });
 
-  it('עבודה שנגמרת בדיוק ביום הדוח עוד לא חורגת', () => {
-    const today = projectRowsForReport(
-      [{ id: 'p', description: 'א', status: 'active', start_date: null, end_date: '2026-08-26', end_date_approx: null }],
-      new Date(2026, 7, 26)
-    );
-    expect(today[0].overdue).toBe(false);
+  it('ilToIso ו-isoToIl הפיכות; טקסט חופשי לא נשבר', () => {
+    expect(ilToIso('23.02.2025')).toBe('2025-02-23');
+    expect(isoToIl('2025-02-23')).toBe('23.02.2025');
+    expect(ilToIso('ספטמבר')).toBe('');
+    expect(isoToIl('')).toBe('');
   });
 });
 

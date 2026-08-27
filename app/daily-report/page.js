@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import toast, { Toaster } from 'react-hot-toast';
 import { parseTicketsCsv, prepareTickets, detectExportKind, computeAgafTable } from '@/lib/binaa-tickets';
-import { projectRowsForReport } from '@/lib/daily-report-city';
+import { projectRowsForReport, ilToIso, isoToIl, todayIl } from '@/lib/daily-report-city';
 import { downloadStyledExcel } from '@/lib/daily-report-excel';
 import { downloadPdf } from '@/lib/daily-report-print';
 
@@ -246,7 +246,7 @@ export default function DailyReportPage() {
       return;
     }
     await patchWork(row, { description: row.description, owner: row.owner, start: row.start, end: row.end }, () => {
-      setWorks((prev) => prev.map((w, idx) => (idx === i ? { ...w, dirty: false, overdue: false } : w)));
+      setWorks((prev) => prev.map((w, idx) => (idx === i ? { ...w, dirty: false } : w)));
       toast.success('העבודה עודכנה');
     });
   };
@@ -805,20 +805,29 @@ export default function DailyReportPage() {
               </p>
               {works.map((w, i) => (
                 <div key={w.id || `new-${i}`}
-                  className={`rounded-lg border-2 p-2 mb-2 ${w.overdue ? 'border-orange-300 bg-orange-50/60' : w.isNew ? 'border-blue-200 bg-blue-50/40' : 'border-gray-100'}`}>
-                  {w.overdue && (
-                    <p className="text-xs font-bold text-orange-700 mb-1">
-                      ⏰ תאריך הסיום ({w.end}) עבר - להסיר? לחץ "✔ הסתיימה", או עדכן את צפי הסיום ושמור.
-                    </p>
-                  )}
+                  className={`rounded-lg border-2 p-2 mb-2 ${w.isNew ? 'border-blue-200 bg-blue-50/40' : 'border-gray-100'}`}>
                   {w.isNew && <p className="text-xs font-bold text-blue-700 mb-1">עבודה חדשה - עוד לא נשמרה</p>}
                   <div className="flex gap-2 items-start flex-wrap">
                     <textarea value={w.description || ''} onChange={(e) => updateWork(i, 'description', e.target.value)}
                       rows={2} placeholder="תיאור העבודה" className="flex-1 min-w-[240px] px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-                    <input value={w.start || ''} onChange={(e) => updateWork(i, 'start', e.target.value)}
-                      placeholder="התחלה (20.08.2026)" className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
-                    <input value={w.end || ''} onChange={(e) => updateWork(i, 'end', e.target.value)}
-                      placeholder="צפי סיום / ספטמבר" className="w-32 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+                    <label className="text-xs text-gray-500">
+                      התחלה
+                      <input type="date" value={ilToIso(w.start)} onChange={(e) => updateWork(i, 'start', isoToIl(e.target.value))}
+                        className="block px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+                    </label>
+                    <label className="text-xs text-gray-500">
+                      צפי סיום
+                      <input type="date" value={ilToIso(w.end)} onChange={(e) => updateWork(i, 'end', isoToIl(e.target.value))}
+                        className="block px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
+                      {!w.end || w.end === 'אין צפי לסיום' ? (
+                        <span className="block text-gray-400 mt-0.5">אין צפי לסיום</span>
+                      ) : !ilToIso(w.end) ? (
+                        <span className="block text-amber-700 mt-0.5">📝 {w.end}</span>
+                      ) : (
+                        <button type="button" onClick={() => updateWork(i, 'end', '')}
+                          className="block text-blue-600 hover:underline mt-0.5">↩︎ אין צפי לסיום</button>
+                      )}
+                    </label>
                     <input value={w.owner || ''} onChange={(e) => updateWork(i, 'owner', e.target.value)}
                       placeholder="אחריות" className="w-24 px-2 py-1 border border-gray-300 rounded text-sm text-gray-900" />
                     {(w.dirty || w.isNew) && (
@@ -832,7 +841,7 @@ export default function DailyReportPage() {
                   </div>
                 </div>
               ))}
-              <button onClick={() => setWorks((p) => [...p, { isNew: true, description: '', start: '', end: '', owner: '' }])}
+              <button onClick={() => setWorks((p) => [...p, { isNew: true, description: '', start: todayIl(), end: '', owner: '' }])}
                 className="text-sm text-emerald-700 font-semibold hover:underline">➕ עבודה חדשה</button>
             </section>
 
