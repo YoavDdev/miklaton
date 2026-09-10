@@ -9,6 +9,7 @@ import ShelterSearch from '@/components/ShelterSearch';
 import ShelterStatusManager from '@/components/ShelterStatusManager';
 import OperatorNotifications from '@/components/OperatorNotifications';
 import ActiveEventBanner from '@/components/ActiveEventBanner';
+import HolidayBanner from '@/components/HolidayBanner';
 import WeeklyDutyRoster from '@/components/WeeklyDutyRoster';
 import OperatorTasks from '@/components/OperatorTasks';
 import DailyUpdatesPanel from '@/components/DailyUpdatesPanel';
@@ -222,6 +223,7 @@ export default function OperatorPage() {
   return (
     <div className="min-h-screen bg-gray-50" dir="rtl">
       <ActiveEventBanner />
+      <HolidayBanner />
 
       {/* ── Header ── */}
       <header className="bg-gradient-to-l from-slate-800 to-slate-900 text-white shadow-xl">

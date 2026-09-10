@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import HolidayGuideNotice from '@/components/HolidayGuideNotice';
 
 export default function OnCallPage() {
   const router = useRouter();
@@ -96,6 +97,7 @@ export default function OnCallPage() {
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
+        <div className="no-print"><HolidayGuideNotice /></div>
         {/* Print Header - Only visible in print */}
         <div className="hidden print:block text-center mb-6">
           <h1 className="text-2xl font-bold mb-2">📞 אנשי קשר - רשימת כל המחלקות</h1>

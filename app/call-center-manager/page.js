@@ -15,6 +15,7 @@ import GarbageScheduleInline from '@/components/GarbageScheduleInline';
 import GarbageStreetSearch from '@/components/GarbageStreetSearch';
 import CallCenterSchedule from '@/components/CallCenterSchedule';
 import SecurityWeeklySchedule from '@/components/SecurityWeeklySchedule';
+import HolidayDutyManager from '@/components/HolidayDutyManager';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -624,6 +625,16 @@ export default function CallCenterManagerPage() {
                 📊 סקרים
               </button>
               <button
+                onClick={() => setActiveTab('holiday-duty')}
+                className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                  activeTab === 'holiday-duty'
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                🕯️ כוננות חג
+              </button>
+              <button
                 onClick={() => setActiveTab('call-categories')}
                 className={`px-6 py-4 text-sm font-medium border-b-2 transition-colors ${
                   activeTab === 'call-categories'
@@ -678,6 +689,8 @@ export default function CallCenterManagerPage() {
         </div>
 
         {/* Tab Content - Operators */}
+        {activeTab === 'holiday-duty' && <HolidayDutyManager />}
+
         {activeTab === 'operators' && (
           <div className="bg-white rounded-lg shadow">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">

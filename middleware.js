@@ -20,6 +20,9 @@ const ROUTE_PERMISSIONS = {
   '/on-call': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
   // סיור פיקוח. היה מחוץ ל-matcher ולכן נגיש לכל אחד ברשת בלי התחברות (YOA-23).
   '/inspection': ['inspector', 'sector_manager', 'call_center_manager', 'operator', 'admin'],
+  // לוח כוננות החג. קריאה בלבד לכל תפקידי המוקד; העריכה יושבת תחת
+  // /call-center-manager ומוגנת שם.
+  '/holiday-duty': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
   // היה מכוסה רק במקרה, דרך התאמת הקידומת ל-'/on-call'. מפורש עדיף.
   '/on-call-query': ['ceo', 'call_center_manager', 'shift_supervisor', 'sector_manager', 'operator', 'inspector', 'shelter_manager', 'admin'],
 };
@@ -165,5 +168,6 @@ export const config = {
     '/daily-report',
     '/inspection/:path*',
     '/inspection',
+    '/holiday-duty',
   ],
 };
