@@ -62,7 +62,7 @@ export default function HolidayDutyBoard({ period, topics = [], isActive = false
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="חיפוש נושא, שם או הערה..."
-          className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-right"
+          className="no-print w-full rounded-xl border border-gray-300 px-4 py-2.5 text-right"
         />
       )}
 
@@ -73,7 +73,7 @@ export default function HolidayDutyBoard({ period, topics = [], isActive = false
       )}
 
       {filtered.map((topic) => (
-        <div key={topic.id} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+        <div key={topic.id} className="print-block bg-white rounded-2xl border border-gray-200 overflow-hidden">
           <div className="bg-slate-100 px-4 py-2 flex items-center justify-between gap-2">
             <span className="font-bold text-gray-900">{topic.name}</span>
             {topic.status === 'pending' && (
@@ -83,7 +83,9 @@ export default function HolidayDutyBoard({ period, topics = [], isActive = false
             )}
           </div>
           {topic.instructions && (
-            <div className="px-4 py-2 text-sm text-gray-600 bg-gray-50">{topic.instructions}</div>
+            <div className="px-4 py-2 text-sm text-gray-800 bg-amber-50 border-r-4 border-amber-400">
+              {topic.instructions}
+            </div>
           )}
           <div className="divide-y divide-gray-100">
             {topic.entries.map((e) => (

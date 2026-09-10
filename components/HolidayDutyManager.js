@@ -51,6 +51,7 @@ export default function HolidayDutyManager() {
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState(null); // { topicId, entry }
   const [newTopic, setNewTopic] = useState('');
+  const [noteEdit, setNoteEdit] = useState(null); // { topicId, text }
   const [seedSource, setSeedSource] = useState('');
   const mid = getMunicipalityId();
 
@@ -82,6 +83,15 @@ export default function HolidayDutyManager() {
   }, [mid, loadBoard]);
 
   const dates = useMemo(() => windowDates(board?.period), [board]);
+
+  /** החג האחרון שכבר מולא, לפי סדר הזמן - המקור המומלץ לשכפול. */
+  const lastFilled = useMemo(
+    () =>
+      periods
+        .filter((p) => p.has_board && p.id !== periodId)
+        .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at))[0] || null,
+    [periods, periodId]
+  );
 
   async function patch(url, body) {
     const res = await fetch(url, {
@@ -141,6 +151,11 @@ export default function HolidayDutyManager() {
     if (!confirm(`למחוק את "${name}" ואת כל הכוננים שבו?`)) return;
     await fetch(`/api/holiday-duty/topics/${topicId}`, { method: 'DELETE' });
     await loadBoard(periodId);
+  };
+
+  const saveInstructions = async (topicId, text) => {
+    await patch(`/api/holiday-duty/topics/${topicId}`, { instructions: text.trim() || null });
+    setNoteEdit(null);
   };
 
   const confirmTopic = async (topic) => {
@@ -262,42 +277,59 @@ export default function HolidayDutyManager() {
         </div>
       </div>
 
-      {/* לוח ריק - זריעה */}
+      {/* לוח ריק - זריעה. ברירת המחדל היא החג האחרון שמולא, כי הוא כבר
+          מדויק; המדריך הגולמי הוא נפילה אחורה לפעם הראשונה בלבד. */}
       {board?.topics?.length === 0 && (
         <div className="bg-white rounded-2xl border border-gray-200 p-4 space-y-3">
-          <p className="text-gray-600">
-            הלוח ריק. אפשר להתחיל ממה שכבר קיים במערכת במקום מדף ריק:
-          </p>
+          <p className="text-gray-600">הלוח ריק. אפשר להתחיל ממה שכבר סידרת:</p>
           <div className="flex flex-wrap gap-2 items-center">
-            <button
-              onClick={() => seedFromGuide(null)}
-              className="px-4 py-2 rounded-xl bg-slate-800 text-white font-semibold"
-            >
-              מלא ממדריך הכוננויות
-            </button>
+            {lastFilled ? (
+              <button
+                onClick={() => seedFromGuide(lastFilled.id)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-white font-semibold"
+              >
+                מלא מ{lastFilled.name}
+              </button>
+            ) : (
+              <button
+                onClick={() => seedFromGuide(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 text-white font-semibold"
+              >
+                מלא ממדריך הכוננויות
+              </button>
+            )}
+
             <span className="text-gray-400">או</span>
+
             <select
               value={seedSource}
               onChange={(e) => setSeedSource(e.target.value)}
               className="rounded-xl border border-gray-300 px-3 py-2"
             >
-              <option value="">שכפל מחג קודם...</option>
+              <option value="">מחג אחר...</option>
               {periods
-                .filter((p) => p.id !== periodId)
+                .filter((p) => p.id !== periodId && p.has_board)
                 .map((p) => (
                   <option key={p.id} value={p.id}>
                     {p.name}
                   </option>
                 ))}
+              <option value="__guide__">ממדריך הכוננויות</option>
             </select>
             <button
-              onClick={() => seedSource && seedFromGuide(seedSource)}
+              onClick={() => seedSource && seedFromGuide(seedSource === '__guide__' ? null : seedSource)}
               disabled={!seedSource}
               className="px-4 py-2 rounded-xl bg-gray-100 text-gray-700 font-semibold disabled:opacity-40"
             >
-              שכפל
+              מלא
             </button>
           </div>
+          {lastFilled && (
+            <p className="text-xs text-gray-500">
+              השכפול מביא את הנושאים, הכוננים וההערות. הימים שנבחרו לכל כונן אינם
+              מועתקים, כי הם שייכים לתאריכי החג הקודם.
+            </p>
+          )}
         </div>
       )}
 
@@ -334,8 +366,57 @@ export default function HolidayDutyManager() {
               >
                 מחק נושא
               </button>
+              <button
+                onClick={() =>
+                  setNoteEdit({ topicId: topic.id, text: topic.instructions || '' })
+                }
+                className="text-xs px-2.5 py-1 rounded-lg bg-gray-200 text-gray-700"
+              >
+                {topic.instructions ? 'ערוך הערה' : '+ הערה'}
+              </button>
             </div>
           </div>
+
+          {noteEdit?.topicId === topic.id ? (
+            <div className="px-4 py-3 bg-gray-50 space-y-2">
+              <textarea
+                autoFocus
+                rows={2}
+                value={noteEdit.text}
+                onChange={(e) => setNoteEdit({ ...noteEdit, text: e.target.value })}
+                placeholder={`הערה ל"${topic.name.trim()}" בחג הזה - תוצג למוקדן מתחת לשם הנושא`}
+                className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm text-right"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => saveInstructions(topic.id, noteEdit.text)}
+                  className="px-4 py-1.5 rounded-lg bg-slate-800 text-white text-sm font-semibold"
+                >
+                  שמור
+                </button>
+                <button
+                  onClick={() => setNoteEdit(null)}
+                  className="px-4 py-1.5 rounded-lg bg-gray-200 text-gray-700 text-sm"
+                >
+                  ביטול
+                </button>
+                {topic.instructions && (
+                  <button
+                    onClick={() => saveInstructions(topic.id, '')}
+                    className="mr-auto px-3 py-1.5 rounded-lg bg-red-50 text-red-700 text-sm"
+                  >
+                    מחק הערה
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+            topic.instructions && (
+              <div className="px-4 py-2 text-sm text-gray-700 bg-amber-50 border-r-4 border-amber-400">
+                {topic.instructions}
+              </div>
+            )
+          )}
 
           <div className="divide-y divide-gray-100">
             {topic.entries.map((e) => (

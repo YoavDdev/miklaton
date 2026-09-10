@@ -65,7 +65,7 @@ async function topicsFromGuide(municipalityId) {
   const { data } = await supabase
     .from('call_categories')
     .select(
-      'id, name, display_order, instructions,' +
+      'id, name, display_order,' +
         ' call_category_contacts(external_name, external_phone, external_role,' +
         ' escalation_order, note, active)'
     )
@@ -73,11 +73,14 @@ async function topicsFromGuide(municipalityId) {
     .eq('active', true)
     .order('display_order');
 
+  // ההוראות של המדריך אינן מועתקות בכוונה: אלה נהלי טיפול בשיחה, ארוכים
+  // ולא רלוונטיים למוקדן שמחפש בחג למי להתקשר. מנהל המוקד יכול לכתוב הערה
+  // קצרה משלו לכל נושא.
   return (data || []).map((c) => ({
     call_category_id: c.id,
     name: c.name,
     display_order: c.display_order || 0,
-    instructions: c.instructions,
+    instructions: null,
     entries: (c.call_category_contacts || [])
       .filter((x) => x.active && x.external_name?.trim())
       .map((x) => ({
