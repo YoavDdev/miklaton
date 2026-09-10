@@ -1652,126 +1652,21 @@ git commit -m "feat: באנר חג בדף המוקדן"
 
 ---
 
-## Task 7: תיקון זיהוי החג במנוע הזמינות
+## Task 7: אזהרת חג מעל לוחות הכוננות הרגילים ✅ בוצע
+
+**החלפה לתכנון המקורי.** התכנון היה לתקן את `app/api/call-categories/route.js`
+שיכיר חגים. זה נדחה בהחלטת המשתמש: לוחות הכוננות הרגילים נשארים כפי שהם, ובזמן
+חג מוצגת מעליהם אזהרה שמפנה ללוח החג. שינוי קוד שעובד הוא סיכון; אזהרה אינה
+יכולה לשבור דבר.
 
 **Files:**
-- Modify: `app/api/call-categories/route.js:49-160`
-- Test: `tests/holiday-duty-api.test.js` (הוספה)
+- Create: `components/HolidayGuideNotice.js`
+- Modify: `components/CallGuide.js` — מכסה את `/operator`, `/shift`, `/operator/call-guide`
+- Modify: `app/on-call-query/page.js`, `app/on-call/page.js`
+- **לא** משנה: `app/api/call-categories/route.js`
 
-**Interfaces:**
-- Consumes: `loadPeriods` מ-Task 2, `isHolidayNow` ו-`effectiveDayOfWeek` מ-Task 1.
-
-- [ ] **Step 1: כתוב את הבדיקה הנכשלת**
-
-הוסף ל-`tests/holiday-duty-api.test.js`:
-
-```javascript
-import { isHolidayNow, effectiveDayOfWeek } from '@/lib/holidays';
-
-describe('מנוע הזמינות בחג', () => {
-  const roshHashana = [
-    {
-      id: 'p1',
-      name: 'ראש השנה 5787',
-      starts_at: '2026-09-11T18:32:00+03:00',
-      ends_at: '2026-09-13T19:26:00+03:00',
-    },
-  ];
-
-  it('יום ראשון שהוא חג נבדק כשבת ולא כיום חול', () => {
-    // הבאג: הכונן מוגדר [5,6] ולכן נעלם ביום ראשון, וצוות יום החול מוצג במקומו
-    const sundayChag = new Date('2026-09-13T09:00:00+03:00');
-    expect(effectiveDayOfWeek(roshHashana, sundayChag)).toBe(6);
-    expect([5, 6].includes(effectiveDayOfWeek(roshHashana, sundayChag))).toBe(true);
-  });
-
-  it('שומר שבת אינו זמין בחג', () => {
-    expect(isHolidayNow(roshHashana, new Date('2026-09-12T11:00:00+03:00'))).toBe(true);
-  });
-
-  it('יום ראשון רגיל אינו מושפע', () => {
-    expect(effectiveDayOfWeek(roshHashana, new Date('2026-09-06T09:00:00+03:00'))).toBe(0);
-  });
-});
-```
-
-- [ ] **Step 2: הרץ וודא כישלון**
-
-```bash
-npx vitest run tests/holiday-duty-api.test.js
-```
-
-- [ ] **Step 3: תקן את הראוט**
-
-ב-`app/api/call-categories/route.js`, אחרי טעינת `shabbatTimes` (סביבות שורה 67) הוסף:
-
-```javascript
-    // תקופות החג מה-DB. שאלת "האם עכשיו חג" חייבת להיות מקומית: המוקד עובד
-    // גם כשאין אינטרנט החוצה, ו-hebcal/shabbat לבדו אינו מכיר חגים כלל.
-    let holidayPeriods = [];
-    if (currentTimeOnly) {
-      try {
-        holidayPeriods = await loadPeriods(municipalityId);
-      } catch (e) {
-        console.error('Failed to load holiday periods:', e);
-      }
-    }
-    const onHoliday = isHolidayNow(holidayPeriods, new Date());
-```
-
-עם הייבוא בראש הקובץ:
-
-```javascript
-import { loadPeriods } from '@/lib/holiday-duty-db';
-import { isHolidayNow, effectiveDayOfWeek } from '@/lib/holidays';
-```
-
-החלף את חישוב `currentDay` (שורה 96) ב:
-
-```javascript
-          // בחג יוחזר 6. "חגים זה כמו שישי שבת" — בלי זה, ביום ראשון שהוא חג
-          // נבחר צוות יום החול והמוקדן נשלח לכונן הלא נכון.
-          const currentDay = effectiveDayOfWeek(holidayPeriods, now);
-```
-
-והרחב את בדיקת שומרי השבת (שורה 147):
-
-```javascript
-            if (contact.shabbat_observer) {
-              if (onHoliday) continue; // חג — כמו שבת
-              if (shabbatTimes) {
-                const { candleLighting, havdalah } = shabbatTimes;
-                const shabbatStart = new Date(candleLighting.getTime() - 2 * 60 * 60 * 1000);
-                const shabbatEnd = new Date(havdalah.getTime() + 2 * 60 * 60 * 1000);
-                if (now >= shabbatStart && now <= shabbatEnd) continue;
-              }
-            }
-```
-
-> שים לב: השורה המקורית מסתיימת ב-`continue` בתוך תנאי `now >= shabbatStart && now <= shabbatEnd`. שמור על אותה סמנטיקה בדיוק ואל תשנה את שאר הלולאה.
-
-- [ ] **Step 4: הרץ את הבדיקות**
-
-```bash
-npm test
-```
-
-- [ ] **Step 5: אמת ידנית מול התאריך האמיתי**
-
-```bash
-node -e "
-const { buildPeriodsFromHebcal, effectiveDayOfWeek } = require('./lib/holidays.js');
-" 2>/dev/null || npx vitest run tests/holidays.test.js
-```
-
-- [ ] **Step 6: Commit**
-
-```bash
-git add app/api/call-categories/route.js tests/holiday-duty-api.test.js
-git commit -m "fix: מדריך הכוננויות מכיר חגים - יום ראשון שהוא חג מתנהג כשבת"
-```
-
----
+הרכיב שולף `GET /api/holiday-duty` ומרנדר רק כאשר `isActive` — לפני החג הלוח
+הרגיל עדיין נכון, ואזהרה שתמיד שם מפסיקה להיקרא.
 
 ## Task 8: מסך הקיר וייצוא PDF
 

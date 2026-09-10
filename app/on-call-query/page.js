@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import HolidayGuideNotice from '@/components/HolidayGuideNotice';
 
 const DAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
 
@@ -221,6 +222,7 @@ export default function OnCallQueryPage() {
       </header>
 
       <main className="max-w-3xl mx-auto px-4 py-6">
+        <HolidayGuideNotice />
         {loading ? (
           <div className="text-center py-16 text-gray-500">
             <div className="text-4xl mb-3 animate-pulse">⏳</div>

@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { getMunicipalityId } from '@/lib/municipality';
+import HolidayGuideNotice from '@/components/HolidayGuideNotice';
 
 export default function CallGuide({ compact = false }) {
   const [searchTerm, setSearchTerm] = useState('');
@@ -93,6 +94,8 @@ export default function CallGuide({ compact = false }) {
   }
 
   return (
+    <>
+    <HolidayGuideNotice />
     <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden" dir="rtl">
 
       {/* ── Header ── */}
@@ -323,5 +326,6 @@ export default function CallGuide({ compact = false }) {
         );
       })()}
     </div>
+    </>
   );
 }
