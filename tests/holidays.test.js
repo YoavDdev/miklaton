@@ -7,6 +7,11 @@ import {
   findUpcomingPeriod,
   isHolidayNow,
   effectiveDayOfWeek,
+  dutyWindow,
+  dutyDates,
+  isDutyActive,
+  findActiveDutyPeriod,
+  daysUntil,
 } from '@/lib/holidays';
 
 const fixture = JSON.parse(
@@ -119,5 +124,77 @@ describe('isHolidayNow', () => {
 
   it('אינו קורס על רשימה ריקה', () => {
     expect(isHolidayNow([], new Date())).toBe(false);
+  });
+});
+
+describe('חלון הכוננות - dutyWindow / dutyDates', () => {
+  const periods = buildPeriodsFromHebcal(fixture.items);
+  const roshHashana = { ...periods[0], id: 'p1' };
+
+  it('ברירת המחדל נגזרת מתאריכי החג לפי שעון ישראל', () => {
+    // כניסה 11.9 18:32 ויציאה 13.9 19:26 => שלושה ימי כוננות
+    expect(dutyWindow(roshHashana)).toEqual({ start: '2026-09-11', end: '2026-09-13' });
+  });
+
+  it('מונה את כל ימי החלון כולל קצוות', () => {
+    expect(dutyDates(roshHashana)).toEqual(['2026-09-11', '2026-09-12', '2026-09-13']);
+  });
+
+  it('הגדרה ידנית גוברת על תאריכי החג', () => {
+    const stretched = { ...roshHashana, duty_start_date: '2026-09-10', duty_end_date: '2026-09-14' };
+    expect(dutyWindow(stretched)).toEqual({ start: '2026-09-10', end: '2026-09-14' });
+    expect(dutyDates(stretched)).toHaveLength(5);
+  });
+
+  it('הגדרה חלקית אינה נחשבת - צריך שני הקצוות', () => {
+    const half = { ...roshHashana, duty_start_date: '2026-09-10' };
+    expect(dutyWindow(half)).toEqual({ start: '2026-09-11', end: '2026-09-13' });
+  });
+});
+
+describe('isDutyActive', () => {
+  const periods = buildPeriodsFromHebcal(fixture.items);
+  const roshHashana = { ...periods[0], id: 'p1' };
+
+  it('פעיל כבר ביום שישי בבוקר, לפני כניסת החג', () => {
+    // זו בדיוק הנקודה: מבחינת המוקד הכוננות מתחילה עם היום, לא עם הנרות
+    expect(isDutyActive(roshHashana, new Date('2026-09-11T08:00:00+03:00'))).toBe(true);
+  });
+
+  it('פעיל ביום ראשון האחרון של החג', () => {
+    expect(isDutyActive(roshHashana, new Date('2026-09-13T22:00:00+03:00'))).toBe(true);
+  });
+
+  it('אינו פעיל ביום שלפני', () => {
+    expect(isDutyActive(roshHashana, new Date('2026-09-10T23:00:00+03:00'))).toBe(false);
+  });
+
+  it('אינו פעיל ביום שאחרי', () => {
+    expect(isDutyActive(roshHashana, new Date('2026-09-14T00:30:00+03:00'))).toBe(false);
+  });
+
+  it('מכבד הרחבה ידנית של החלון', () => {
+    const stretched = { ...roshHashana, duty_start_date: '2026-09-10', duty_end_date: '2026-09-14' };
+    expect(isDutyActive(stretched, new Date('2026-09-10T09:00:00+03:00'))).toBe(true);
+    expect(isDutyActive(stretched, new Date('2026-09-14T09:00:00+03:00'))).toBe(true);
+  });
+});
+
+describe('findActiveDutyPeriod ו-daysUntil', () => {
+  const periods = buildPeriodsFromHebcal(fixture.items);
+
+  it('מוצא את ראש השנה ביום שישי בבוקר', () => {
+    const found = findActiveDutyPeriod(periods, new Date('2026-09-11T08:00:00+03:00'));
+    expect(found?.name).toBe('ראש השנה 5787');
+  });
+
+  it('מחזיר null כשאין חג', () => {
+    expect(findActiveDutyPeriod(periods, new Date('2026-09-16T08:00:00+03:00'))).toBeNull();
+  });
+
+  it('daysUntil סופר ימים שלמים לפי שעון ישראל', () => {
+    expect(daysUntil('2026-09-11', new Date('2026-09-10T23:00:00+03:00'))).toBe(1);
+    expect(daysUntil('2026-09-11', new Date('2026-09-11T01:00:00+03:00'))).toBe(0);
+    expect(daysUntil('2026-09-11', new Date('2026-09-08T12:00:00+03:00'))).toBe(3);
   });
 });
