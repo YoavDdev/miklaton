@@ -7,6 +7,7 @@ import { parseTicketsCsv, prepareTickets, detectExportKind, computeAgafTable } f
 import { projectRowsForReport, ilToIso, isoToIl, todayIl } from '@/lib/daily-report-city';
 import { downloadStyledExcel } from '@/lib/daily-report-excel';
 import { downloadPdf } from '@/lib/daily-report-print';
+import { PENDING_TREATMENT } from '@/lib/daily-report-ai';
 
 /**
  * דוח הסיכום היומי (YOA-42, docs/16): שני ייצואים מבינה - קובץ היום
@@ -338,6 +339,64 @@ export default function DailyReportPage() {
       toast(`ה-AI לא זמין (${error.message}) - הוסף ידנית`, { icon: '⚠️' });
     }
   };
+
+  /**
+   * מקור חלופי לאירועים החריגים כשאין הדבקת WhatsApp (החלטת יואב 10.09).
+   * הניסוח נשען על מה שרשום בפניות בלבד; אירוע בלי דרך טיפול מסומן
+   * "ממתין להשלמה" ונספר בהתראה לאחמ"ש, ולא מומצא לו טיפול.
+   */
+  const importFromTickets = async () => {
+    if (!tickets.length) {
+      toast.error('אין פניות - העלה קודם את קובץ היום');
+      return;
+    }
+    setAiStatus('running');
+    try {
+      const payload = tickets.map((t) => ({
+        id: t.id,
+        openedAt: t.openedAt?.toISOString(),
+        department: t.department,
+        subject: t.subject,
+        description: t.description,
+        address: t.address,
+        lastTreatment: t.lastTreatment,
+        agaf: t.agaf,
+      }));
+      const res = await fetch('/api/daily-report/exceptional-from-tickets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ tickets: payload }),
+      });
+      const body = await res.json();
+      if (!body.success) throw new Error(body.error || 'הניסוח נכשל');
+
+      const entries = body.data.map((ev) => ({ ...ev, source: 'tickets' }));
+      setExceptional((prev) => {
+        const existing = new Set(prev.map((e) => e.ticket_id));
+        return [...prev, ...entries.filter((e) => !existing.has(e.ticket_id))];
+      });
+      setAiStatus('done');
+
+      if (!entries.length) {
+        toast('לא זוהו אירועים חריגים בפניות היום', { icon: '🤖' });
+      } else if (body.missing_treatment) {
+        toast(
+          `🤖 נוסחו ${entries.length} אירועים. ${body.missing_treatment} מהם ללא דרך טיפול - נדרש מילוי ידני`,
+          { icon: '⚠️', duration: 8000 }
+        );
+      } else {
+        toast.success(`🤖 נוסחו ${entries.length} אירועים מהפניות - עבור עליהם ואשר`);
+      }
+    } catch (error) {
+      setAiStatus('failed');
+      toast(`ה-AI לא זמין (${error.message}) - הוסף ידנית`, { icon: '⚠️' });
+    }
+  };
+
+  const pendingTreatmentCount = exceptional.filter(
+    (e) => e.treatment === PENDING_TREATMENT
+  ).length;
 
   const updateExceptional = (i, field, value) =>
     setExceptional((prev) => prev.map((e, idx) => (idx === i ? { ...e, [field]: value } : e)));
@@ -672,6 +731,13 @@ export default function DailyReportPage() {
             <section className="bg-white rounded-xl shadow p-5">
               <div className="flex items-center justify-between flex-wrap gap-2 mb-3">
                 <h3 className="font-bold text-gray-900">אירועים חריגים ({exceptional.length} בדוח)</h3>
+                <button
+                  onClick={importFromTickets}
+                  disabled={aiStatus === 'running' || !tickets.length}
+                  className="mr-auto text-sm px-3 py-1.5 rounded-lg bg-slate-700 text-white font-semibold disabled:opacity-40"
+                >
+                  {aiStatus === 'running' ? 'מנסח...' : '🤖 הפק מהפניות'}
+                </button>
                 <div className="flex items-center gap-2 text-xs">
                   {aiStatus === 'running' && <span className="px-2 py-1 rounded bg-blue-50 text-blue-700 font-bold">🤖 מנסח את העדכונים...</span>}
                   {aiStatus === 'failed' && <span className="px-2 py-1 rounded bg-orange-50 text-orange-700 font-bold">⚠️ AI לא זמין - הוסף ידנית</span>}
@@ -680,6 +746,17 @@ export default function DailyReportPage() {
                   </button>
                 </div>
               </div>
+
+              {pendingTreatmentCount > 0 && (
+                <div className="border-2 border-amber-400 bg-amber-50 rounded-lg p-3 mb-4 flex items-start gap-2">
+                  <span className="text-lg">⚠️</span>
+                  <p className="text-sm text-amber-900">
+                    <strong>{pendingTreatmentCount} אירועים ללא דרך טיפול</strong> — מסומנים
+                    &quot;ממתין להשלמה&quot;. הטיפול האמיתי מגיע לרוב בוואטסאפ ואינו נרשם בבינה,
+                    לכן יש להשלים אותו כאן לפני ההפקה.
+                  </p>
+                </div>
+              )}
 
               {/* מקור האמת: עדכוני ה-WhatsApp של היום */}
               <div className="border-2 border-emerald-300 bg-emerald-50/50 rounded-lg p-3 mb-4">
