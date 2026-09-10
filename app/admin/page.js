@@ -121,6 +121,12 @@ export default function AdminPage() {
                 📄 <span className="hidden sm:inline">דוח סיכום יומי</span>
               </button>
               <button
+                onClick={() => router.push('/admin/city-works')}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
+              >
+                🚧 <span className="hidden sm:inline">עבודות בעיר</span>
+              </button>
+              <button
                 onClick={() => router.push('/admin/garbage-schedule')}
                 className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-semibold bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
               >
