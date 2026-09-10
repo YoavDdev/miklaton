@@ -19,8 +19,8 @@ export default function HolidayBanner() {
         const json = await res.json();
         if (!alive || !json.success || !json.period) return;
 
-        const startsIn = new Date(json.period.starts_at).getTime() - Date.now();
-        if (json.isActive || (startsIn > 0 && startsIn <= 48 * 3600 * 1000)) {
+        // לפי חלון הכוננות שמנהל המוקד קבע, לא לפי שעת כניסת החג.
+        if (json.isActive || json.period.duty_starts_in_days <= 2) {
           setState({ period: json.period, isActive: json.isActive });
         }
       } catch {
@@ -47,11 +47,21 @@ export default function HolidayBanner() {
         🕯️ {isActive ? 'מצב חג' : 'חג מתקרב'} — {period.name}
       </span>
       <span className="text-white/85 text-sm mr-2">
-        {isActive ? `צאת החג ${fmt(period.ends_at)}` : `כניסת החג ${fmt(period.starts_at)}`}
+        כוננות {fmtDate(period.duty_start)} עד {fmtDate(period.duty_end)}
+        {isActive ? '' : ` · כניסת החג ${fmt(period.starts_at)}`}
       </span>
       <span className="text-white/70 text-sm mr-2">· לוח הכוננות ▸</span>
     </Link>
   );
+}
+
+function fmtDate(isoDate) {
+  return new Date(`${isoDate}T12:00:00+03:00`).toLocaleDateString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'numeric',
+  });
 }
 
 function fmt(iso) {

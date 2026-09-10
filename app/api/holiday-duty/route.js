@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
 import { requireRole } from '@/lib/auth';
 import { loadPeriods } from '@/lib/holiday-duty-db';
-import { findActivePeriod, findUpcomingPeriod } from '@/lib/holidays';
+import { findActiveDutyPeriod, dutyWindow, daysUntil } from '@/lib/holidays';
 
 const READERS = [
   'operator', 'shift_supervisor', 'call_center_manager',
@@ -22,14 +22,20 @@ export async function GET(request) {
 
   const now = new Date();
   const periods = await loadPeriods(municipalityId);
-  const active = findActivePeriod(periods, now);
+  const active = findActiveDutyPeriod(periods, now);
+
+  // החג הקרוב לפי חלון הכוננות, לא לפי שעת כניסת החג.
+  const upcoming = periods
+    .map((p) => ({ p, inDays: daysUntil(dutyWindow(p).start, now) }))
+    .filter((x) => x.inDays > 0)
+    .sort((a, b) => a.inDays - b.inDays)[0]?.p || null;
 
   let period = null;
   if (!requested || requested === 'active') {
     // ברירת המחדל היא מה שהמוקדן צריך עכשיו: החג הנוכחי, ואם אין - הקרוב.
-    period = active || findUpcomingPeriod(periods, now, 24 * 14);
+    period = active || upcoming;
   } else if (requested === 'upcoming') {
-    period = findUpcomingPeriod(periods, now, 24 * 14);
+    period = upcoming;
   } else {
     period = periods.find((p) => p.id === requested) || null;
   }
@@ -37,6 +43,16 @@ export async function GET(request) {
   if (!period) {
     return NextResponse.json({ success: true, period: null, isActive: false, topics: [] });
   }
+
+  // החלון המחושב נשלח ללקוח כדי שכל הצרכנים - לוח, באנר ואזהרה - יסתמכו
+  // על אותו מקור ולא יחשבו אותו כל אחד לעצמו.
+  const window = dutyWindow(period);
+  const periodOut = {
+    ...period,
+    duty_start: window.start,
+    duty_end: window.end,
+    duty_starts_in_days: daysUntil(window.start, now),
+  };
 
   const { data: topics, error } = await supabase
     .from('holiday_duty_topics')
@@ -65,7 +81,7 @@ export async function GET(request) {
 
   return NextResponse.json({
     success: true,
-    period,
+    period: periodOut,
     isActive: active?.id === period.id,
     topics: shaped,
   });

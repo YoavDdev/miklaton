@@ -4,17 +4,24 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import toast from 'react-hot-toast';
 import { getMunicipalityId } from '@/lib/municipality';
 
-/** ימי החג לבחירה ב-applies_dates. */
-function holidayDates(period) {
-  if (!period) return [];
+/**
+ * ימי חלון הכוננות לבחירה ב-applies_dates.
+ * החלון מגיע מהשרת (duty_start/duty_end) כדי שהעורך והלוח יסכימו תמיד.
+ */
+function windowDates(period) {
+  if (!period?.duty_start || !period?.duty_end) return [];
   const out = [];
-  const end = new Date(period.ends_at);
-  const cur = new Date(period.starts_at);
-  while (cur <= end) {
-    out.push(cur.toLocaleDateString('en-CA', { timeZone: 'Asia/Jerusalem' }));
-    cur.setDate(cur.getDate() + 1);
+  const step = (d) => {
+    const t = new Date(`${d}T00:00:00Z`);
+    t.setUTCDate(t.getUTCDate() + 1);
+    return t.toISOString().slice(0, 10);
+  };
+  let cur = period.duty_start;
+  for (let i = 0; cur <= period.duty_end && i < 60; i += 1) {
+    out.push(cur);
+    cur = step(cur);
   }
-  return [...new Set(out)];
+  return out;
 }
 
 function dayLabel(iso) {
@@ -74,7 +81,7 @@ export default function HolidayDutyManager() {
     })();
   }, [mid, loadBoard]);
 
-  const dates = useMemo(() => holidayDates(board?.period), [board]);
+  const dates = useMemo(() => windowDates(board?.period), [board]);
 
   async function patch(url, body) {
     const res = await fetch(url, {
@@ -98,6 +105,17 @@ export default function HolidayDutyManager() {
       toast.success(`נוצרו ${json.seeded} נושאים`);
       await loadBoard(periodId);
     } else toast.error(json.error);
+  };
+
+  const saveWindow = async (startDate, endDate) => {
+    if (startDate && endDate && endDate < startDate) {
+      toast.error('תאריך הסיום מוקדם מתאריך ההתחלה');
+      return;
+    }
+    await patch(`/api/holiday-duty/periods/${periodId}`, {
+      duty_start_date: startDate || null,
+      duty_end_date: endDate || null,
+    });
   };
 
   const addTopic = async () => {
@@ -205,9 +223,43 @@ export default function HolidayDutyManager() {
         </select>
         {board?.isActive && (
           <span className="text-sm bg-amber-100 text-amber-800 rounded-full px-3 py-1">
-            החג פעיל עכשיו
+            הכוננות פעילה עכשיו
           </span>
         )}
+
+        <div className="w-full border-t border-gray-100 pt-3 mt-1 flex flex-wrap items-end gap-3">
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              כוננויות מתאריך
+            </label>
+            <input
+              type="date"
+              value={board?.period?.duty_start || ''}
+              onChange={(e) => saveWindow(e.target.value, board?.period?.duty_end)}
+              className="rounded-xl border border-gray-300 px-3 py-2"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-gray-600 mb-1">עד תאריך</label>
+            <input
+              type="date"
+              value={board?.period?.duty_end || ''}
+              onChange={(e) => saveWindow(board?.period?.duty_start, e.target.value)}
+              className="rounded-xl border border-gray-300 px-3 py-2"
+            />
+          </div>
+          <button
+            onClick={() => saveWindow(null, null)}
+            className="px-3 py-2 rounded-xl bg-gray-100 text-gray-700 text-sm"
+          >
+            חזור לימי החג
+          </button>
+          <p className="text-xs text-gray-500 basis-full">
+            {board?.period?.duty_start_date
+              ? 'חלון שהוגדר ידנית. הימים שנבחרים לכל כונן נלקחים מהחלון הזה.'
+              : `ברירת מחדל לפי ימי החג. אפשר להרחיב - למשל להתחיל כבר ביום שישי בבוקר.`}
+          </p>
+        </div>
       </div>
 
       {/* לוח ריק - זריעה */}
@@ -385,7 +437,7 @@ export default function HolidayDutyManager() {
             />
 
             <label className="block text-sm font-semibold text-gray-700">
-              ימים בתוך החג (ריק = כל ימי החג)
+              ימים בתוך חלון הכוננות (ריק = כל החלון)
             </label>
             <div className="flex flex-wrap gap-2">
               {dates.map((d) => {

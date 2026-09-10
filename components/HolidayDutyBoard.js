@@ -49,7 +49,10 @@ export default function HolidayDutyBoard({ period, topics = [], isActive = false
           {isActive ? '🕯️ מצב חג פעיל' : '🕯️ לוח כוננות חג'} — {period.name}
         </div>
         <div className="text-white/80 text-sm">
-          כניסה {fmt(period.starts_at)} · יציאה {fmt(period.ends_at)}
+          כוננות {fmtDate(period.duty_start)} עד {fmtDate(period.duty_end)}
+        </div>
+        <div className="text-white/60 text-xs">
+          החג עצמו: {fmt(period.starts_at)} עד {fmt(period.ends_at)}
         </div>
         {period.notes && <div className="text-white/90 text-sm mt-1">{period.notes}</div>}
       </div>
@@ -127,6 +130,16 @@ export default function HolidayDutyBoard({ period, topics = [], isActive = false
       ))}
     </div>
   );
+}
+
+function fmtDate(isoDate) {
+  if (!isoDate) return '';
+  return new Date(`${isoDate}T12:00:00+03:00`).toLocaleDateString('he-IL', {
+    timeZone: 'Asia/Jerusalem',
+    weekday: 'short',
+    day: 'numeric',
+    month: 'numeric',
+  });
 }
 
 function fmt(iso) {
