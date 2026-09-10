@@ -20,6 +20,8 @@ const PUBLIC_PAGES = {
   '/register': 'הרשמה ציבורית (התפקיד ננעל בשרת - YOA-12)',
   '/reset-password': 'איפוס סיסמה מקישור',
   '/duty-form/[departmentId]': 'טופס תורנות בקישור חתום HMAC שנשלח בוואטסאפ',
+  '/holiday-share/[periodId]':
+    'לוח כוננות חג לצפייה בקישור חתום HMAC - נשלח בוואטסאפ לגורמים ללא חשבון',
   '/event/join/[token]': 'הצטרפות אורח לאירוע לפי טוקן הזמנה',
   '/event/live/[token]': 'צפייה באירוע לפי טוקן הזמנה',
   '/survey/[token]': 'מילוי סקר על ידי תושב',

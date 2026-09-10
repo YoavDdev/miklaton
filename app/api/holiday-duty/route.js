@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase-server';
-import { requireRole } from '@/lib/auth';
+import { requireRole, signHolidayBoardToken } from '@/lib/auth';
 import { loadPeriods } from '@/lib/holiday-duty-db';
 import { findActiveDutyPeriod, dutyWindow, daysUntil } from '@/lib/holidays';
 
@@ -52,6 +52,8 @@ export async function GET(request) {
     duty_start: window.start,
     duty_end: window.end,
     duty_starts_in_days: daysUntil(window.start, now),
+    // קישור הצפייה הציבורי. נבנה כאן ולא בלקוח כדי שהסוד לא יעזוב את השרת.
+    share_url: `/holiday-share/${period.id}?t=${signHolidayBoardToken(period.id)}`,
   };
 
   const { data: topics, error } = await supabase
